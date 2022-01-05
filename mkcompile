@@ -1,0 +1,7 @@
+# Matlab compilation script for posix only
+echo mcc -m $1.m > $2/compile
+echo mkdir run_$1.dir >> $2/compile
+echo cp $1 run_$1.dir/ >> $2/compile
+echo cp run_$1.sh run_$1.dir/ >> $2/compile
+echo zip -r run_$1.dir.zip run_$1.dir >> $2/compile
+chmod u+x $2/compile

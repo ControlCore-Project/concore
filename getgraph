@@ -1,0 +1,3 @@
+cp ~/Downloads/*.graphml .
+rm ~/Downloads/*.graphml 
+

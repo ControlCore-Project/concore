@@ -1,0 +1,15 @@
+#!/bin/bash
+if [ -d $1 ]
+then
+   if [ -e $1/stop ]
+   then
+      $1/stop 
+      $1/clear
+      rm -rf $1
+   else
+      echo "$1 is not a concore study"
+   fi
+else
+   echo "$1 does not exist"
+fi
+

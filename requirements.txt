@@ -1,0 +1,7 @@
+beautifulsoup4
+lxml
+tensorflow
+numpy
+scipy
+matplotlib
+cvxopt
