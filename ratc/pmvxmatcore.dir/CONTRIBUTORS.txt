@@ -1,0 +1,1 @@
+This is a modification of the 16-bit LNS ALU and Matrix Processor. P.D.Vouzis et al. A system on chip implementation for embedded real-time model predictive control. IEEE Control Systems Technology. Vol. 17. No. 5. Pages 1006 -- 1018. September 2009.

@@ -1,0 +1,56 @@
+FROM ubuntu:20.04
+
+USER root
+RUN apt-get update 
+RUN apt-get install -y build-essential g++ libgl1-mesa-glx libx11-6
+
+RUN apt-get install -y python3.8
+RUN apt-get install -y python3-pip
+
+COPY . /src 
+RUN pip install \ 
+	absl-py==0.12.0 \              
+ 	cvxopt==1.2.6 \         
+	future==0.18.2 \          
+	h5py==3.1.0 \   
+	httplib2==0.14.0 \              
+	keras-nightly==2.5.0.dev2021032900 \ 
+	Keras-Preprocessing==1.1.2 \              
+	kiwisolver==1.3.1 \              
+	lockfile==0.12.2 \             
+	matplotlib==3.4.2 \              
+	numpy==1.19.5 \             
+	opt-einsum==3.3.0 \              
+	paramiko==2.6.0 \              
+	Pillow==7.0.0 \              
+	protobuf==3.17.1 \             
+	PyJWT==1.7.1 \              
+	grpcio==1.34.1 \
+	pyparsing==2.4.7 \              
+	pyRFC3339==1.1 \                
+	python-dateutil==2.7.3 \              
+	PyYAML==5.3.1 \              
+	requests==2.22.0 \             
+	requests-oauthlib==1.3.0 \              
+	requests-unixsocket==0.2.0 \              
+	rsa==4.7.2 \              
+	scipy==1.6.1 \              
+	SecretStorage==2.3.1 \              
+	setuptools==45.2.0 \             
+	simplejson==3.16.0 \             
+	six==1.15.0 \             
+	soupsieve==2.2.1 \               
+	tensorboard==2.5.0 \              
+	tensorboard-data-server==0.6.1 \              
+	tensorboard-plugin-wit==1.8.0 \              
+	tensorflow==2.5.0 \              
+	tensorflow-estimator==2.5.0 \              
+	termcolor==1.1.0 \              
+	typing-extensions==3.7.4.3 \            
+	urllib3==1.25.8 \             
+	wadllib==1.3.3 \              
+	Werkzeug==2.0.1 \              
+	wheel==0.36.2 \             
+	wrapt==1.12.1             
+WORKDIR /src
+CMD ["python3","candr.py"]

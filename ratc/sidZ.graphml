@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd" xmlns:y="http://www.yworks.com/xml/graphml">
+  <key for="node" id="d6" yfiles.type="nodegraphics"/>
+  <key for="edge" id="d10" yfiles.type="edgegraphics"/>
+  <graph edgedefault="directed" id="1638057479456" projectName="sidZ">
+    <node id="3370c9cb-3c4b-4a66-a375-e0b57e04974d">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="50" width="166" x="230.11854776884869" y="94.75328436415931"/>
+          <y:Fill color="#ffcc00" opacity="1"/>
+          <y:BorderStyle color="#000" width="1"/>
+          <y:NodeLabel>CZ:cvxpymatcore.py</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="52780b17-393e-4b78-8d58-b37a3c09bd6b">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="50" width="109" x="221.7238027515036" y="289.9311060174322"/>
+          <y:Fill color="#ffcc00" opacity="1"/>
+          <y:BorderStyle color="#000" width="1"/>
+          <y:NodeLabel>PZ:pmsid.py</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <edge id="0" source="52780b17-393e-4b78-8d58-b37a3c09bd6b" target="3370c9cb-3c4b-4a66-a375-e0b57e04974d">
+      <data key="d10">
+        <y:GenericEdge configuration="com.yworks.bpmn.Connection">
+          <y:LineStyle color="#7c4dff" width="1" type="solid"/>
+          <y:Arrows source="none" target="delta"/>
+          <y:EdgeLabel>VPY</y:EdgeLabel>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
+            <y:Point x="226.45880966877823" y="179.84219519079576"/>
+          </y:Path>
+        </y:GenericEdge>
+      </data>
+    </edge>
+    <edge id="1" source="3370c9cb-3c4b-4a66-a375-e0b57e04974d" target="52780b17-393e-4b78-8d58-b37a3c09bd6b">
+      <data key="d10">
+        <y:GenericEdge configuration="com.yworks.bpmn.Connection">
+          <y:LineStyle color="#827717" width="1" type="solid"/>
+          <y:Arrows source="none" target="delta"/>
+          <y:EdgeLabel>VCY</y:EdgeLabel>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
+            <y:Point x="203.09525317740693" y="204.52048798907032"/>
+          </y:Path>
+        </y:GenericEdge>
+      </data>
+    </edge>
+    <actionHistory>
+      <tid>1638057600083</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>DEL_NODE</actionName>
+        <parameters>WyIzMzcwYzljYi0zYzRiLTRhNjYtYTM3NS1lMGI1N2UwNDk3NGQiXQ==</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>ADD_NODE</actionName>
+        <parameters>WyJDWjpjdnhweW1hdGNvcmUucHkiLHsid2lkdGgiOjE2NiwiaGVpZ2h0Ijo1MCwic2hhcGUiOiJyZWN0YW5nbGUiLCJvcGFjaXR5IjoxLCJiYWNrZ3JvdW5kQ29sb3IiOiIjZmZjYzAwIiwiYm9yZGVyQ29sb3IiOiIjMDAwIiwiYm9yZGVyV2lkdGgiOjF9LCJvcmRpbiIseyJ4IjoyMzAuMTE4NTQ3NzY4ODQ4NjksInkiOjk0Ljc1MzI4NDM2NDE1OTMxfSx7fSwiMzM3MGM5Y2ItM2M0Yi00YTY2LWEzNzUtZTBiNTdlMDQ5NzRkIl0=</parameters>
+      </equivalent>
+    </actionHistory>
+    <actionHistory>
+      <tid>1638057641173</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>SET_POS</actionName>
+        <parameters>WyIzMzcwYzljYi0zYzRiLTRhNjYtYTM3NS1lMGI1N2UwNDk3NGQiLHsieCI6MTAwLCJ5IjoxMDB9LHsieCI6MjMwLjExODU0Nzc2ODg0ODY5LCJ5Ijo5NC43NTMyODQzNjQxNTkzMX1d</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>SET_POS</actionName>
+        <parameters>WyIzMzcwYzljYi0zYzRiLTRhNjYtYTM3NS1lMGI1N2UwNDk3NGQiLHsieCI6MjMwLjExODU0Nzc2ODg0ODY5LCJ5Ijo5NC43NTMyODQzNjQxNTkzMX0seyJ4IjoxMDAsInkiOjEwMH1d</parameters>
+      </equivalent>
+    </actionHistory>
+    <actionHistory>
+      <tid>1638057661328</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>DEL_NODE</actionName>
+        <parameters>WyI1Mjc4MGIxNy0zOTNlLTRiNzgtOGQ1OC1iMzdhM2MwOWJkNmIiXQ==</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>ADD_NODE</actionName>
+        <parameters>WyJQWjpwbXNpZC5weSIseyJ3aWR0aCI6MTA5LCJoZWlnaHQiOjUwLCJzaGFwZSI6InJlY3RhbmdsZSIsIm9wYWNpdHkiOjEsImJhY2tncm91bmRDb2xvciI6IiNmZmNjMDAiLCJib3JkZXJDb2xvciI6IiMwMDAiLCJib3JkZXJXaWR0aCI6MX0sIm9yZGluIix7IngiOjIyMS43MjM4MDI3NTE1MDM2LCJ5IjoyODkuOTMxMTA2MDE3NDMyMn0se30sIjUyNzgwYjE3LTM5M2UtNGI3OC04ZDU4LWIzN2EzYzA5YmQ2YiJd</parameters>
+      </equivalent>
+    </actionHistory>
+    <actionHistory>
+      <tid>1638057670253</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>SET_POS</actionName>
+        <parameters>WyI1Mjc4MGIxNy0zOTNlLTRiNzgtOGQ1OC1iMzdhM2MwOWJkNmIiLHsieCI6MTAwLCJ5IjoxMDB9LHsieCI6MjIxLjcyMzgwMjc1MTUwMzYsInkiOjI4OS45MzExMDYwMTc0MzIyfV0=</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>SET_POS</actionName>
+        <parameters>WyI1Mjc4MGIxNy0zOTNlLTRiNzgtOGQ1OC1iMzdhM2MwOWJkNmIiLHsieCI6MjIxLjcyMzgwMjc1MTUwMzYsInkiOjI4OS45MzExMDYwMTc0MzIyfSx7IngiOjEwMCwieSI6MTAwfV0=</parameters>
+      </equivalent>
+    </actionHistory>
+    <actionHistory>
+      <tid>1638057673423</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>DEL_EDGE</actionName>
+        <parameters>WyIxOGNmNDA3Ni03ZWFmLTRkOTgtYWJhNS00YWM4YjJjMmRiYzEiXQ==</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>ADD_EDGE</actionName>
+        <parameters>W3sic291cmNlSUQiOiI1Mjc4MGIxNy0zOTNlLTRiNzgtOGQ1OC1iMzdhM2MwOWJkNmIiLCJ0YXJnZXRJRCI6IjMzNzBjOWNiLTNjNGItNGE2Ni1hMzc1LWUwYjU3ZTA0OTc0ZCIsImxhYmVsIjoiVlBZIiwic3R5bGUiOnsidGhpY2tuZXNzIjoxLCJiYWNrZ3JvdW5kQ29sb3IiOiIjN2M0ZGZmIiwic2hhcGUiOiJzb2xpZCJ9LCJpZCI6IjE4Y2Y0MDc2LTdlYWYtNGQ5OC1hYmE1LTRhYzhiMmMyZGJjMSJ9XQ==</parameters>
+      </equivalent>
+    </actionHistory>
+    <actionHistory>
+      <tid>1638057686174</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>DEL_EDGE</actionName>
+        <parameters>WyJkNGRhN2Q2YS1kNjYzLTQ1YjctODg2Ny02ZDk4MTJlMGY4M2IiXQ==</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>ADD_EDGE</actionName>
+        <parameters>W3sic291cmNlSUQiOiIzMzcwYzljYi0zYzRiLTRhNjYtYTM3NS1lMGI1N2UwNDk3NGQiLCJ0YXJnZXRJRCI6IjUyNzgwYjE3LTM5M2UtNGI3OC04ZDU4LWIzN2EzYzA5YmQ2YiIsImxhYmVsIjoiVkNZIiwic3R5bGUiOnsidGhpY2tuZXNzIjoxLCJiYWNrZ3JvdW5kQ29sb3IiOiIjODI3NzE3Iiwic2hhcGUiOiJzb2xpZCJ9LCJpZCI6ImQ0ZGE3ZDZhLWQ2NjMtNDViNy04ODY3LTZkOTgxMmUwZjgzYiJ9XQ==</parameters>
+      </equivalent>
+    </actionHistory>
+  </graph>
+</graphml>

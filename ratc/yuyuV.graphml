@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd" xmlns:y="http://www.yworks.com/xml/graphml">
+  <key for="node" id="d6" yfiles.type="nodegraphics"/>
+  <key for="edge" id="d10" yfiles.type="edgegraphics"/>
+  <graph edgedefault="directed" id="1635447705223" projectName="testZZ">
+    <node id="fcf58e4e-1b1f-46b1-bf59-a7e76df2a2c2">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="50" width="164" x="100" y="100"/>
+          <y:Fill color="#ffcc00" opacity="1"/>
+          <y:BorderStyle color="#000" width="1"/>
+          <y:NodeLabel>CZ:cvxpymatcore.py</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="89401945-454c-41d8-ae17-aed09302d884">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="50" width="152" x="97" y="263"/>
+          <y:Fill color="#ffcc00" opacity="1"/>
+          <y:BorderStyle color="#000" width="1"/>
+          <y:NodeLabel>PZ:pmvxmatcore.v</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <edge id="0" source="fcf58e4e-1b1f-46b1-bf59-a7e76df2a2c2" target="89401945-454c-41d8-ae17-aed09302d884">
+      <data key="d10">
+        <y:GenericEdge configuration="com.yworks.bpmn.Connection">
+          <y:LineStyle color="#9c27b0" width="1" type="solid"/>
+          <y:Arrows source="none" target="delta"/>
+          <y:EdgeLabel>VCY</y:EdgeLabel>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
+            <y:Point x="98.26993865030678" y="194"/>
+          </y:Path>
+        </y:GenericEdge>
+      </data>
+    </edge>
+    <edge id="1" source="89401945-454c-41d8-ae17-aed09302d884" target="fcf58e4e-1b1f-46b1-bf59-a7e76df2a2c2">
+      <data key="d10">
+        <y:GenericEdge configuration="com.yworks.bpmn.Connection">
+          <y:LineStyle color="#827717" width="1" type="solid"/>
+          <y:Arrows source="none" target="delta"/>
+          <y:EdgeLabel>VPY</y:EdgeLabel>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
+            <y:Point x="121.3964232006404" y="168.59412942684344"/>
+          </y:Path>
+        </y:GenericEdge>
+      </data>
+    </edge>
+    <actionHistory>
+      <tid>1635780145566</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>DEL_NODE</actionName>
+        <parameters>WyJmY2Y1OGU0ZS0xYjFmLTQ2YjEtYmY1OS1hN2U3NmRmMmEyYzIiXQ==</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>ADD_NODE</actionName>
+        <parameters>WyJDWjpjdnhweW1hdGNvcmUucHkiLHsid2lkdGgiOjE2NCwiaGVpZ2h0Ijo1MCwic2hhcGUiOiJyZWN0YW5nbGUiLCJvcGFjaXR5IjoxLCJiYWNrZ3JvdW5kQ29sb3IiOiIjZmZjYzAwIiwiYm9yZGVyQ29sb3IiOiIjMDAwIiwiYm9yZGVyV2lkdGgiOjF9LCJvcmRpbiIseyJ4IjoxMDAsInkiOjEwMH0se30sImZjZjU4ZTRlLTFiMWYtNDZiMS1iZjU5LWE3ZTc2ZGYyYTJjMiJd</parameters>
+      </equivalent>
+    </actionHistory>
+    <actionHistory>
+      <tid>1635780176685</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>DEL_NODE</actionName>
+        <parameters>WyI4OTQwMTk0NS00NTRjLTQxZDgtYWUxNy1hZWQwOTMwMmQ4ODQiXQ==</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>ADD_NODE</actionName>
+        <parameters>WyJQWjpwbXZ4bWF0Y29yZS52Iix7IndpZHRoIjoxNTIsImhlaWdodCI6NTAsInNoYXBlIjoicmVjdGFuZ2xlIiwib3BhY2l0eSI6MSwiYmFja2dyb3VuZENvbG9yIjoiI2ZmY2MwMCIsImJvcmRlckNvbG9yIjoiIzAwMCIsImJvcmRlcldpZHRoIjoxfSwib3JkaW4iLHsieCI6OTcsInkiOjI2M30se30sIjg5NDAxOTQ1LTQ1NGMtNDFkOC1hZTE3LWFlZDA5MzAyZDg4NCJd</parameters>
+      </equivalent>
+    </actionHistory>
+    <actionHistory>
+      <tid>1635780183856</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>SET_POS</actionName>
+        <parameters>WyI4OTQwMTk0NS00NTRjLTQxZDgtYWUxNy1hZWQwOTMwMmQ4ODQiLHsieCI6MTEwLCJ5IjoxMTB9LHsieCI6OTcsInkiOjI2M31d</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>SET_POS</actionName>
+        <parameters>WyI4OTQwMTk0NS00NTRjLTQxZDgtYWUxNy1hZWQwOTMwMmQ4ODQiLHsieCI6OTcsInkiOjI2M30seyJ4IjoxMTAsInkiOjExMH1d</parameters>
+      </equivalent>
+    </actionHistory>
+    <actionHistory>
+      <tid>1635780188299</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>DEL_EDGE</actionName>
+        <parameters>WyIwZTA5NjZiMS0yNThhLTRlMjMtOGRiZS0wMTY3MTVlM2Y0OTUiXQ==</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>ADD_EDGE</actionName>
+        <parameters>W3sic291cmNlSUQiOiJmY2Y1OGU0ZS0xYjFmLTQ2YjEtYmY1OS1hN2U3NmRmMmEyYzIiLCJ0YXJnZXRJRCI6Ijg5NDAxOTQ1LTQ1NGMtNDFkOC1hZTE3LWFlZDA5MzAyZDg4NCIsImxhYmVsIjoiVkNZIiwic3R5bGUiOnsidGhpY2tuZXNzIjoxLCJiYWNrZ3JvdW5kQ29sb3IiOiIjOWMyN2IwIiwic2hhcGUiOiJzb2xpZCJ9LCJpZCI6IjBlMDk2NmIxLTI1OGEtNGUyMy04ZGJlLTAxNjcxNWUzZjQ5NSJ9XQ==</parameters>
+      </equivalent>
+    </actionHistory>
+    <actionHistory>
+      <tid>1635780198116</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>DEL_EDGE</actionName>
+        <parameters>WyJhMmNhZTkxZS1iZjM4LTQ5ZjktYWQ3Ni1iZjY1ZWVmNjM3MjQiXQ==</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>ADD_EDGE</actionName>
+        <parameters>W3sic291cmNlSUQiOiI4OTQwMTk0NS00NTRjLTQxZDgtYWUxNy1hZWQwOTMwMmQ4ODQiLCJ0YXJnZXRJRCI6ImZjZjU4ZTRlLTFiMWYtNDZiMS1iZjU5LWE3ZTc2ZGYyYTJjMiIsImxhYmVsIjoiVlBZIiwic3R5bGUiOnsidGhpY2tuZXNzIjoxLCJiYWNrZ3JvdW5kQ29sb3IiOiIjODI3NzE3Iiwic2hhcGUiOiJzb2xpZCJ9LCJpZCI6ImEyY2FlOTFlLWJmMzgtNDlmOS1hZDc2LWJmNjVlZWY2MzcyNCJ9XQ==</parameters>
+      </equivalent>
+    </actionHistory>
+  </graph>
+</graphml>
