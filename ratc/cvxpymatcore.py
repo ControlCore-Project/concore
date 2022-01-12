@@ -9,7 +9,7 @@ import cvxopt
 from cvxopt import solvers
 import time
 
-GENERATE_PLOT = 0
+GENERATE_PLOT = 1
 
 def Get_MPC_Constants():
     MPC_data = sio.loadmat('MPC_data.mat', struct_as_record = False, squeeze_me = True)
