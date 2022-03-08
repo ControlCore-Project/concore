@@ -18,7 +18,7 @@ Please try to write meaningful commit messages.
 
 Have you got requests for enhancements or encountered a bug? Please open an issue in the [bug tracker](https://github.com/ControlCore-Project/concore/issues) if it is not already reported there.
 
-If you have questions and clarifications that are not bug reports, please use our [Discussions forum](https://github.com/ControlCore-Project/concore/discussions)
+If you have questions and clarifications that are not bug reports, please use our [Discussions forum](https://github.com/ControlCore-Project/concore/discussions).
 
 
 # Commits and pull requests
