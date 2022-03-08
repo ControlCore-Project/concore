@@ -9,4 +9,4 @@ concore is a lightweight Python-based protocol to simulate neuromodulation contr
 
 # Using _concore_
 
-Usage instructions can be found [here] https://control-core.readthedocs.io/en/latest/usage.html.
+Usage instructions can be found [here](https://control-core.readthedocs.io/en/latest/usage.html).
