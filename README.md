@@ -14,6 +14,6 @@ Usage instructions can be found [here](https://control-core.readthedocs.io/en/la
 
 # Citing _concore_
 
-If you use _concore_ in your research, please cite the below papers:
+If you use _concore_ in your research, please cite the below paper:
 
 * Kathiravelu, P., Arnold, M., Fleischer, J., Yao, Y., Awasthi, S., Goel, A. K., Branen, A., Sarikhani, P., Kumar, G., Kothare, M. and Mahmoudi, B. **CONTROL-CORE: A Framework for Simulation and Design of Closed-Loop Peripheral Neuromodulation Control Systems**. In IEEE Access. Accepted. March 2022. 
