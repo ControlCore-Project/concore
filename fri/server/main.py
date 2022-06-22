@@ -12,9 +12,6 @@ app = Flask(__name__)
 app.secret_key = "secret key"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-@app.route('/')
-def hello_world():
-    return render_template('home.html')
 
 @app.route('/multiple-files-upload', methods=['POST'])
 def upload_file():
