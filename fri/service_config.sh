@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SERVICES=('init' 'ctl' 'pm' 'cleanup')
+SERVICES=('upload_file' 'execute')
 for service in "${SERVICES[@]}"
 do
 	name="name="$service
