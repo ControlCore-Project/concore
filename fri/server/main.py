@@ -13,8 +13,8 @@ app.secret_key = "secret key"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-@app.route('/multiple-files-upload', methods=['POST'])
-def upload_file():
+@app.route('/upload', methods=['POST'])
+def upload():
 	if 'files[]' not in request.files:
 		resp = jsonify({'message' : 'No file in the request'})
 		resp.status_code = 400
