@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SERVICES=('upload' 'execute')
+SERVICES=('upload' 'execute' 'download')
 for service in "${SERVICES[@]}"
 do
 	name="name="$service
