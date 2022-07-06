@@ -1,5 +1,6 @@
 import requests
 import os
+import webbrowser
 
 # function to test upload() method.
 def upload():
@@ -36,9 +37,12 @@ def execute():
 
   return response.text
 
-  # ********
-  # To Download call the url .../download/test?fetch=<filename>&apikey=xyz 
+# or 
+def download():
+  url = "http://127.0.0.1:5000/download/test?fetch=f1.txt&apikey=xyz"
+  webbrowser.open(url)
 
 upload()
 execute()
+download()
 
