@@ -1,5 +1,6 @@
 import requests
 import os
+import urllib.request
 
 # function to test upload() method.
 def upload():
@@ -15,7 +16,7 @@ def upload():
 
   response = requests.request("POST", url, headers=headers, data=payload, files=files)
 
-  return response.text
+  print(response.text)
 
 
 # # *******
@@ -34,11 +35,14 @@ def execute():
 
   response = requests.request("POST", url, headers=headers, data=payload, files=files)
 
-  return response.text
+  print(response.text)
 
-  # ********
-  # To Download call the url .../download/test?fetch=<filename>&apikey=xyz 
+# function to test download() method.
+def download():
+  url = "http://127.0.0.1:5000/download/test?fetch=f1.txt&apikey=xyz"
+  urllib.request.urlretrieve(url, "f1.txt")
 
 upload()
 execute()
+download()
 
