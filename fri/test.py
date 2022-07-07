@@ -37,7 +37,7 @@ def execute():
 
   print(response.text)
 
-# or 
+# function to test download() method.
 def download():
   url = "http://127.0.0.1:5000/download/test?fetch=f1.txt&apikey=xyz"
   urllib.request.urlretrieve(url, "f1.txt")
