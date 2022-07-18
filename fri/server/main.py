@@ -90,16 +90,14 @@ def execute(dir):
         resp.status_code = 500
         return resp
 
-# to download /build/<dir>?fetch=<graphml>. For example, /build/test?fetch=sample1&apikey=xyz
+# to download /build/<dir>?fetch=<graphml>. For example, /build/test?fetch=sample1
 @app.route('/build/<dir>', methods=['POST'])
 def build(dir):
-    graphml_file = request.args.get('fetch')
-    apikey = request.args.get('apikey')
-    dirname = dir + "_" + apikey        # Directory for debug
-    makestudy_dir = dirname+ "/" + graphml_file   #for makestudy
+    graphml_file = request.args.get('fetch')      
+    makestudy_dir = dir+ "/" + graphml_file   #for makestudy
     cur_path = os.getcwd()
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
-    dir_path = os.path.abspath(os.path.join(concore_path, graphml_file))
+    dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
     if not os.path.exists(secure_filename(dir_path)):
         p1 = call(["./makestudy", makestudy_dir], cwd=concore_path)
         if(p1 == 0):
