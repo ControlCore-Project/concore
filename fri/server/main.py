@@ -90,24 +90,26 @@ def execute(dir):
         resp.status_code = 500
         return resp
 
+# to download /build/<dir>?fetch=<graphml>. For example, /build/test?fetch=sample1&apikey=xyz
 @app.route('/build/<dir>', methods=['POST'])
 def build(dir):
-    makestudy_dir = "demo" + "/" + dir
+    graphml_file = request.args.get('fetch')
+    apikey = request.args.get('apikey')
+    dirname = dir + "_" + apikey        # Directory for debug
+    makestudy_dir = dirname+ "/" + graphml_file   #for makestudy
     cur_path = os.getcwd()
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
-    dir_path = os.path.abspath(os.path.join(concore_path, dir))
+    dir_path = os.path.abspath(os.path.join(concore_path, graphml_file))
     if not os.path.exists(secure_filename(dir_path)):
         p1 = call(["./makestudy", makestudy_dir], cwd=concore_path)
         if(p1 == 0):
             resp = jsonify({'message': 'Directory successfully created'})
             resp.status_code = 201
-            return resp
         else:
             resp = jsonify({'message': 'There is an Error'})
-            resp.status_code = 500
-            return resp        
+            resp.status_code = 500        
     call(["./build"], cwd=dir_path)   
-    return resp  
+    return resp 
 
 
 @app.route('/debug/<dir>', methods=['POST'])
@@ -124,6 +126,7 @@ def debug(dir):
         resp = jsonify({'message': 'There is an Error'})
         resp.status_code = 500
         return resp  
+
 
 
 # to download /download/<dir>?fetch=<downloadfile>. For example, /download/test?fetch=example.py.out&apikey=xyz
@@ -144,8 +147,7 @@ def download(dir):
         resp = jsonify({'message': 'file not found'})
         resp.status_code = 400
         return resp
-
-
+        
 @app.route('/destroy/<dir>', methods=['POST'])
 def destroy(dir):
     cur_path = os.getcwd()
