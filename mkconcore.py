@@ -595,6 +595,9 @@ if (concoretype=="docker"):
 #remaining code deals only with posix or windows
 
 #copy sourcefiles from ./src into corresponding directories
+if concoretype=="posix":
+    fbuild.write('#!/bin/bash' + "\n")
+    
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
@@ -678,6 +681,9 @@ for node in nodes_dict:
     i=i+1
 
 #start running source in associated dirs (run and debug scripts)
+if concoretype=="posix":
+    fdebug.write('#!/bin/bash' + "\n")
+
 i=0
 for node in nodes_dict:
   containername,sourcecode = nodes_dict[node].split(':')
