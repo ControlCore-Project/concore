@@ -42,7 +42,49 @@ def download():
   url = "http://127.0.0.1:5000/download/test?fetch=f1.txt&apikey=xyz"
   urllib.request.urlretrieve(url, "f1.txt")
 
-upload()
-execute()
-download()
+
+# function to check build
+def build():
+  url = "http://127.0.0.1:5000/build/test?fetch=sample1"
+
+  payload={'': ''}
+  files=[]
+  headers = {}
+
+  response = requests.request("POST", url, headers=headers, data=payload, files=files)
+
+  print(response.text)
+
+# function to debug
+def debug():
+  url = "http://127.0.0.1:5000/debug/sample1"
+
+  payload={'': ''}
+  files=[]
+  headers = {}
+
+  response = requests.request("POST", url, headers=headers, data=payload, files=files)
+
+  print(response.text) 
+
+
+#function to destroy dir.
+def destroy():
+  url = "http://127.0.0.1:5000/destroy/sample1"
+
+  payload={'': ''}
+  files=[]
+  headers = {}
+
+  response = requests.request("POST", url, headers=headers, data=payload, files=files)
+
+  print(response.text)   
+
+
+# upload()
+# execute()
+# download()
+# build()
+# debug()
+# destroy()
 
