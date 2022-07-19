@@ -90,7 +90,40 @@ def execute(dir):
         resp.status_code = 500
         return resp
 
+# to download /build/<dir>?fetch=<graphml>. For example, /build/test?fetch=sample1
+@app.route('/build/<dir>', methods=['POST'])
+def build(dir):
+    graphml_file = request.args.get('fetch')      
+    makestudy_dir = dir+ "/" + graphml_file   #for makestudy
+    cur_path = os.getcwd()
+    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
+    dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
+    if not os.path.exists(secure_filename(dir_path)):
+        p1 = call(["./makestudy", makestudy_dir], cwd=concore_path)
+        if(p1 == 0):
+            resp = jsonify({'message': 'Directory successfully created'})
+            resp.status_code = 201
+        else:
+            resp = jsonify({'message': 'There is an Error'})
+            resp.status_code = 500        
+    call(["./build"], cwd=dir_path)   
+    return resp 
 
+
+@app.route('/debug/<dir>', methods=['POST'])
+def debug(dir):
+    cur_path = os.getcwd()
+    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
+    dir_path = os.path.abspath(os.path.join(concore_path, dir))
+    p1 = call(["./debug"], cwd=dir_path)
+    if(p1 == 0):
+        resp = jsonify({'message': 'Close the pop window after obtaing result'})
+        resp.status_code = 201
+        return resp
+    else:
+        resp = jsonify({'message': 'There is an Error'})
+        resp.status_code = 500
+        return resp  
 
 # to download /download/<dir>?fetch=<downloadfile>. For example, /download/test?fetch=example.py.out&apikey=xyz
 @app.route('/download/<dir>', methods=['POST', 'GET'])
@@ -110,6 +143,21 @@ def download(dir):
         resp = jsonify({'message': 'file not found'})
         resp.status_code = 400
         return resp
+
+
+@app.route('/destroy/<dir>', methods=['POST'])
+def destroy(dir):
+    cur_path = os.getcwd()
+    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
+    p1 = call(["./destroy", dir], cwd=concore_path)
+    if(p1 == 0):
+        resp = jsonify({'message': 'Successfuly deleted Dirctory'})
+        resp.status_code = 201
+        return resp
+    else:
+        resp = jsonify({'message': 'There is an Error'})
+        resp.status_code = 500
+        return resp        
 
 
 if __name__ == "__main__":
