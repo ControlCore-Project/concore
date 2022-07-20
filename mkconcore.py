@@ -6,7 +6,7 @@ import os
 import shutil
 import stat
 
-MKCONCORE_VER = "21-12-06"
+MKCONCORE_VER = "22-07-20"
 GRAPHML_FILE = sys.argv[1]
 TRIMMED_LOGS = True
 CONCOREPATH = "."
@@ -607,9 +607,11 @@ for node in nodes_dict:
             fbuild.write("copy .\\src\\"+sourcecode+" .\\"+containername+"\\"+sourcecode+"\n")
             if langext == "py":
                 fbuild.write("copy .\\src\\concore.py .\\" + containername + "\\concore.py\n")
-            elif langext == "cpp": # 6/22/21
+            elif langext == "cpp":
+ # 6/22/21
                 fbuild.write("copy .\\src\\concore.hpp .\\" + containername + "\\concore.hpp\n")
-            elif langext == "v": # 6/25/21
+            elif langext == "v":
+ # 6/25/21
                 fbuild.write("copy .\\src\\concore.v .\\" + containername + "\\concore.v\n")
             elif langext == "m":   #  4/2/21
                 fbuild.write("copy .\\src\\concore_*.m .\\" + containername + "\\\n")
