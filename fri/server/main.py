@@ -3,6 +3,7 @@ from werkzeug.utils import secure_filename
 import os
 from subprocess import call
 from pathlib import Path
+import json
 
 
 app = Flask(__name__)
@@ -145,7 +146,7 @@ def download(dir):
         return resp
 
 
-@app.route('/destroy/<dir>', methods=['POST'])
+@app.route('/destroy/<dir>', methods=['DELETE'])
 def destroy(dir):
     cur_path = os.getcwd()
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
@@ -157,7 +158,21 @@ def destroy(dir):
     else:
         resp = jsonify({'message': 'There is an Error'})
         resp.status_code = 500
-        return resp        
+        return resp   
+
+@app.route('/getFilesList/<dir>', methods=['POST'])
+def getFilesList(dir):
+    cur_path = os.getcwd()
+    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
+    dir_path = os.path.abspath(os.path.join(concore_path, dir))
+    res = []
+
+    if(dir=='concore'):
+        res = os.listdir(concore_path)
+    else:
+        res = os.listdir(dir_path) 
+    res2 = json.dumps(res)  
+    return res2              
 
 
 if __name__ == "__main__":
