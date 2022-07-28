@@ -46,38 +46,27 @@ def download():
 # function to check build
 def build():
   url = "http://127.0.0.1:5000/build/test?fetch=sample1"
-
-  payload={'': ''}
-  files=[]
-  headers = {}
-
-  response = requests.request("POST", url, headers=headers, data=payload, files=files)
-
+  response = requests.request("POST", url)
   print(response.text)
 
 # function to debug
 def debug():
   url = "http://127.0.0.1:5000/debug/sample1"
-
-  payload={'': ''}
-  files=[]
-  headers = {}
-
-  response = requests.request("POST", url, headers=headers, data=payload, files=files)
-
+  response = requests.request("POST", url)
   print(response.text) 
 
 
 #function to destroy dir.
 def destroy():
   url = "http://127.0.0.1:5000/destroy/sample1"
+  response = requests.request("DELETE", url)
 
-  payload={'': ''}
-  files=[]
-  headers = {}
-
-  response = requests.request("POST", url, headers=headers, data=payload, files=files)
-
+  print(response.text)  
+  
+def getFilesList():
+  import requests
+  url = "http://127.0.0.1:5000/getFilesList/test"
+  response = requests.request("POST", url)
   print(response.text)   
 
 
@@ -87,4 +76,5 @@ def destroy():
 # build()
 # debug()
 # destroy()
+getFilesList()
 

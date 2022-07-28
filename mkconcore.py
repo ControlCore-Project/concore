@@ -595,6 +595,9 @@ if (concoretype=="docker"):
 #remaining code deals only with posix or windows
 
 #copy sourcefiles from ./src into corresponding directories
+if concoretype=="posix":
+    fbuild.write('#!/bin/bash' + "\n")
+
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
@@ -678,6 +681,9 @@ for node in nodes_dict:
     i=i+1
 
 #start running source in associated dirs (run and debug scripts)
+if concoretype=="posix":
+    fdebug.write('#!/bin/bash' + "\n")
+
 i=0
 for node in nodes_dict:
   containername,sourcecode = nodes_dict[node].split(':')
@@ -769,7 +775,9 @@ for node in nodes_dict:
                   else:
                       fdebug.write('concorewd=`pwd`\n')
                       fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/' +containername+";"+ MATLABEXE+' -batch run\\\\\\(\\\\\\'+"'"+sourcecode+"\\\\\\'"+'\\\\\\)\\""\n' )
-      
+
+if concoretype=="posix":
+    fstop.write('#!/bin/bash' + "\n")
 i=0 #  3/30/21
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
@@ -784,6 +792,8 @@ for node in nodes_dict:
     i=i+1
 fstop.close()
 
+if concoretype=="posix":
+    fclear.write('#!/bin/bash' + "\n")
 i=0 #  9/13/21
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
@@ -799,6 +809,8 @@ for node in nodes_dict:
     i=i+1
 fclear.close()
 
+if concoretype=="posix":
+    fmaxtime.write('#!/bin/bash' + "\n")
 i=0 #  9/12/21
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
