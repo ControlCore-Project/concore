@@ -171,8 +171,8 @@ def getFilesList(dir):
     return res2              
 
 
-@app.route('/openJupyterLab/', methods=['POST'])
-def openJupyterLab():
+@app.route('/openJupyter/', methods=['POST'])
+def openJupyter():
     cur_path = os.getcwd()
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     p = call(["jupyter", "lab"], cwd=concore_path)
