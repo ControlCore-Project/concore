@@ -68,8 +68,8 @@ def getFilesList():
   response = requests.request("POST", url)
   print(response.text) 
 
-def openJupyterLa():
-  url = "http://127.0.0.1:5000/openJupyterLab"
+def openJupyter():
+  url = "http://127.0.0.1:5000/openJupyter"
   response = requests.request("POST", url)
   print(response.text)
 
@@ -81,5 +81,5 @@ def openJupyterLa():
 # debug()
 # destroy()
 getFilesList()
-# openJupyterLa()
+# openJupyter()
 
