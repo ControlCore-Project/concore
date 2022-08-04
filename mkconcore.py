@@ -683,6 +683,8 @@ for node in nodes_dict:
 #start running source in associated dirs (run and debug scripts)
 if concoretype=="posix":
     fdebug.write('#!/bin/bash' + "\n")
+    frun.write('#!/bin/bash' + "\n")
+
 
 i=0
 for node in nodes_dict:
@@ -825,6 +827,9 @@ for node in nodes_dict:
             writeedges = writeedges[writeedges.find(":")+1:]
     i=i+1
 fmaxtime.close()
+
+if concoretype=="posix":
+    funlock.write('#!/bin/bash' + "\n")
 
 i=0 #  9/12/21
 for node in nodes_dict:

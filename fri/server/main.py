@@ -166,13 +166,18 @@ def getFilesList(dir):
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
     res = []
-
-    if(dir=='concore'):
-        res = os.listdir(concore_path)
-    else:
-        res = os.listdir(dir_path) 
+    res = os.listdir(dir_path) 
     res2 = json.dumps(res)  
     return res2              
+
+
+@app.route('/openJupyterLab/', methods=['POST'])
+def openJupyterLab():
+    cur_path = os.getcwd()
+    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
+    p = call(["jupyter", "lab"], cwd=concore_path)
+    return p
+
 
 
 if __name__ == "__main__":
