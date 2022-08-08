@@ -1,4 +1,4 @@
-# The CONTROL-CORE Framework.
+# The CONTROL-CORE Framework
 [CONTROL-CORE](https://github.com/ControlCore-Project/) is a framework for closed-loop peripheral neuromodulation control systems. At its center is _concore_, a lightweight Python-based protocol to simulate neuromodulation control systems. This repository consists of the implementation of _concore_ protocol and sample (demo and neuromodulation control systems) studies.
 
 The CONTROL-CORE framework consists of the below projects.
@@ -14,7 +14,7 @@ The CONTROL-CORE framework consists of the below projects.
 * documentation: The [source code repository](https://github.com/ControlCore-Project/documentation) of the ReadTheDocs documentation of CONTROL-CORE.
 
 
-# The _concore_ Protocol.
+# The _concore_ Protocol
 
 Please follow the [ReadTheDocs](https://control-core.readthedocs.io/en/latest/index.html) documentation and the [_concore-lite_](https://github.com/ControlCore-Project/concore-lite) repository to get started quick.
 
