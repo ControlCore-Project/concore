@@ -21,6 +21,19 @@ Please follow the [ReadTheDocs](https://control-core.readthedocs.io/en/latest/in
 
 Installation instructions for concore can be found [here](https://control-core.readthedocs.io/en/latest/installation.html). Usage instructions can be found [here](https://control-core.readthedocs.io/en/latest/usage.html).
 
+# The _concore_ Repository
+
+_concore contains programs (such as physiological models or more commonly called "PMs" and controllers) and studies (i.e., graphml files that represents the studies as workflows). The _wrappers_ enable seamlessly extending a study into a distributed one with the CONTROL-CORE Mediator.
+
+_concore_ repository consists of several scripts at its root level. The demo folder consists of several sample programs and studies, mostly toy examples to learn the protocol. The ratc folder consists of the programs and studies of the rat cardiac experiments we developed with _concore_.
+
+If you have a bug to report in one of the CONTROL-CORE projects, please report it through relevant Issue Tracker. Similarly, please feel free to contribute your studies and code enhancements using pull requests. Questions and discussions can be made through the relevant Discussions forum.
+
+The _concore Issues can be reported [here](https://github.com/ControlCore-Project/concore/issues).
+
+The _concore_ discussion forum can be found [here](https://github.com/ControlCore-Project/concore/discussions).
+
+Please make sure to send your _concore_ pull requests to the [dev branch](https://github.com/ControlCore-Project/concore/tree/dev).
 
 # Citing _concore_
 
