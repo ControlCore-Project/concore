@@ -64,10 +64,14 @@ def destroy():
   print(response.text)  
   
 def getFilesList():
-  import requests
   url = "http://127.0.0.1:5000/getFilesList/test"
   response = requests.request("POST", url)
-  print(response.text)   
+  print(response.text) 
+
+def openJupyter():
+  url = "http://127.0.0.1:5000/openJupyter"
+  response = requests.request("POST", url)
+  print(response.text)
 
 
 # upload()
@@ -77,4 +81,5 @@ def getFilesList():
 # debug()
 # destroy()
 getFilesList()
+# openJupyter()
 
