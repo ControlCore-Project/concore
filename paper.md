@@ -59,8 +59,12 @@ bibliography: paper.bib
 
 ---
 # Summary
-The scientific contributions of _concore_ protocol and the CONTROL-CORE framework have been extensively discussed in our previous work~[@kathiravelu2022control].
+The scientific contributions of _concore_ protocol and the CONTROL-CORE framework have been extensively discussed in our previous work [@kathiravelu2022control].
 
 # Statement of need
+
+# Acknowledgements
+
+This work was supported in part by the National Institutes of Health under Grant OT2OD030535 and Google Summer of Code (GSoC) 2021 and 2022 projects. The authors acknowledge the guidance from Tyler Best and Herbert Sauro. The authors appreciate the assistance with OSPARC that they received from the staff at IT'IS, especially Sylvain Anderegg, Pedro Crespo-Valero, Elisabetta Iavarone, Andrei Neagu, Esra Neufeld, and Katie Zhuang.
 
 # References
