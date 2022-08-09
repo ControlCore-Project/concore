@@ -1,7 +1,6 @@
 # The CONTROL-CORE Framework
 [CONTROL-CORE](https://github.com/ControlCore-Project/) is a framework for closed-loop peripheral neuromodulation control systems. At its center is _concore_, a lightweight Python-based protocol to simulate neuromodulation control systems. This repository consists of the implementation of _concore_ protocol and sample (demo and neuromodulation control systems) studies. In addition to its standard Python implementation, _concore_ also supports developing studies in Matlab/Octave, Verilog, and C++.
 
-
 The CONTROL-CORE framework consists of the below projects.
 
 * _concore_: The CONTROL-CORE protocol, known as _concore_, allows modular simulation of controller and PM nodes to run on different operating systems, computing platforms, and programming languages. [This repository](https://github.com/ControlCore-Project/concore/) consists of _concore_ source code. The _concore_ documentation can be found [here](https://control-core.readthedocs.io/en/latest/index.html). For a more scientific documentation, please read our extensive [open-access research paper](https://doi.org/10.1109/ACCESS.2022.3161471).
@@ -16,6 +15,8 @@ The CONTROL-CORE framework consists of the below projects.
 
 
 # The _concore_ Protocol
+
+_concore_ enables composing studies from programs developed in different languages. Currently supported languages are, Python, Matlab/Octave, Verilog, and C++. The studies are designed through the visual _concore_ Editor (DHGWorkflow) and interpreted into _concore_ through its parser. Neural control systems consist of loops (dicycles). Therefore, they cannot be represented by classic workflow standards (such as CWL or WDL). Therefore, _concore_ addresses a significant research gap to model closed-loop neuromodulation control systems. The _concore_ protocol shares data between the programs through file sharing, with no centralized entity (a broker or an orchestrator) to arbitrate communications between the programs. (In the distributed executions, the CONTROL-CORE Mediator enables connecting the disjoint pieces of the study through REST APIs).
 
 Please follow the [ReadTheDocs](https://control-core.readthedocs.io/en/latest/index.html) documentation and the [_concore-lite_](https://github.com/ControlCore-Project/concore-lite) repository to get started quick.
 
