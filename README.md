@@ -6,9 +6,9 @@
 
 The CONTROL-CORE framework consists of the below projects.
 
-* _concore_: The CONTROL-CORE protocol, known as _concore_, allows modular simulation of controller and PM nodes to run on different operating systems, computing platforms, and programming languages. [This repository](https://github.com/ControlCore-Project/concore/) consists of _concore_ source code. The _concore_ documentation can be found [here](https://control-core.readthedocs.io/en/latest/index.html).
+* _concore_: The CONTROL-CORE protocol, known as _concore_, allows modular simulation of controller and PM nodes to run on different operating systems, computing platforms, and programming languages. [This repository](https://github.com/ControlCore-Project/concore/) consists of _concore_ source code. The _concore_ documentation can be found [here](https://control-core.readthedocs.io/en/latest/index.html). A _concore_ study can be developed from programss written in different languages. That means, _concore_ facilitates a seamless communication across codes developed in different languages that it supports, through its simple file-based data sharing between the programs.
 
-For a detailed and more scientific documentation, please read our extensive [open-access research paper](https://doi.org/10.1109/ACCESS.2022.3161471). This paper has a complete discussion on the CONTROL-CORE architecture and deployment, together with the commands to execute the studies in different programming languages and programming environments (Ubuntu, Windows, MacOS, Docker, and distributed execution).
+For a detailed and more scientific documentation, please read our extensive [open-access research paper on CONTROL-CORE](https://doi.org/10.1109/ACCESS.2022.3161471). This paper has a complete discussion on the CONTROL-CORE architecture and deployment, together with the commands to execute the studies in different programming languages and programming environments (Ubuntu, Windows, MacOS, Docker, and distributed execution).
 
 * _concore_ Editor: This is the front-end for CONTROL-CORE. We forked [DHGWorkflow](https://github.com/ControlCore-Project/DHGWorkflow), a sibling project we developed, and extend it as the _concore_ Editor. Please check out the [dev branch](https://github.com/ControlCore-Project/DHGWorkflow/tree/dev) for the _concore_ Editor.
 
