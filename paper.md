@@ -59,7 +59,16 @@ bibliography: paper.bib
 
 ---
 # Summary
-The scientific contributions of _concore_ protocol and the CONTROL-CORE framework, along with sample closed-loop neuromodulation control systems workflows have been extensively discussed in our previous work [@kathiravelu2022control].
+Closed-loop Vagus Nerve Stimulation (VNS) based on physiological feedback signals is a promising approach to regulating organ functions and developing therapeutic devices. Designing closed-loop neurostimulation systems requires simulation environments and computing infrastructures that support i) modeling the physiological responses of organs under neuromodulation, also known as physiological models (PMs), and ii) the interaction between the PMs and the neuromodulation control algorithms. However, existing simulation platforms do not support closed-loop VNS control systems modeling without extensive rewriting of computer code and manual deployment and configuration of programs.
+
+The CONTROL-CORE framework aims to develop a flexible software platform for designing and implementing closed-loop VNS systems. The CONTROL-CORE framework consists of the _concore_ protocol at its core. In addition, it contains a visual _concore_ editor and a Mediator architecture that facilitates a distributed execution of _concore_ studies.
+
+
+This paper presents the _concore_ protocol, which allows seamless communication between the programs (such as PMs and controllers) that compose a study. _concore_ allows simulations to run on different operating systems, be developed in various programming languages (such as Matlab, Python, C++, and Verilog), and be run locally, in containers, and in a distributed fashion. The _concore_ Editor lets the users to create studies from the programs in a visual drag-and-drop manner and store them as a GraphML file. _concore_ consists of a parser that parses the studies represented in the GraphML file and start the execution of the studies until the specified maxtime value is met.
+
+
+We tested the \projectname platform in the context of closed-loop control of cardiac physiological models, including pulsatile and nonpulsatile rat models. These were tested using various controllers such as Model Predictive Control and Long-Short-Term Memory-based controllers. Our wide range of use cases and evaluations show the performance, flexibility, and usability of the \projectname platform. The scientific contributions of _concore_ protocol and the CONTROL-CORE framework, along with these sample closed-loop neuromodulation control systems studies have been extensively discussed in our previous work [@kathiravelu2022control].
+
 
 # Statement of need
 
