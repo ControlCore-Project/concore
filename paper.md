@@ -59,7 +59,7 @@ bibliography: paper.bib
 
 ---
 # Summary
-The scientific contributions of _concore_ protocol and the CONTROL-CORE framework have been extensively discussed in our previous work [kathiravelu2022control].
+The scientific contributions of _concore_ protocol and the CONTROL-CORE framework have been extensively discussed in our previous work~[@kathiravelu2022control].
 
 # Statement of need
 
