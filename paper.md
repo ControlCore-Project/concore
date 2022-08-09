@@ -56,6 +56,7 @@ affiliations:
    index: 7
 date: 9 August 2022
 bibliography: paper.bib
+
 ---
 # Summary
 The scientific contributions of _concore_ protocol and the CONTROL-CORE framework have been extensively discussed in our previous work~\cite{kathiravelu2022control}.
