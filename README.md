@@ -1,5 +1,5 @@
 # The CONTROL-CORE Framework
-[CONTROL-CORE](https://github.com/ControlCore-Project/) is a framework for closed-loop peripheral neuromodulation control systems. At its center is _concore_, a lightweight Python-based protocol to simulate neuromodulation control systems. This repository consists of the implementation of _concore_ protocol and sample (demo and neuromodulation control systems) studies. In addition to its standard Python implementation, _concore_ also supports developing studies in Matlab/Octave, Verilog, and C++.
+[CONTROL-CORE](https://github.com/ControlCore-Project/) is a design and simulation framework for closed-loop peripheral neuromodulation control systems. At its center is _concore_, a lightweight Python-based protocol to simulate neuromodulation control systems. This repository consists of the implementation of _concore_ protocol and sample (demo and neuromodulation control systems) studies. In addition to its standard Python implementation, _concore_ also supports developing studies in Matlab/Octave, Verilog, and C++. In addition to the implementation of these lmnguage support, _concore_ aims to support more language programs in the future.
 
 The CONTROL-CORE framework consists of the below projects.
 
