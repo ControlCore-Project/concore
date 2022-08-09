@@ -20,6 +20,9 @@ For a detailed and more scientific documentation, please read our extensive [ope
 
 _concore_ enables composing studies from programs developed in different languages. Currently supported languages are, Python, Matlab/Octave, Verilog, and C++. The studies are designed through the visual _concore_ Editor (DHGWorkflow) and interpreted into _concore_ through its parser. Neural control systems consist of loops (dicycles). Therefore, they cannot be represented by classic workflow standards (such as CWL or WDL). Therefore, _concore_ addresses a significant research gap to model closed-loop neuromodulation control systems. The _concore_ protocol shares data between the programs through file sharing, with no centralized entity (a broker or an orchestrator) to arbitrate communications between the programs. (In the distributed executions, the CONTROL-CORE Mediator enables connecting the disjoint pieces of the study through REST APIs).
 
+
+# Installation and Getting Started Guide
+
 Please follow the [ReadTheDocs](https://control-core.readthedocs.io/en/latest/index.html) documentation and the [_concore-lite_](https://github.com/ControlCore-Project/concore-lite) repository to get started quick.
 
 Installation instructions for concore can be found [here](https://control-core.readthedocs.io/en/latest/installation.html). Usage instructions can be found [here](https://control-core.readthedocs.io/en/latest/usage.html).
