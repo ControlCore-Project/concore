@@ -49,7 +49,7 @@ Please make sure to send your _concore_ pull requests to the [dev branch](https:
 
 The CONTROL-CORE project has tremendously benefitted from open-source. We have been a part of the Google Summer of Code (GSoC), via the Department of Biomedical Informatics, Emory University as the mentoring organization. DHGWorkflow (which is adopted as the _concore_ Editor) was developed by the GSoC 2021 contributor. For GSoC 2022, we have 2 contributors - one working on _concore_ Editor and the other one on the _concore_ itself.
 
-Please use the GitHub discussion forums for user-queries. For GSoC and similar open-source contributions, as well as for other real-time user queries, feel free to join the Emory BMI slack workspace using the link - http://bit.ly/emory-bmi and find the room concore.
+Please use the GitHub discussion forums for user-queries. For GSoC and similar open-source contributions, as well as for other real-time user queries, feel free to join the Emory BMI slack workspace using the link - http://bit.ly/emory-bmi and find the channel "concore."
 
 # Citing _concore_
 
