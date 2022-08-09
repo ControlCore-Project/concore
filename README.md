@@ -16,8 +16,6 @@ The CONTROL-CORE framework consists of the below projects.
 
 * documentation: The [source code repository](https://github.com/ControlCore-Project/documentation) of the ReadTheDocs documentation of CONTROL-CORE.
 
-For a detailed and more scientific documentation, please read our extensive [open-access research paper on CONTROL-CORE](https://doi.org/10.1109/ACCESS.2022.3161471). This paper has a complete discussion on the CONTROL-CORE architecture and deployment, together with the commands to execute the studies in different programming languages and programming environments (Ubuntu, Windows, MacOS, Docker, and distributed execution).
-
 
 # The _concore_ Protocol
 
@@ -29,6 +27,9 @@ _concore_ enables composing studies from programs developed in different languag
 Please follow the [ReadTheDocs](https://control-core.readthedocs.io/en/latest/index.html) documentation and the [_concore-lite_](https://github.com/ControlCore-Project/concore-lite) repository to get started quick.
 
 Installation instructions for concore can be found [here](https://control-core.readthedocs.io/en/latest/installation.html). Usage instructions can be found [here](https://control-core.readthedocs.io/en/latest/usage.html).
+
+For a detailed and more scientific documentation, please read our extensive [open-access research paper on CONTROL-CORE](https://doi.org/10.1109/ACCESS.2022.3161471). This paper has a complete discussion on the CONTROL-CORE architecture and deployment, together with the commands to execute the studies in different programming languages and programming environments (Ubuntu, Windows, MacOS, Docker, and distributed execution).
+
 
 # The _concore_ Repository
 
