@@ -27,6 +27,8 @@ authors:
     affiliation: 3
   - name: Aviral Kumar Goel
     affiliation: 4
+  - name: Nan Li
+    affiliation: 1
   - name: Amit Kumar
     affiliation: 5
   - name: Andrew Branen
