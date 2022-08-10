@@ -68,6 +68,8 @@ The CONTROL-CORE framework consists of the _concore_ protocol at its core. The _
 
 CONTROL-CORE also consists of a Mediator implementation that facilitates the distributed execution of _concore_ studies through REST calls over the Internet. When the Mediator is deployed to enable inter-organization workflows with services spread across the Internet, access control and authentication mechanisms must be used to protect the shared data. The Mediator leverages the API key-based authentication provided by the Kong API gateway to enable such Internet deployment.
 
+![A sample CONTROL-CORE distributed deployment spanning multiple sites](figures/joss-concore.png)
+
 CONTROL-CORE contains a lightweight browser-based visual _concore_ editor, which lets the users create studies from the programs in a drag-and-drop manner. It allows the creation of directed hypergraphs to represent the studies with closed-loop from modular programs and exporting the directed hypergraph workflows as GraphML files. _concore_ consists of a parser that parses and interprets the studies represented in the GraphML file and executes the studies seamlessly as modular workflows until a specified maximum time value for the study is met. This exit condition ensures the closed-loop workflow does not run forever, as closed-loop studies do not contain a predefined end step, unlike the classic workflows with an end step.
 
 # Statement of need
