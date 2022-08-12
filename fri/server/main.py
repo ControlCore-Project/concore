@@ -4,6 +4,7 @@ import os
 from subprocess import call
 from pathlib import Path
 import json
+import subprocess
 
 
 app = Flask(__name__)
@@ -100,8 +101,8 @@ def build(dir):
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
     if not os.path.exists(secure_filename(dir_path)):
-        p1 = call(["./makestudy", makestudy_dir], cwd=concore_path)
-        if(p1 == 0):
+        proc = call(["./makestudy", makestudy_dir], cwd=concore_path)
+        if(proc == 0):
             resp = jsonify({'message': 'Directory successfully created'})
             resp.status_code = 201
         else:
@@ -116,8 +117,8 @@ def debug(dir):
     cur_path = os.getcwd()
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    p1 = call(["./debug"], cwd=dir_path)
-    if(p1 == 0):
+    proc = call(["./debug"], cwd=dir_path)
+    if(proc == 0):
         resp = jsonify({'message': 'Close the pop window after obtaing result'})
         resp.status_code = 201
         return resp
@@ -150,8 +151,8 @@ def download(dir):
 def destroy(dir):
     cur_path = os.getcwd()
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
-    p1 = call(["./destroy", dir], cwd=concore_path)
-    if(p1 == 0):
+    proc = call(["./destroy", dir], cwd=concore_path)
+    if(proc == 0):
         resp = jsonify({'message': 'Successfuly deleted Dirctory'})
         resp.status_code = 201
         return resp
@@ -167,16 +168,23 @@ def getFilesList(dir):
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
     res = []
     res = os.listdir(dir_path) 
-    res2 = json.dumps(res)  
-    return res2              
+    res = json.dumps(res)  
+    return res             
 
 
 @app.route('/openJupyter/', methods=['POST'])
 def openJupyter():
     cur_path = os.getcwd()
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
-    p = call(["jupyter", "lab"], cwd=concore_path)
-    return p
+    proc = subprocess.Popen(['jupyter', 'lab'], shell=False, stdout=subprocess.PIPE, cwd=concore_path)
+    if  proc.poll() is None:
+        resp = jsonify({'message': 'Successfuly opened Jupyter'})
+        resp.status_code = 308
+        return resp
+    else:
+        resp = jsonify({'message': 'There is an Error'})
+        resp.status_code = 500
+        return resp 
 
 
 
