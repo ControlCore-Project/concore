@@ -1,4 +1,4 @@
-# Rat Cardiac (ratc) models
+# Rat cardiac (ratc) models
 
 This folder consists of ratc studies. Given below is a brief introduction to the files in this folder.
 
