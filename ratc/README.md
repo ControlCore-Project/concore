@@ -27,7 +27,7 @@ This folder consists of ratc studies. Given below is a brief introduction to the
 The studies and the respective programs that compose those studies are given below.
 
 
-| Study 			|		Composed of Programs |
+| Study 			|		Programs |
 |---------|------------|
 |andrC.graphml		| candr.py cwrap.py|
 |andrM.graphml		| candr.py pmoct.m|
