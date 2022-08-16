@@ -24,10 +24,10 @@ This folder consists of ratc studies. Given below is a brief introduction to the
 
 *Mark converted to HR for compatibility with plotym.py
 
-The studies and the respective programs are given below.
+The studies and the respective programs that compose those studies are given below.
 
 
-| Study 			|		Program |
+| Study 			|		Programs |
 |---------|------------|
 |andrC.graphml		| candr.py cwrap.py|
 |andrM.graphml		| candr.py pmoct.m|
