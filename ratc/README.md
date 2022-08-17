@@ -1,6 +1,6 @@
 # Rat cardiac (ratc) models
 
-This folder consists of ratc studies. Given below is a brief introduction to the files in this folder.
+This folder consists of rat cardiac studies. Given below is a brief introduction to the files in this folder.
 
 | File 			|		Author	 | Language | Description | Additional Notes |
 |---|------|---|---|------|
@@ -15,10 +15,12 @@ This folder consists of ratc studies. Given below is a brief introduction to the
 | pmcvxpymatcore.py (pmcvxpymatcore.dir) |	Mark Arnold |	Python |	Linear Nonpulsatile PM (wid) |
 | pmoct.m (pmoct.dir)		|	Yuyu Yao	| Matlab	| Healthy Pulsatile PM (wid) |
 | pmsid.py			|		Siddharth Prabhu |	Python	| Healthy Pulsatile PM (wid) |
-| pmvxmatcore.v (pmvxmatcore.dir)	|	Mark Arnold	| Verilog	| 16-bit Linear Nonpulsatile PM (wid) |
+| pmvxmatcore.v (pmvxmatcore.dir)	|	Mark Arnold	| Verilog	| 16-bit Linear Nonpulsatile PM (wid) | LNS routines by Panos Vouzis
 | pwrap.py (pwrap.dir)		|	Mark Arnold	| Python |	PM wrapper (wid/amp) |
 | run_pm2.sh  (run_pm2.dir)		|	Mark Arnold	| Shell	| MCR Compiled version of pm2 |
 | run_pmoct.sh (run_pmoct.dir) |		Mark Arnold	| Shell	| MCR Compiled version of pmoct |
+
+Here amp refers to pulse amplitude simulation and wid refers to pulse width simulation.
 
 ^Mark removed plotting from controller
 
