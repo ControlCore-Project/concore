@@ -20,9 +20,9 @@ This folder consists of rat cardiac studies. Given below is a brief introduction
 | run_pm2.sh  (run_pm2.dir)		|	Mark Arnold	| Shell	| MCR Compiled version of pm2 |
 | run_pmoct.sh (run_pmoct.dir) |		Mark Arnold	| Shell	| MCR Compiled version of pmoct |
 
-^Mark removed plotting from controller
+^Removed plotting from controller
 
-*Mark converted to HR for compatibility with plotym.py
+*Converted to HR for compatibility with plotym.py
 
 
 Here amp refers to pulse amplitude simulation and wid refers to pulse width simulation.
