@@ -22,6 +22,8 @@ This folder consists of rat cardiac studies. Given below is a brief introduction
 
 Here amp refers to pulse amplitude simulation and wid refers to pulse width simulation.
 
+All of the controllers generate a "u" which is a vector that consists of 6 stimulation values. 3 of these are frequencies. The other 3 are either amplitudes or widths. All of the PMs generate a "ym" which is a vector that consists of Mean Arterial Pressure (MAP) and Heart Rate (HR).
+
 ^Mark removed plotting from controller
 
 *Mark converted to HR for compatibility with plotym.py
