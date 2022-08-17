@@ -18,10 +18,7 @@ while(concore.simtime<concore.maxtime):
         u = concore.read(concore.iport["VCY"],"u",init_simtime_u)
         ym = concore.read(concore.iport["VPY"],"ym",init_simtime_ym)
     if concore.simtime > oldsimtime:
-        #if np.array_equal(ut[int(concore.simtime)], np.zeros((6))):
-        #print(" u="+str(u))
         ut[int(concore.simtime)] = np.array(u).T
-        #print(" ym="+str(ym))
         ymt[int(concore.simtime)] = np.array(ym).T
     oldsimtime = concore.simtime
 print("retry="+str(concore.retrycount))
