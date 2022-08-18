@@ -26,13 +26,18 @@ def upload(dir):
     errors = {}
     success = False
 
-    if not os.path.exists(secure_filename(dirname)):
-        os.makedirs(secure_filename(dirname))
+    cur_path = os.path.dirname(os.path.abspath(__file__))
+    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
+    directory_name = os.path.abspath(os.path.join(concore_path, secure_filename(dirname)))
+
+    if not os.path.isdir(directory_name):
+        os.mkdir(directory_name)
+
 
     for file in files:
         if file:
             filename = secure_filename(file.filename)
-            file.save(secure_filename(dirname)+"/"+filename)
+            file.save(directory_name+"/"+filename)
             success = True
 
     if success and errors:
@@ -95,9 +100,11 @@ def execute(dir):
 # to download /build/<dir>?fetch=<graphml>. For example, /build/test?fetch=sample1
 @app.route('/build/<dir>', methods=['POST'])
 def build(dir):
-    graphml_file = request.args.get('fetch')      
-    makestudy_dir = dir+ "/" + graphml_file   #for makestudy
-    cur_path = os.getcwd()
+    graphml_file = request.args.get('fetch')  
+    apikey = request.args.get('apikey') 
+    dirname = dir + "_" + apikey   
+    makestudy_dir = dirname + "/" + graphml_file   #for makestudy
+    cur_path = os.path.dirname(os.path.abspath(__file__))
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
     if not os.path.exists(secure_filename(dir_path)):
@@ -114,12 +121,12 @@ def build(dir):
 
 @app.route('/debug/<dir>', methods=['POST'])
 def debug(dir):
-    cur_path = os.getcwd()
+    cur_path = os.path.dirname(os.path.abspath(__file__))
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
     proc = call(["./debug"], cwd=dir_path)
     if(proc == 0):
-        resp = jsonify({'message': 'Close the pop window after obtaing result'})
+        resp = jsonify({'message': 'Close the pop window after obtaining result'})
         resp.status_code = 201
         return resp
     else:
@@ -134,13 +141,18 @@ def download(dir):
     apikey = request.args.get('apikey')
     dirname = dir + "_" + apikey
 
+    cur_path = os.path.dirname(os.path.abspath(__file__))
+    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
+    directory_name = os.path.abspath(os.path.join(concore_path, secure_filename(dirname)))
+
+
     if not os.path.exists(secure_filename(dirname)):
         resp = jsonify({'message': 'Directory not found'})
         resp.status_code = 400
         return resp
 
     try:
-        return send_from_directory(secure_filename(dirname), download_file, as_attachment=True)
+        return send_from_directory(directory_name, download_file, as_attachment=True)
     except:
         resp = jsonify({'message': 'file not found'})
         resp.status_code = 400
@@ -149,7 +161,8 @@ def download(dir):
 
 @app.route('/destroy/<dir>', methods=['DELETE'])
 def destroy(dir):
-    cur_path = os.getcwd()
+    # cur_path = os.getcwd()
+    cur_path = os.path.dirname(os.path.abspath(__file__))
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     proc = call(["./destroy", dir], cwd=concore_path)
     if(proc == 0):
@@ -163,7 +176,8 @@ def destroy(dir):
 
 @app.route('/getFilesList/<dir>', methods=['POST'])
 def getFilesList(dir):
-    cur_path = os.getcwd()
+    # cur_path = os.getcwd()
+    cur_path = os.path.dirname(os.path.abspath(__file__))
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
     res = []
@@ -174,7 +188,9 @@ def getFilesList(dir):
 
 @app.route('/openJupyter/', methods=['POST'])
 def openJupyter():
-    cur_path = os.getcwd()
+    # cur_path = os.getcwd()
+    cur_path = os.path.dirname(os.path.abspath(__file__))
+    print(cur_path)
     concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     proc = subprocess.Popen(['jupyter', 'lab'], shell=False, stdout=subprocess.PIPE, cwd=concore_path)
     if  proc.poll() is None:

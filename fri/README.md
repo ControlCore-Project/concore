@@ -2,6 +2,12 @@
 
 The Control-Core File Receiving Interface (FRI) is built with is Python-3.10. It is the core component that makes the distributed executions a reality in the Control-Core framework.
 
+# Install Dependencies
+
+Install Jupyter lab
+````
+$ pip install jupyterlab
+````
 
 # Building FRI Container
 
