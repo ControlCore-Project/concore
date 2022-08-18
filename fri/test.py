@@ -1,17 +1,17 @@
+from cgi import test
 import requests
 import os
 import urllib.request
 
 # function to test upload() method.
-def upload():
+
+def upload(files):
   url = "http://127.0.0.1:5000/upload/test?apikey=xyz"
 
-  path = os.path.abspath("example.py")
-
   payload={}
-  files=[
-    ('files[]',('example.py',open(path,'rb'),'application/octet-stream'))
-  ]
+  # files=[
+  #   ('files[]',('example.py',open(path,'rb'),'application/octet-stream'))
+  # ]
   headers = {}
 
   response = requests.request("POST", url, headers=headers, data=payload, files=files)
@@ -37,34 +37,28 @@ def execute():
 
   print(response.text)
 
-# function to test download() method.
-def download():
-  url = "http://127.0.0.1:5000/download/test?fetch=f1.txt&apikey=xyz"
-  urllib.request.urlretrieve(url, "f1.txt")
-
-
 # function to check build
-def build():
-  url = "http://127.0.0.1:5000/build/test?fetch=sample1"
+def build(dir, graphml, apikey):
+  url = "http://127.0.0.1:5000/build/"+dir+"?"+"fetch="+graphml+"&"+"apikey="+apikey
   response = requests.request("POST", url)
   print(response.text)
 
 # function to debug
-def debug():
-  url = "http://127.0.0.1:5000/debug/sample1"
+def debug(graphml):
+  url = "http://127.0.0.1:5000/debug/"+graphml
   response = requests.request("POST", url)
   print(response.text) 
 
 
 #function to destroy dir.
-def destroy():
-  url = "http://127.0.0.1:5000/destroy/sample1"
+def destroy(dir):
+  url = "http://127.0.0.1:5000/destroy/" + dir
   response = requests.request("DELETE", url)
 
   print(response.text)  
   
-def getFilesList():
-  url = "http://127.0.0.1:5000/getFilesList/test"
+def getFilesList(dir):
+  url = "http://127.0.0.1:5000/getFilesList/" + dir
   response = requests.request("POST", url)
   print(response.text) 
 
@@ -73,13 +67,24 @@ def openJupyter():
   response = requests.request("POST", url)
   print(response.text)
 
+# function to test download() method.
+def download():
+  url = "http://127.0.0.1:5000/download/test?fetch=f1.txt&apikey=xyz"
+  urllib.request.urlretrieve(url, "f1.txt")
 
-# upload()
-# execute()
-# download()
-# build()
-# debug()
-# destroy()
-getFilesList()
+# file list to be uploaded
+files=[
+  #('files[]',(file_name,open(file_path,'rb'),'application/octet-stream'))
+  
+]
+
+
+upload(files)
+execute()
+build("test", "sample1", "xyz")
+debug("sample1")
+destroy("sample1")
+# getFilesList("fri")
 # openJupyter()
+# download()
 
