@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import time
 GENERATE_PLOT = 1
 
-concore.delay = 0.005
+concore.delay = 0.002
 concore.default_maxtime(150)
 init_simtime_u = "[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
 init_simtime_ym = "[0.0, 0.0, 0.0]"
