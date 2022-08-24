@@ -6,6 +6,9 @@ from pathlib import Path
 import json
 import subprocess
 
+cur_path = os.path.dirname(os.path.abspath(__file__))
+concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
+
 
 app = Flask(__name__)
 app.secret_key = "secret key"
@@ -26,8 +29,6 @@ def upload(dir):
     errors = {}
     success = False
 
-    cur_path = os.path.dirname(os.path.abspath(__file__))
-    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     directory_name = os.path.abspath(os.path.join(concore_path, secure_filename(dirname)))
 
     if not os.path.isdir(directory_name):
@@ -54,58 +55,15 @@ def upload(dir):
         resp.status_code = 500
         return resp
 
-# To execute any python file. For example, /execute/test?apikey=xyz
-@app.route('/execute/<dir>', methods=['POST'])
-def execute(dir):
-    apikey = request.args.get('apikey')
-    dirname = dir + "_" + apikey
 
-    if 'file' not in request.files:
-        resp = jsonify({'message': 'No file in the request'})
-        resp.status_code = 400
-        return resp
 
-    file = request.files['file']
-
-    if file.filename == '':
-        resp = jsonify({'message': 'No file selected for Executing'})
-        resp.status_code = 400
-        return resp
-
-    errors = {}
-    success = False
-
-    if not os.path.exists(secure_filename(dirname)):
-        os.makedirs(secure_filename(dirname))
-
-    if file:
-        filename = secure_filename(file.filename)
-        file.save(secure_filename(dirname)+"/"+filename)
-        output_filename = filename + ".out"
-        file_path = secure_filename(dirname) + "/"+filename
-        outputfile_path = secure_filename(dirname)+"/"+output_filename
-        f = open(outputfile_path, "w")
-        call(["nohup", "python3", file_path], stdout=f)
-        success = True
-
-    if success:
-        resp = jsonify({'message': 'Files successfully executed'})
-        resp.status_code = 201
-        return resp
-    else:
-        resp = jsonify(errors)
-        resp.status_code = 500
-        return resp
-
-# to download /build/<dir>?fetch=<graphml>. For example, /build/test?fetch=sample1
+# to download /build/<dir>?fetch=<graphml>. For example, /build/test?fetch=sample1&apikey=xyz
 @app.route('/build/<dir>', methods=['POST'])
 def build(dir):
     graphml_file = request.args.get('fetch')  
     apikey = request.args.get('apikey') 
     dirname = dir + "_" + apikey   
     makestudy_dir = dirname + "/" + graphml_file   #for makestudy
-    cur_path = os.path.dirname(os.path.abspath(__file__))
-    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
     if not os.path.exists(secure_filename(dir_path)):
         proc = call(["./makestudy", makestudy_dir], cwd=concore_path)
@@ -121,8 +79,6 @@ def build(dir):
 
 @app.route('/debug/<dir>', methods=['POST'])
 def debug(dir):
-    cur_path = os.path.dirname(os.path.abspath(__file__))
-    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
     proc = call(["./debug"], cwd=dir_path)
     if(proc == 0):
@@ -134,15 +90,53 @@ def debug(dir):
         resp.status_code = 500
         return resp  
 
+
+@app.route('/run/<dir>', methods=['POST'])
+def run(dir):
+    dir_path = os.path.abspath(os.path.join(concore_path, dir))
+    proc = call(["./run"], cwd=dir_path)
+    if(proc == 0):
+        resp = jsonify({'message': 'result prepared'})
+        resp.status_code = 201
+        return resp
+    else:
+        resp = jsonify({'message': 'There is an Error'})
+        resp.status_code = 500
+        return resp
+
+@app.route('/stop/<dir>', methods=['POST'])
+def stop(dir):
+    dir_path = os.path.abspath(os.path.join(concore_path, dir))
+    proc = call(["./stop"], cwd=dir_path)
+    if(proc == 0):
+        resp = jsonify({'message': 'resources cleaned'})
+        resp.status_code = 201
+        return resp
+    else:
+        resp = jsonify({'message': 'There is an Error'})
+        resp.status_code = 500
+        return resp                
+                   
+
+@app.route('/clear/<dir>', methods=['POST'])
+def clear(dir):
+    dir_path = os.path.abspath(os.path.join(concore_path, dir))
+    proc = call(["./clear"], cwd=dir_path)
+    if(proc == 0):
+        resp = jsonify({'message': 'result deleted'})
+        resp.status_code = 201
+        return resp
+    else:
+        resp = jsonify({'message': 'There is an Error'})
+        resp.status_code = 500
+        return resp
+
 # to download /download/<dir>?fetch=<downloadfile>. For example, /download/test?fetch=example.py.out&apikey=xyz
 @app.route('/download/<dir>', methods=['POST', 'GET'])
 def download(dir):
     download_file = request.args.get('fetch')
     apikey = request.args.get('apikey')
     dirname = dir + "_" + apikey
-
-    cur_path = os.path.dirname(os.path.abspath(__file__))
-    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     directory_name = os.path.abspath(os.path.join(concore_path, secure_filename(dirname)))
 
 
@@ -161,9 +155,6 @@ def download(dir):
 
 @app.route('/destroy/<dir>', methods=['DELETE'])
 def destroy(dir):
-    # cur_path = os.getcwd()
-    cur_path = os.path.dirname(os.path.abspath(__file__))
-    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     proc = call(["./destroy", dir], cwd=concore_path)
     if(proc == 0):
         resp = jsonify({'message': 'Successfuly deleted Dirctory'})
@@ -176,9 +167,6 @@ def destroy(dir):
 
 @app.route('/getFilesList/<dir>', methods=['POST'])
 def getFilesList(dir):
-    # cur_path = os.getcwd()
-    cur_path = os.path.dirname(os.path.abspath(__file__))
-    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
     res = []
     res = os.listdir(dir_path) 
@@ -188,10 +176,6 @@ def getFilesList(dir):
 
 @app.route('/openJupyter/', methods=['POST'])
 def openJupyter():
-    # cur_path = os.getcwd()
-    cur_path = os.path.dirname(os.path.abspath(__file__))
-    print(cur_path)
-    concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
     proc = subprocess.Popen(['jupyter', 'lab'], shell=False, stdout=subprocess.PIPE, cwd=concore_path)
     if  proc.poll() is None:
         resp = jsonify({'message': 'Successfuly opened Jupyter'})
