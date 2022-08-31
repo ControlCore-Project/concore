@@ -33,7 +33,7 @@ For a detailed and more scientific documentation, please read our extensive [ope
 
 # The _concore_ Repository
 
-_concore contains programs (such as physiological models or more commonly called "PMs" and controllers) and studies (i.e., graphml files that represents the studies as workflows). The _wrappers_ enable seamlessly extending a study into a distributed one with the CONTROL-CORE Mediator.
+_concore_ contains programs (such as physiological models or more commonly called "PMs" and controllers) and studies (i.e., graphml files that represents the studies as workflows). The _wrappers_ enable seamlessly extending a study into a distributed one with the CONTROL-CORE Mediator.
 
 _concore_ repository consists of several scripts at its root level. The demo folder consists of several sample programs and studies, mostly toy examples to learn the protocol. The ratc folder consists of the programs and studies of the rat cardiac experiments we developed with _concore_.
 
