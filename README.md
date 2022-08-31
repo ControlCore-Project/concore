@@ -39,7 +39,7 @@ _concore_ repository consists of several scripts at its root level. The demo fol
 
 If you have a bug to report in one of the CONTROL-CORE projects, please report it through relevant Issue Tracker. Similarly, please feel free to contribute your studies and code enhancements using pull requests. Questions and discussions can be made through the relevant Discussions forum.
 
-The _concore Issues can be reported [here](https://github.com/ControlCore-Project/concore/issues).
+The _concore_ Issues can be reported [here](https://github.com/ControlCore-Project/concore/issues).
 
 The _concore_ discussion forum can be found [here](https://github.com/ControlCore-Project/concore/discussions).
 
