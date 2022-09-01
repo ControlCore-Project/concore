@@ -17,7 +17,7 @@ app.secret_key = "secret key"
 @app.route('/upload/<dir>', methods=['POST'])
 def upload(dir):
     apikey = request.args.get('apikey')
-    dirname = dir + "_" + apikey
+    dirname = secure_filename(dir) + "_" + apikey
 
     if 'files[]' not in request.files:
         resp = jsonify({'message': 'No file in the request'})
@@ -62,10 +62,10 @@ def upload(dir):
 def build(dir):
     graphml_file = request.args.get('fetch')  
     apikey = request.args.get('apikey') 
-    dirname = dir + "_" + apikey   
+    dirname = secure_filename(dir) + "_" + apikey   
     makestudy_dir = dirname + "/" + graphml_file   #for makestudy
     dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
-    if not os.path.exists(secure_filename(dir_path)):
+    if not os.path.exists(dir_path):
         proc = call(["./makestudy", makestudy_dir], cwd=concore_path)
         if(proc == 0):
             resp = jsonify({'message': 'Directory successfully created'})
@@ -79,6 +79,7 @@ def build(dir):
 
 @app.route('/debug/<dir>', methods=['POST'])
 def debug(dir):
+    dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
     proc = call(["./debug"], cwd=dir_path)
     if(proc == 0):
@@ -93,6 +94,7 @@ def debug(dir):
 
 @app.route('/run/<dir>', methods=['POST'])
 def run(dir):
+    dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
     proc = call(["./run"], cwd=dir_path)
     if(proc == 0):
@@ -106,6 +108,7 @@ def run(dir):
 
 @app.route('/stop/<dir>', methods=['POST'])
 def stop(dir):
+    dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
     proc = call(["./stop"], cwd=dir_path)
     if(proc == 0):
@@ -120,6 +123,7 @@ def stop(dir):
 
 @app.route('/clear/<dir>', methods=['POST'])
 def clear(dir):
+    dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
     proc = call(["./clear"], cwd=dir_path)
     if(proc == 0):
@@ -131,20 +135,17 @@ def clear(dir):
         resp.status_code = 500
         return resp
 
-# to download /download/<dir>?fetch=<downloadfile>. For example, /download/test?fetch=example.py.out&apikey=xyz
+# to download /download/<dir>?fetch=<downloadfile>. For example, /download/test?fetchDir=xyz&fetch=u
 @app.route('/download/<dir>', methods=['POST', 'GET'])
 def download(dir):
     download_file = request.args.get('fetch')
-    apikey = request.args.get('apikey')
-    dirname = dir + "_" + apikey
-    directory_name = os.path.abspath(os.path.join(concore_path, secure_filename(dirname)))
-
-
-    if not os.path.exists(secure_filename(dirname)):
+    sub_folder = request.args.get('fetchDir')
+    dirname = secure_filename(dir) + "/" + secure_filename(sub_folder)
+    directory_name = os.path.abspath(os.path.join(concore_path, dirname))
+    if not os.path.exists(directory_name):
         resp = jsonify({'message': 'Directory not found'})
         resp.status_code = 400
         return resp
-
     try:
         return send_from_directory(directory_name, download_file, as_attachment=True)
     except:
@@ -155,6 +156,7 @@ def download(dir):
 
 @app.route('/destroy/<dir>', methods=['DELETE'])
 def destroy(dir):
+    dir = secure_filename(dir)
     proc = call(["./destroy", dir], cwd=concore_path)
     if(proc == 0):
         resp = jsonify({'message': 'Successfuly deleted Dirctory'})
@@ -167,7 +169,9 @@ def destroy(dir):
 
 @app.route('/getFilesList/<dir>', methods=['POST'])
 def getFilesList(dir):
-    dir_path = os.path.abspath(os.path.join(concore_path, dir))
+    sub_dir = request.args.get('fetch')
+    dirname = secure_filename(dir) + "/" + secure_filename(sub_dir)
+    dir_path = os.path.abspath(os.path.join(concore_path, dirname))
     res = []
     res = os.listdir(dir_path) 
     res = json.dumps(res)  

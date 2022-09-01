@@ -8,21 +8,13 @@ import time
 
 def upload(files):
   url = "http://127.0.0.1:5000/upload/test?apikey=xyz"
-
   payload={}
-  # files=[
-  #   ('files[]',('example.py',open(path,'rb'),'application/octet-stream'))
-  # ]
   headers = {}
-
   response = requests.request("POST", url, headers=headers, data=payload, files=files)
-
   print(response.text)
 
 
 # # *******
-
-
 
 # function to check build
 def build(dir, graphml, apikey):
@@ -60,8 +52,8 @@ def destroy(dir):
 
   print(response.text)  
   
-def getFilesList(dir):
-  url = "http://127.0.0.1:5000/getFilesList/" + dir
+def getFilesList(dir, sub_dir = ""):
+  url = "http://127.0.0.1:5000/getFilesList/" + dir + "?"+"fetch="+sub_dir
   response = requests.request("POST", url)
   print(response.text) 
 
@@ -71,29 +63,45 @@ def openJupyter():
   print(response.text)
 
 # function to test download() method.
-def download():
-  url = "http://127.0.0.1:5000/download/test?fetch=f1.txt&apikey=xyz"
-  urllib.request.urlretrieve(url, "f1.txt")
+def download(dir, subDir, fileName ):
+  url = "http://127.0.0.1:5000/download/"+dir+"?"+"fetchDir="+subDir+"&"+"fetch="+ fileName
+  urllib.request.urlretrieve(url, fileName)
 
 # file list to be uploaded
+cur_path = os.path.dirname(os.path.abspath(__file__))
+demo_path = os.path.abspath(os.path.join(cur_path, '../demo'))
+file_name1 = "controller.py"
+file_name2 = "pm.py"
+file_name3 = "sample1.graphml"
+path_file1 = demo_path + "/" +file_name1
+path_file2 = demo_path + "/" +file_name2
+path_file3 = demo_path + "/" +file_name3
 files=[
   #('files[]',(file_name,open(file_path,'rb'),'application/octet-stream'))
-  ('files[]',('controller.py',open('/home/amit/Desktop/test_xyz/controller.py','rb'),'application/octet-stream')),
-  ('files[]',('pm.py',open('/home/amit/Desktop/test_xyz/pm.py','rb'),'application/octet-stream')),
-  ('files[]',('sample1.graphml',open('/home/amit/Desktop/test_xyz/sample1.graphml','rb'),'application/octet-stream')),
-  # ('files[]',('example.py',open('/home/amit/Desktop/fri/example.py','rb'),'application/octet-stream'))
+  ('files[]',(file_name1,open(path_file1,'rb'),'application/octet-stream')),
+  ('files[]',(file_name2,open(path_file2,'rb'),'application/octet-stream')),
+  ('files[]',(file_name3,open(path_file3,'rb'),'application/octet-stream')),
 ]
 
 
-# upload(files)
-# build("test", "sample1", "xyz")
-# time.sleep(6)
-# debug("sample1")
-# run("sample1")
-# clear("sample1")
-# stop("sample1")
-# getFilesList("sample1")
-# destroy("sample1")
-# openJupyter()
-# download()
+upload(files)
+time.sleep(2)
+build("test", "sample1", "xyz")
+time.sleep(6)
+method = input("methods - 1 for debug, 0 for run :")
+if method == 1:
+  debug("sample1")
+else:  
+  run("sample1")
+time.sleep(2)  
+stop("sample1")
+time.sleep(2) 
+getFilesList("sample1", "cu")
+getFilesList("sample1", "pym") 
+time.sleep(5)
+download("sample1", "cu", "u")
+clear("sample1")
+destroy("sample1")
+openJupyter()
+
 
