@@ -9,7 +9,25 @@ Install Jupyter lab
 $ pip install jupyterlab
 ````
 
+# Running the FRI and a quick test.
+
+To run the FRI as a server:
+````
+$ cd server
+
+$ python3 main.py
+````
+
+To test:
+````
+$ cd ..
+
+$ python3 test.py
+````
+
 # Building FRI Container
+
+Now, we elaborate on building FRI as a container, together with the Kong API Gateway.
 
 Connect to the Server VM, assuming x.x.x.x to be the IP address of your server.
 ````
