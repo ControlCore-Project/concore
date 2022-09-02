@@ -72,7 +72,7 @@ cur_path = os.path.dirname(os.path.abspath(__file__))
 demo_path = os.path.abspath(os.path.join(cur_path, '../demo'))
 file_name1 = "controller.py"
 file_name2 = "pm.py"
-file_name3 = "sample1.graphml"
+file_name3 = "sample.graphml"
 path_file1 = demo_path + "/" +file_name1
 path_file2 = demo_path + "/" +file_name2
 path_file3 = demo_path + "/" +file_name3
@@ -86,22 +86,22 @@ files=[
 
 upload(files)
 time.sleep(2)
-build("test", "sample1", "xyz")
+build("test", "sample", "xyz")
 time.sleep(6)
 method = input("methods - 1 for debug, 0 for run :")
-if method == 1:
-  debug("sample1")
+if method == "1":
+  debug("sample")
 else:  
-  run("sample1")
+  run("sample")
 time.sleep(2)  
-stop("sample1")
+stop("sample")
 time.sleep(2) 
-getFilesList("sample1", "cu")
-getFilesList("sample1", "pym") 
+getFilesList("sample", "cu")
+getFilesList("sample", "pym") 
 time.sleep(5)
-download("sample1", "cu", "u")
-clear("sample1")
-destroy("sample1")
+download("sample", "cu", "u")
+clear("sample")
+destroy("sample")
 openJupyter()
 
 
