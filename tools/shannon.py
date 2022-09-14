@@ -1,16 +1,23 @@
 import numpy as np
 import concore
 setpoint = 67.5
+Kp = 0.1
+Ki = 0.01
+Kd = 0.01
+dT = 0.1
+global Prev_Error, I
+Prev_Error = 0
+I = 0
 
 
-def bangbang_controller(ym):
-    amp = 0
-    if ym[0]>setpoint +2.5:
-        amp = 3
-    elif ym[0]<setpoint -2.5:
-        amp = 1
-	    
-     
+def  pid_controller(ym):
+    global Prev_Error, I
+    Error = setpoint- ym[0]
+    P = Error
+    I = I + Error*dT 
+    D = (Error - Prev_Error )/dT	
+    amp = Kp*P + Ki*I + Kd*D
+    Prev_Error = Error      
     ustar = np.array([amp,30])    
     return ustar
 
@@ -26,7 +33,8 @@ while(concore.simtime<concore.maxtime):
         ym = concore.read(1,"ym",init_simtime_ym)
     ym = np.array(ym)
     
-    ustar = bangbang_controller(ym)
+    ustar =  pid_controller(ym)
     
     print(str(concore.simtime) + " u="+str(ustar) + "ym="+str(ym))
     concore.write(1,"u",list(ustar),delta=0)
+
