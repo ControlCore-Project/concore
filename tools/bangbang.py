@@ -4,9 +4,9 @@ import concore
 
 def bangbang_controller(ym):
     amp = 0
-    if ym[0]>70:
+    if ym[1]>70:
         amp = 3
-    elif ym[0]<65:
+    elif ym[1]<65:
         amp = 1
 	    
      
