@@ -27,8 +27,10 @@ while(concore.simtime<concore.maxtime):
 
     hr,mapp,x0 = cardiac_pm(x0,u)
     
-    dummy = np.array([hr,mapp])
+    #dummy = np.array([hr,mapp])
+    dummy = np.array([mapp,hr])
     print(str(concore.simtime) + " u="+str(u) + "ym=" + str(dummy))
-    concore.write(1,"ym",list(np.array([hr,mapp])),delta=1)
+    #concore.write(1,"ym",list(np.array([hr,mapp])),delta=1)
+    concore.write(1,"ym",list(np.array([mapp,hr])),delta=1)
 
 
