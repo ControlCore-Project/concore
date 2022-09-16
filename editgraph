@@ -9,6 +9,6 @@ else
    then
       xdg-open https://controlcore-project.github.io/concore-editor/
    else
-      echo "unable to open browser for DHGWorkflow"
+      echo "unable to open browser for the concore editor."
    fi
 fi
