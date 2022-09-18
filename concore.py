@@ -21,13 +21,18 @@ except:
     oport = dict()
 
 
-
 s = ''
 olds = ''
 delay = 1
 retrycount = 0
 inpath = "./in" #must be rel path for local
 outpath = "./out"
+
+#9/17/22
+try:
+    params = literal_eval(open(inpath+"1/concore.params").read())
+except:
+    params = dict()
 
 #9/12/21
 def default_maxtime(default):
