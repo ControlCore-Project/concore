@@ -30,10 +30,20 @@ try:
     sigout = concore.params['sigout']
 except:
     sigout = True 
+try:
+    cin = concore.params['cin']
+except:
+    cin = 'hr' 
 
 def  pid_controller(ym):
     global Prev_Error, I, freq
-    Error = sp - ym[1]
+    if cin == 'hr':
+        Error = sp - ym[1]
+    elif cin == 'map':
+        Error = sp - ym[0]
+    else:
+        print('invalid control input '+cin)
+        quit()
     P = Error
     I = I + Error*dT 
     D = (Error - Prev_Error )/dT	
