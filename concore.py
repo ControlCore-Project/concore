@@ -33,6 +33,8 @@ try:
     sparams = open(inpath+"1/concore.params").read()
     try:
         params = literal_eval(sparams)
+        if isinstance(params,str):  #windows keeps "" need to reeval
+            params = literal_eval(params)  
     except:
         print("bad params: "+sparams)
 except:
