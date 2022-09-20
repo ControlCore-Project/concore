@@ -20,7 +20,11 @@ outpath = "/out"
 
 #9/17/22
 try:
-    params = literal_eval(open(inpath+"1/concore.params").read())
+    sparams = open(inpath+"1/concore.params").read()
+    try:
+        params = literal_eval(sparams)
+    except:
+        print("bad params: "+sparams)
 except:
     params = dict()
 #9/12/21
