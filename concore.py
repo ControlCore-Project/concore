@@ -2,6 +2,7 @@ import time
 import os
 from ast import literal_eval
 import sys
+import re
 
 #if windows, create script to kill this process 
 # because batch files don't provide easy way to know pid of last command
@@ -34,10 +35,11 @@ try:
     if sparams[0] == '"':  #windows keeps "" need to remove
         sparams = sparams[1:]
         sparams = sparams[0:sparams.find('"')]
+    if sparams != '{':
+        print("converting sparams: "+sparams)
+        sparams = "{'"+re.sub(',',",'",re.sub('=',"':",sparams))+"}"
     try:
         params = literal_eval(sparams)
-        #if isinstance(params,str):  #windows keeps "" need to reeval
-        #    params = literal_eval(params)  
     except:
         print("bad params: "+sparams)
 except:
