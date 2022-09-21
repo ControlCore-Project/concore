@@ -37,7 +37,7 @@ try:
         sparams = sparams[0:sparams.find('"')]
     if sparams != '{':
         print("converting sparams: "+sparams)
-        sparams = "{'"+re.sub(',',",'",re.sub('=',"':",sparams))+"}"
+        sparams = "{'"+re.sub(',',",'",re.sub('=',"':",re.sub(' ','',sparams)))+"}"
     try:
         params = literal_eval(sparams)
     except:
