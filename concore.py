@@ -31,10 +31,12 @@ outpath = "./out"
 #9/17/22
 try:
     sparams = open(inpath+"1/concore.params").read()
+    if sparams[0] == '"':  #windows keeps "" need to remove
+        sparams = sparams[1:-1]
     try:
         params = literal_eval(sparams)
-        if isinstance(params,str):  #windows keeps "" need to reeval
-            params = literal_eval(params)  
+        #if isinstance(params,str):  #windows keeps "" need to reeval
+        #    params = literal_eval(params)  
     except:
         print("bad params: "+sparams)
 except:
