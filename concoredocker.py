@@ -18,15 +18,22 @@ retrycount = 0
 inpath = "/in"  #must be abs path for docker
 outpath = "/out"
 
-#9/17/22
+#9/21/22
 try:
     sparams = open(inpath+"1/concore.params").read()
+    if sparams[0] == '"':  #windows keeps "" need to remove
+        sparams = sparams[1:]
+        sparams = sparams[0:sparams.find('"')]
+    if sparams != '{':
+        print("converting sparams: "+sparams)
+        sparams = "{'"+re.sub(',',",'",re.sub('=',"':",sparams))+"}"
     try:
         params = literal_eval(sparams)
     except:
         print("bad params: "+sparams)
 except:
     params = dict()
+
 #9/12/21
 def default_maxtime(default):
     global maxtime

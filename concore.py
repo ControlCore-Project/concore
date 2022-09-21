@@ -29,7 +29,7 @@ retrycount = 0
 inpath = "./in" #must be rel path for local
 outpath = "./out"
 
-#9/17/22
+#9/21/22
 try:
     sparams = open(inpath+"1/concore.params").read()
     if sparams[0] == '"':  #windows keeps "" need to remove
