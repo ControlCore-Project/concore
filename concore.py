@@ -32,7 +32,8 @@ outpath = "./out"
 try:
     sparams = open(inpath+"1/concore.params").read()
     if sparams[0] == '"':  #windows keeps "" need to remove
-        sparams = sparams[1:-1]
+        sparams = sparams[1:]
+        sparams = sparams[0:sparams.find('"')]
     try:
         params = literal_eval(sparams)
         #if isinstance(params,str):  #windows keeps "" need to reeval
