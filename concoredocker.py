@@ -1,5 +1,6 @@
 import time
 from ast import literal_eval
+import re
 
 try:
     iport = literal_eval(open("concore.iport").read())
@@ -27,6 +28,7 @@ try:
     if sparams != '{':
         print("converting sparams: "+sparams)
         sparams = "{'"+re.sub(',',",'",re.sub('=',"':",re.sub(' ','',sparams)))+"}"
+        print("converted sparams: " + sparams)
     try:
         params = literal_eval(sparams)
     except:
