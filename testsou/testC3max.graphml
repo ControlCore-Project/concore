@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd" xmlns:y="http://www.yworks.com/xml/graphml">
+  <key for="node" id="d6" yfiles.type="nodegraphics"/>
+  <key for="edge" id="d10" yfiles.type="edgegraphics"/>
+  <graph edgedefault="directed" id="1663886567304" projectName="test3max">
+    <node id="n0">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="30" width="190" x="790.67578125" y="197.701171875"/>
+          <y:Fill color="#FFFF00" opacity="1"/>
+          <y:BorderStyle color="#000000" width="1"/>
+          <y:NodeLabel>XZ:powermeter.cpp</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="n1">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="30" width="139.3671875" x="774.671875" y="328.8505859375"/>
+          <y:Fill color="#FFFF00" opacity="1"/>
+          <y:BorderStyle color="#000000" width="1"/>
+          <y:NodeLabel>PZ:pmpymax.py</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="n2">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="30" width="123.359375" x="790.67578125" y="103.701171875"/>
+          <y:Fill color="#FFFF00" opacity="1"/>
+          <y:BorderStyle color="#000000" width="1"/>
+          <y:NodeLabel>CZ:cpymax.py</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <edge id="0" source="n0" target="n1">
+      <data key="d10">
+        <y:GenericEdge configuration="com.yworks.bpmn.Connection">
+          <y:LineStyle color="#000000" width="1" type="solid"/>
+          <y:Arrows source="none" target="delta"/>
+          <y:EdgeLabel>VXP</y:EdgeLabel>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
+            <y:Point x="886.6324516466558" y="296.35696118238394"/>
+          </y:Path>
+        </y:GenericEdge>
+      </data>
+    </edge>
+    <edge id="1" source="n1" target="n0">
+      <data key="d10">
+        <y:GenericEdge configuration="com.yworks.bpmn.Connection">
+          <y:LineStyle color="#000000" width="1" type="solid"/>
+          <y:Arrows source="none" target="delta"/>
+          <y:EdgeLabel>VP</y:EdgeLabel>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
+            <y:Point x="820.1345636185143" y="277.9174985687248"/>
+          </y:Path>
+        </y:GenericEdge>
+      </data>
+    </edge>
+    <edge id="2" source="n2" target="n0">
+      <data key="d10">
+        <y:GenericEdge configuration="com.yworks.bpmn.Connection">
+          <y:LineStyle color="#000000" width="1" type="solid"/>
+          <y:Arrows source="none" target="delta"/>
+          <y:EdgeLabel>VC</y:EdgeLabel>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
+            <y:Point x="837.9982250471817" y="170.7541276239126"/>
+          </y:Path>
+        </y:GenericEdge>
+      </data>
+    </edge>
+    <edge id="3" source="n0" target="n2">
+      <data key="d10">
+        <y:GenericEdge configuration="com.yworks.bpmn.Connection">
+          <y:LineStyle color="#000000" width="1" type="solid"/>
+          <y:Arrows source="none" target="delta"/>
+          <y:EdgeLabel>VXC</y:EdgeLabel>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
+            <y:Point x="888.323605160342" y="140.76017301090505"/>
+          </y:Path>
+        </y:GenericEdge>
+      </data>
+    </edge>
+    <actionHistory>
+      <tid>1663886583689</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>UPDATE_NODE</actionName>
+        <parameters>WyJuMCIseyJ3aWR0aCI6MTIzLjM1OTM3NSwiaGVpZ2h0IjozMCwib3BhY2l0eSI6MSwic2hhcGUiOiJyZWN0YW5nbGUiLCJiYWNrZ3JvdW5kQ29sb3IiOiIjRkZGRjAwIiwiYm9yZGVyQ29sb3IiOiIjMDAwMDAwIiwiYm9yZGVyV2lkdGgiOjF9LCJYWjpwb3dlcm1ldGVybWF4LnB5Iix0cnVlXQ==</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>UPDATE_NODE</actionName>
+        <parameters>WyJuMCIseyJ3aWR0aCI6MTkwLCJoZWlnaHQiOjMwLCJvcGFjaXR5IjoxLCJzaGFwZSI6InJlY3RhbmdsZSIsImJhY2tncm91bmRDb2xvciI6IiNGRkZGMDAiLCJib3JkZXJDb2xvciI6IiMwMDAwMDAiLCJib3JkZXJXaWR0aCI6MX0sIlhaOnBvd2VybWV0ZXJtYXguY3BwIix0cnVlXQ==</parameters>
+      </equivalent>
+    </actionHistory>
+    <actionHistory>
+      <tid>1663886679396</tid>
+      <authorName>mark</authorName>
+      <inverse>
+        <actionName>UPDATE_NODE</actionName>
+        <parameters>WyJuMCIseyJ3aWR0aCI6MTkwLCJoZWlnaHQiOjMwLCJvcGFjaXR5IjoxLCJzaGFwZSI6InJlY3RhbmdsZSIsImJhY2tncm91bmRDb2xvciI6IiNGRkZGMDAiLCJib3JkZXJDb2xvciI6IiMwMDAwMDAiLCJib3JkZXJXaWR0aCI6MX0sIlhaOnBvd2VybWV0ZXJtYXguY3BwIix0cnVlXQ==</parameters>
+      </inverse>
+      <equivalent>
+        <actionName>UPDATE_NODE</actionName>
+        <parameters>WyJuMCIseyJ3aWR0aCI6MTkwLCJoZWlnaHQiOjMwLCJvcGFjaXR5IjoxLCJzaGFwZSI6InJlY3RhbmdsZSIsImJhY2tncm91bmRDb2xvciI6IiNGRkZGMDAiLCJib3JkZXJDb2xvciI6IiMwMDAwMDAiLCJib3JkZXJXaWR0aCI6MX0sIlhaOnBvd2VybWV0ZXIuY3BwIix0cnVlXQ==</parameters>
+      </equivalent>
+    </actionHistory>
+  </graph>
+</graphml>
