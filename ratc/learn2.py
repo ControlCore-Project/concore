@@ -2,8 +2,9 @@ import concore
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-GENERATE_PLOT = 1
+GENERATE_PLOT = 0
 fout=open(concore.outpath+'1/history.txt','w')
+fout2=open('historyfull.txt','a+')
 concore.delay = 0.002
 concore.default_maxtime(150)
 init_simtime_u = "[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
@@ -21,6 +22,7 @@ while(concore.simtime<concore.maxtime):
         ut[int(concore.simtime)] = np.array(u).T
         ymt[int(concore.simtime)] = np.array(ym).T
         fout.write(str(u)+str(ym)+'\n')
+        fout2.write(str(u)+str(ym)+'\n')
     oldsimtime = concore.simtime
 print("retry="+str(concore.retrycount))
 fout.close()
