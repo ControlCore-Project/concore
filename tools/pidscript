@@ -1,0 +1,35 @@
+./maxtime 50
+./params "Kp=0.2; Ki=0.02; Kd=0"
+../tools/runhelp
+./maxtime 50
+./params "Kp=0.2; Ki=0.02; Kd=0.01"
+../tools/runhelp
+./params "sp=75; Kp=0.15; Ki=0.02; Kd=0.005"
+../tools/runhelp
+./params "sp=75; Kp=0.1; Ki=0.02; Kd=0.005"
+../tools/runhelp
+./params "sp=75; Kp=0.075; Ki=0.02; Kd=0.005"
+../tools/runhelp
+./params "sp=85; Kp=0.075; Ki=0.02; Kd=0.005"
+../tools/runhelp
+./params "sp=55; Kp=0.075; Ki=0.02; Kd=0.005; freq=25"
+../tools/runhelp
+./params "sp=85; Kp=0.075; Ki=0.02; Kd=0.005; freq=25"
+../tools/runhelp
+./params "sp=55; Kp=0.075; Ki=0.02; Kd=0.005; freq=20"
+../tools/runhelp
+./params "sp=85; Kp=0.075; Ki=0.02; Kd=0.005; freq=20"
+../tools/runhelp
+./params "sp=75; Kp=0.075; Ki=0.02; Kd=0.005; sigout=False"
+../tools/runhelp
+./maxtime 30
+./params "sp=65; Kp=0.075; Ki=0.02; Kd=0.005; sigout=False"
+../tools/runhelp
+./maxtime 30
+./params "sp=65; Kp=0.075; Ki=0.02; Kd=0.005; sigout=True"
+../tools/runhelp
+./params "sp=85; Kp=0.075; Ki=0.02; Kd=0.005; cin='map'"
+../tools/runhelp
+./params "sp=95; Kp=0.075; Ki=0.02; Kd=0.005; cin='map'"
+../tools/runhelp
+
