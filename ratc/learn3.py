@@ -11,6 +11,7 @@ concore2.outpath = concore.outpath
 concore2.simtime = 0
 
 fout=open(concore.outpath+'1/history.txt','w')
+fout2=open('historyfull.txt','a+')
 concore.default_maxtime(150)
 init_simtime_u = "[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
 init_simtime_ym = "[0.0, 0.0, 0.0]"
@@ -26,6 +27,7 @@ while(concore.simtime<concore.maxtime):
         ym = concore2.read(concore.iport["VPY"],"ym",init_simtime_ym)
     ymt[int(concore2.simtime)] = np.array(ym).T
     fout.write(str(u)+str(ym)+'\n')
+    fout2.write(str(u)+str(ym)+'\n')
 print("retry="+str(concore.retrycount))
 fout.close()
 
