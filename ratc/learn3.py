@@ -26,10 +26,15 @@ while(concore.simtime<concore.maxtime-1):
     while concore2.unchanged():
         ym = concore2.read(concore.iport["VPY"],"ym",init_simtime_ym)
     ymt[int(concore2.simtime)] = np.array(ym).T
-    fout.write(str(u)+str(ym)+'\n')
-    fout2.write(str(u)+str(ym)+'\n')
+    #fout.write(str(u)+str(ym)+'\n')
+    #fout2.write(str(u)+str(ym)+'\n')
 print("retry="+str(concore.retrycount))
+
+for i in range(2,concore.maxtime):
+    fout.write(str(ymt[i-2])+str(ymt[i-1])+str(ut[i])+" "+str(ymt[i])+'\n')
+    fout2.write(str(ymt[i-2])+str(ymt[i-1])+str(ut[i])+" "+str(ymt[i])+'\n')
 fout.close()
+fout2.close()
 
 #################
 # plot inputs and outputs

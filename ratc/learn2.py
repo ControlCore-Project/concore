@@ -21,11 +21,16 @@ while(concore.simtime<concore.maxtime):
     if concore.simtime > oldsimtime:
         ut[int(concore.simtime)] = np.array(u).T
         ymt[int(concore.simtime)] = np.array(ym).T
-        fout.write(str(u)+str(ym)+'\n')
-        fout2.write(str(u)+str(ym)+'\n')
+        #fout.write(str(u)+str(ym)+'\n')
+        #fout2.write(str(u)+str(ym)+'\n')
     oldsimtime = concore.simtime
 print("retry="+str(concore.retrycount))
+
+for i in range(2,concore.maxtime):
+    fout.write(str(ymt[i-2])+str(ymt[i-1])+str(ut[i])+" "+str(ymt[i])+'\n')
+    fout2.write(str(ymt[i-2])+str(ymt[i-1])+str(ut[i])+" "+str(ymt[i])+'\n')
 fout.close()
+fout2.close()
 
 #################
 # plot inputs and outputs
