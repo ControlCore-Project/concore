@@ -3,7 +3,7 @@ import concore2
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-GENERATE_PLOT = 1
+GENERATE_PLOT = 0
 concore.delay = 0.002
 concore2.delay = 0.002
 concore2.inpath = concore.inpath
@@ -19,7 +19,7 @@ u = concore.initval(init_simtime_u)
 ym = concore.initval(init_simtime_ym)
 ut = (concore.maxtime+1)*[np.array(u).T]
 ymt = (concore.maxtime+1)*[np.array(ym).T]
-while(concore.simtime<concore.maxtime):
+while(concore.simtime<concore.maxtime-1):
     while concore.unchanged():
         u = concore.read(concore.iport["VCY"],"u",init_simtime_u)
     ut[int(concore.simtime)] = np.array(u).T
