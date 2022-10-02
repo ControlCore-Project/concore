@@ -35,6 +35,12 @@ try:
         print("bad params: "+sparams)
 except:
     params = dict()
+#9/30/22
+def tryparam(n,i):
+    try:
+       return params[n]
+    except:
+       return i
 
 #9/12/21
 def default_maxtime(default):
