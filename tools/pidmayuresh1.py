@@ -2,7 +2,7 @@ import numpy as np
 import math
 import concore
 dT = 0.1
-global freq
+global Prev_Error, I, freq
 Prev_Error = 0
 I = 0
 
@@ -14,8 +14,8 @@ freq = concore.tryparam('freq',30)
 sigout = concore.tryparam('sigout',True)
 cin = concore.tryparam('cin', 'hr')
 
-def  pid_controller(Prev_Error, I, ym):
-    global freq
+def  pid_controller(ym):
+    global Prev_Error, I, freq
     if cin == 'hr':
         Error = sp - ym[1]
     elif cin == 'map':
@@ -31,7 +31,7 @@ def  pid_controller(Prev_Error, I, ym):
     if sigout:
         amp = 3.0/(1.0 + math.exp(amp))
     ustar = np.array([amp,freq])    
-    return (Prev_Error, I, ustar)
+    return ustar
 
 
 concore.default_maxtime(150)
@@ -49,7 +49,7 @@ while(concore.simtime<concore.maxtime):
     if concore.simtime < 0:
         ustar = np.array([0.0,30.0])
     else:
-        (Prev_Error, I, ustar) =  pid_controller(Prev_Error, I, ym)
+        ustar =  pid_controller(ym)
     
     print(str(concore.simtime) + " u="+str(ustar) + "ym="+str(ym))
     concore.write(1,"u",list(ustar),delta=0)
