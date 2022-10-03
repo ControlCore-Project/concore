@@ -36,30 +36,17 @@ def  pid_controller(Prev_Error, I, ym):
 
 concore.default_maxtime(150)
 concore.delay = 0.02
-init_simtime_u = "[0.0, 0.0,0.0]"
 init_simtime_ym = "[0.0, 70.0,91]"
-u = np.array([concore.initval(init_simtime_u)]).T
-print("Mayuresh's and Shannon's PID controller: sp is "+str(sp))
+ym = np.array(concore.initval(init_simtime_ym))
+print("Mayuresh's PID controller: sp is "+str(sp))
 print(concore.params)
 while(concore.simtime<concore.maxtime):
     while concore.unchanged():
         ym = concore.read(1,"ym",init_simtime_ym)
     ym = np.array(ym)
-    
-    if concore.simtime < 0:
-        ustar = np.array([0.0,30.0])
-    else:
-        (Prev_Error, I, ustar) =  pid_controller(Prev_Error, I, ym)
-    
+    (Prev_Error, I, ustar) =  pid_controller(Prev_Error, I, ym)
     print(str(concore.simtime) + " u="+str(ustar) + "ym="+str(ym))
     concore.write(1,"u",list(ustar),delta=0)
 
-
-
-#from ast import literal_eval
-#try:
-#    params = literal_eval(open(concore.inpath+"1/concore.params").read())
-#except:
-#    params = dict()
 
 
