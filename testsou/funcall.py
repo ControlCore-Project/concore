@@ -13,7 +13,7 @@ init_simtime_ym = "[0.0, 0.0, 0.0]"
 
 u = concore.initval(init_simtime_u)
 ym = concore2.initval(init_simtime_ym)
-while(concore.simtime<concore.maxtime):
+while(concore2.simtime<concore.maxtime):
     while concore.unchanged():
         u = concore.read(concore.iport['U'],"u",init_simtime_u)
     concore.write(concore.oport['U1'],"u",u)
