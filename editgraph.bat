@@ -1,2 +1,2 @@
-start https://controlcore-project.github.io/concore-editor/
+start chrome https://controlcore-project.github.io/concore-editor/
 

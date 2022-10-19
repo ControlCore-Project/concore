@@ -12,14 +12,15 @@ init_simtime_u = "[0.0, 0.0, 0.0]"
 init_simtime_ym = "[0.0, 0.0, 0.0]"
 
 u = concore.initval(init_simtime_u)
-ym = concore.initval(init_simtime_ym)
+ym = concore2.initval(init_simtime_ym)
 while(concore.simtime<concore.maxtime):
     while concore.unchanged():
         u = concore.read(concore.iport['U1'],"u",init_simtime_u)
-    concore2.write(concore.oport['U2'],"u",u)
+    concore.write(concore.oport['U2'],"u",u)
+    print(u)
     old2 = concore2.simtime
-    while concore2.simtime <= old2:
+    while concore2.unchanged() or concore2.simtime <= old2:
         ym = concore2.read(concore.iport['Y2'],"ym",init_simtime_ym)
-    concore.write(concore.oport['Y1'],"ym",ym)
+    concore2.write(concore.oport['Y1'],"ym",ym)
     print("funbody u="+str(u)+" ym="+str(ym)+" time="+str(concore2.simtime))
 print("retry="+str(concore.retrycount))

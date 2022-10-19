@@ -2,7 +2,7 @@
 which open
 if [ $? == 0 ] 
 then
-   open https://controlcore-project.github.io/concore-editor/
+   open -a 'Google Chrome' https://controlcore-project.github.io/concore-editor/
 else
    which xdg-open
    if [ $? == 0 ] 
