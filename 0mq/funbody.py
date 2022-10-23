@@ -40,7 +40,7 @@ ym = concore2.initval(init_simtime_ym)
 while(concore2.simtime<concore.maxtime):
     #while concore.unchanged():
     #    u = concore.read(concore.iport['U1'],"u",init_simtime_u)
-    command_list = []
+    command_list = paired_transmitter.get_incoming_requests()
     while len(command_list)==0:
         time.sleep(.01)
         command_list = paired_transmitter.get_incoming_requests()
@@ -56,9 +56,10 @@ while(concore2.simtime<concore.maxtime):
         old2 = concore2.simtime
         while concore2.unchanged() or concore2.simtime <= old2:
             ym = concore2.read(concore.iport['Y2'],"ym",init_simtime_ym)
+        ym = [concore2.simtime]+ym
         print(f"Replying to {command.action} with {ym}")
         paired_transmitter.reply_to_command(
-           request_id=command.request_id, payload=[concore2.simtime]+ym)
+           request_id=command.request_id, payload=ym)
     else:
         print("undefined action"+str(command.action)) 
         quit()
