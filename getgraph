@@ -1,3 +1,11 @@
 cp ~/Downloads/*.graphml .
-rm ~/Downloads/*.graphml 
+if [ $? == 0 ]
+then
+    echo "successfully moved *.graphml files in current directory"
+fi
 
+rm ~/Downloads/*.graphml 
+if [ $? == 0 ]
+then
+    echo "successfully deleted from downloads"
+fi
