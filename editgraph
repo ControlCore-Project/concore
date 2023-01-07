@@ -1,14 +1,9 @@
 #!/bin/bash
-which open
-if [ $? == 0 ] 
-then
-   open https://controlcore-project.github.io/DHGWorkflow/
-else
-   which xdg-open
-   if [ $? == 0 ] 
-   then
-      xdg-open https://controlcore-project.github.io/DHGWorkflow/
-   else
-      echo "unable to open browser for DHGWorkflow"
-   fi
+
+if [[ "$OSTYPE" =~ ^darwin ]]; then
+    open -a 'Google Chrome' https://controlcore-project.github.io/concore-editor/
+fi
+
+if [[ "$OSTYPE" =~ ^linux ]]; then
+    xdg-open https://controlcore-project.github.io/concore-editor/
 fi
