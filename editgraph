@@ -2,13 +2,13 @@
 which open
 if [ $? == 0 ] 
 then
-   open https://controlcore-project.github.io/DHGWorkflow/
+   open -a 'Google Chrome' https://controlcore-project.github.io/concore-editor/
 else
    which xdg-open
    if [ $? == 0 ] 
    then
-      xdg-open https://controlcore-project.github.io/DHGWorkflow/
+      xdg-open https://controlcore-project.github.io/concore-editor/
    else
-      echo "unable to open browser for DHGWorkflow"
+      echo "unable to open browser for the concore editor."
    fi
 fi
