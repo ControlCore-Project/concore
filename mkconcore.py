@@ -7,6 +7,7 @@ import shutil
 import stat
 
 MKCONCORE_VER = "22-09-18"
+
 GRAPHML_FILE = sys.argv[1]
 TRIMMED_LOGS = True
 CONCOREPATH = "."
@@ -85,6 +86,7 @@ if concoretype == "windows":
     fmaxtime = open("maxtime.bat", "w") # 9/12/21
     funlock = open("unlock.bat", "w") # 12/4/21
     fparams = open("params.bat", "w") # 9/18/22
+
 else:
     fbuild = open("build","w")
     frun = open("run", "w")
@@ -94,6 +96,7 @@ else:
     fmaxtime = open("maxtime", "w") # 9/12/21
     funlock = open("unlock", "w") # 12/4/21
     fparams = open("params", "w") # 9/18/22
+
 os.mkdir("src")
 os.chdir("..")
         
@@ -637,6 +640,9 @@ if (concoretype=="docker"):
 #remaining code deals only with posix or windows
 
 #copy sourcefiles from ./src into corresponding directories
+if concoretype=="posix":
+    fbuild.write('#!/bin/bash' + "\n")
+
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
@@ -649,9 +655,11 @@ for node in nodes_dict:
             fbuild.write("copy .\\src\\"+sourcecode+" .\\"+containername+"\\"+sourcecode+"\n")
             if langext == "py":
                 fbuild.write("copy .\\src\\concore.py .\\" + containername + "\\concore.py\n")
-            elif langext == "cpp": # 6/22/21
+            elif langext == "cpp":
+ # 6/22/21
                 fbuild.write("copy .\\src\\concore.hpp .\\" + containername + "\\concore.hpp\n")
-            elif langext == "v": # 6/25/21
+            elif langext == "v":
+ # 6/25/21
                 fbuild.write("copy .\\src\\concore.v .\\" + containername + "\\concore.v\n")
             elif langext == "m":   #  4/2/21
                 fbuild.write("copy .\\src\\concore_*.m .\\" + containername + "\\\n")
@@ -718,6 +726,11 @@ for node in nodes_dict:
     i=i+1
 
 #start running source in associated dirs (run and debug scripts)
+if concoretype=="posix":
+    fdebug.write('#!/bin/bash' + "\n")
+    frun.write('#!/bin/bash' + "\n")
+
+
 i=0
 for node in nodes_dict:
   containername,sourcecode = nodes_dict[node].split(':')
@@ -809,7 +822,9 @@ for node in nodes_dict:
                   else:
                       fdebug.write('concorewd=`pwd`\n')
                       fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/' +containername+";"+ MATLABEXE+' -batch run\\\\\\(\\\\\\'+"'"+sourcecode+"\\\\\\'"+'\\\\\\)\\""\n' )
-      
+
+if concoretype=="posix":
+    fstop.write('#!/bin/bash' + "\n")
 i=0 #  3/30/21
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
@@ -824,6 +839,8 @@ for node in nodes_dict:
     i=i+1
 fstop.close()
 
+if concoretype=="posix":
+    fclear.write('#!/bin/bash' + "\n")
 i=0 #  9/13/21
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
@@ -839,6 +856,8 @@ for node in nodes_dict:
     i=i+1
 fclear.close()
 
+if concoretype=="posix":
+    fmaxtime.write('#!/bin/bash' + "\n")
 i=0 #  9/12/21
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
@@ -868,6 +887,7 @@ for node in nodes_dict:
             writeedges = writeedges[writeedges.find(":")+1:]
     i=i+1
 fparams.close()
+
 
 i=0 #  9/12/21
 for node in nodes_dict:
