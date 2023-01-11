@@ -1,8 +1,13 @@
 #!/bin/bash
+
 which open
 if [ $? == 0 ] 
 then
-   open -a 'Google Chrome' https://controlcore-project.github.io/concore-editor/
+   if [[ "$OSTYPE" =~ ^darwin ]]; then
+      open -a 'Google Chrome' https://controlcore-project.github.io/concore-editor/
+   elif [[ "$OSTYPE" =~ ^linux ]]; then
+      xdg-open https://controlcore-project.github.io/concore-editor/
+   fi
 else
    which xdg-open
    if [ $? == 0 ] 
