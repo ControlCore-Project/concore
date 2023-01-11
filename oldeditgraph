@@ -1,0 +1,14 @@
+#!/bin/bash
+which open
+if [ $? == 0 ] 
+then
+   open https://pradeeban.github.io/DHGWorkflow/
+else
+   which xdg-open
+   if [ $? == 0 ] 
+   then
+      xdg-open https://pradeeban.github.io/DHGWorkflow/
+   else
+      echo "unable to open browser for DHGWorkflow"
+   fi
+fi

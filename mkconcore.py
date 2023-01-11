@@ -6,7 +6,8 @@ import os
 import shutil
 import stat
 
-MKCONCORE_VER = "22-07-20"
+MKCONCORE_VER = "22-09-18"
+
 GRAPHML_FILE = sys.argv[1]
 TRIMMED_LOGS = True
 CONCOREPATH = "."
@@ -84,6 +85,8 @@ if concoretype == "windows":
     fclear = open("clear.bat", "w") 
     fmaxtime = open("maxtime.bat", "w") # 9/12/21
     funlock = open("unlock.bat", "w") # 12/4/21
+    fparams = open("params.bat", "w") # 9/18/22
+
 else:
     fbuild = open("build","w")
     frun = open("run", "w")
@@ -92,6 +95,8 @@ else:
     fclear = open("clear", "w") 
     fmaxtime = open("maxtime", "w") # 9/12/21
     funlock = open("unlock", "w") # 12/4/21
+    fparams = open("params", "w") # 9/18/22
+
 os.mkdir("src")
 os.chdir("..")
         
@@ -538,6 +543,45 @@ if (concoretype=="docker"):
     fmaxtime.write('rm concore.maxtime\n')
     fmaxtime.close()
 
+    fparams.write('echo "$1" >concore.params\n')
+    fparams.write('echo "FROM alpine:3.8" > Dockerfile\n')
+    fparams.write('sudo docker build -t docker-concore .\n')
+    fparams.write('sudo docker run --name=concore')
+    # -v VCZ:/VCZ -v VPZ:/VPZ 
+    i=0 #  9/12/21
+    for node in nodes_dict:
+        containername,sourcecode = nodes_dict[node].split(':')
+        if len(sourcecode)!=0:
+            dockername = sourcecode.split(".")[0] #3/28/21
+            writeedges = volswr[i]
+            while writeedges.find(":") != -1: 
+                fparams.write(' -v ')
+                fparams.write(writeedges.split(":")[0].split("-v ")[1]+":/")
+                fparams.write(writeedges.split(":")[0].split("-v ")[1])
+                writeedges = writeedges[writeedges.find(":")+1:]
+        i=i+1
+    fparams.write(' docker-concore >/dev/null &\n')
+    fparams.write('sleep 3\n')  # 12/6/21
+    fparams.write('echo "copying concore.params=$1"\n')
+    i=0 #  9/12/21
+    for node in nodes_dict:
+        containername,sourcecode = nodes_dict[node].split(':')
+        if len(sourcecode)!=0:
+            dockername = sourcecode.split(".")[0] #3/28/21
+            writeedges = volswr[i]
+            while writeedges.find(":") != -1: 
+                fparams.write('sudo docker cp concore.params concore:/')
+                fparams.write(writeedges.split(":")[0].split("-v ")[1]+"/concore.params\n")
+                writeedges = writeedges[writeedges.find(":")+1:]
+        i=i+1
+    fparams.write('sudo docker stop concore \n')
+    fparams.write('sudo docker rm concore\n')
+    fparams.write('sudo docker rmi docker-concore\n')
+    fparams.write('rm Dockerfile\n')
+    fparams.write('rm concore.params\n')
+    fparams.close()
+
+
     funlock.write('echo "FROM alpine:3.8" > Dockerfile\n')
     funlock.write('sudo docker build -t docker-concore .\n')
     funlock.write('sudo docker run --name=concore')
@@ -589,6 +633,7 @@ if (concoretype=="docker"):
     os.chmod(outdir+"/stop",stat.S_IRWXU)  
     os.chmod(outdir+"/clear",stat.S_IRWXU) 
     os.chmod(outdir+"/maxtime",stat.S_IRWXU) 
+    os.chmod(outdir+"/params",stat.S_IRWXU) 
     os.chmod(outdir+"/unlock",stat.S_IRWXU) 
     quit()
 
@@ -828,8 +873,21 @@ for node in nodes_dict:
     i=i+1
 fmaxtime.close()
 
-if concoretype=="posix":
-    funlock.write('#!/bin/bash' + "\n")
+i=0 #  9/18/22
+for node in nodes_dict:
+    containername,sourcecode = nodes_dict[node].split(':')
+    if len(sourcecode)!=0:
+        dockername = sourcecode.split(".")[0] #3/28/21
+        writeedges = volswr[i]
+        while writeedges.find(":") != -1: 
+            if concoretype=="windows":
+                fparams.write('echo %1 >' + writeedges.split(":")[0].split("-v")[1]+ "\\concore.params\n")
+            else:
+                fparams.write('echo "$1" >' + writeedges.split(":")[0].split("-v")[1]+ "/concore.params\n")
+            writeedges = writeedges[writeedges.find(":")+1:]
+    i=i+1
+fparams.close()
+
 
 i=0 #  9/12/21
 for node in nodes_dict:
@@ -853,6 +911,7 @@ fdebug.close()
 fstop.close()
 fclear.close()
 fmaxtime.close()
+fparams.close()
 if concoretype != "windows":
     os.chmod(outdir+"/build",stat.S_IRWXU)
     os.chmod(outdir+"/run",stat.S_IRWXU)
@@ -860,5 +919,6 @@ if concoretype != "windows":
     os.chmod(outdir+"/stop",stat.S_IRWXU)  
     os.chmod(outdir+"/clear",stat.S_IRWXU) 
     os.chmod(outdir+"/maxtime",stat.S_IRWXU) 
+    os.chmod(outdir+"/params",stat.S_IRWXU) 
     os.chmod(outdir+"/unlock",stat.S_IRWXU) 
 

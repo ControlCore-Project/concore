@@ -12,5 +12,6 @@ while(concore.simtime<concore.maxtime):
     ym[0]  = u[0]+10000
     print("ym="+str(ym[0])+" u="+str(u[0]));
     concore.write(1,"ym",ym,delta=1)
+    input()
 #concore.write(1,"ym",init_simtime_ym)
 print("retry="+str(concore.retrycount))

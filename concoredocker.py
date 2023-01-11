@@ -1,5 +1,6 @@
 import time
 from ast import literal_eval
+import re
 
 try:
     iport = literal_eval(open("concore.iport").read())
@@ -17,6 +18,29 @@ delay = 1
 retrycount = 0
 inpath = "/in"  #must be abs path for docker
 outpath = "/out"
+
+#9/21/22
+try:
+    sparams = open(inpath+"1/concore.params").read()
+    if sparams[0] == '"':  #windows keeps "" need to remove
+        sparams = sparams[1:]
+        sparams = sparams[0:sparams.find('"')]
+    if sparams != '{':
+        print("converting sparams: "+sparams)
+        sparams = "{'"+re.sub(',',",'",re.sub('=',"':",re.sub(' ','',sparams)))+"}"
+        print("converted sparams: " + sparams)
+    try:
+        params = literal_eval(sparams)
+    except:
+        print("bad params: "+sparams)
+except:
+    params = dict()
+#9/30/22
+def tryparam(n,i):
+    try:
+       return params[n]
+    except:
+       return i
 
 #9/12/21
 def default_maxtime(default):
