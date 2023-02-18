@@ -5,6 +5,7 @@ from subprocess import call
 from pathlib import Path
 import json
 import subprocess
+from flask_cors import CORS, cross_origin
 
 cur_path = os.path.dirname(os.path.abspath(__file__))
 concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
@@ -12,6 +13,9 @@ concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
 
 app = Flask(__name__)
 app.secret_key = "secret key"
+
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
 
 # To upload multiple file. For example, /upload/test?apikey=xyz
 @app.route('/upload/<dir>', methods=['POST'])
@@ -66,14 +70,17 @@ def build(dir):
     makestudy_dir = dirname + "/" + graphml_file   #for makestudy
     dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
     if not os.path.exists(dir_path):
-        proc = call(["./makestudy", makestudy_dir], cwd=concore_path)
+        proc = call(["makestudy", makestudy_dir],shell=True, cwd=concore_path)
         if(proc == 0):
             resp = jsonify({'message': 'Directory successfully created'})
             resp.status_code = 201
         else:
             resp = jsonify({'message': 'There is an Error'})
             resp.status_code = 500        
-    call(["./build"], cwd=dir_path)   
+    else:
+        resp= jsonify({"message":"Success"})
+        resp.status_code=200
+    call(["build"],shell=True, cwd=dir_path)   
     return resp 
 
 
