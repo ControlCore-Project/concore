@@ -13,7 +13,7 @@ $ pip install jupyterlab
 
 To run the FRI as a server:
 ````
-$ cd conore
+$ cd conore/fri
 
 $ git checkout dev
 
