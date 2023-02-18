@@ -84,11 +84,12 @@ def build(dir):
     return resp 
 
 
+# Give the directory of the build files that are build using ./build
 @app.route('/debug/<dir>', methods=['POST'])
 def debug(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./debug"], cwd=dir_path)
+    proc = call(["debug"],shell=True , cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'Close the pop window after obtaining result'})
         resp.status_code = 201
@@ -99,11 +100,13 @@ def debug(dir):
         return resp  
 
 
+# Give the directory of the build files that are build using ./build
 @app.route('/run/<dir>', methods=['POST'])
 def run(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./run"], cwd=dir_path)
+    print(dir_path)
+    proc = call(["run"],shell=True, cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'result prepared'})
         resp.status_code = 201
@@ -113,11 +116,12 @@ def run(dir):
         resp.status_code = 500
         return resp
 
+# Give the directory of the build files that are build using ./build
 @app.route('/stop/<dir>', methods=['POST'])
 def stop(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./stop"], cwd=dir_path)
+    proc = call(["stop"],shell=True, cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'resources cleaned'})
         resp.status_code = 201
@@ -132,7 +136,7 @@ def stop(dir):
 def clear(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./clear"], cwd=dir_path)
+    proc = call(["clear"],shell=True, cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'result deleted'})
         resp.status_code = 201
@@ -164,7 +168,7 @@ def download(dir):
 @app.route('/destroy/<dir>', methods=['DELETE'])
 def destroy(dir):
     dir = secure_filename(dir)
-    proc = call(["./destroy", dir], cwd=concore_path)
+    proc = call(["destroy", dir],shell=True, cwd=concore_path)
     if(proc == 0):
         resp = jsonify({'message': 'Successfuly deleted Dirctory'})
         resp.status_code = 201
@@ -185,7 +189,7 @@ def getFilesList(dir):
     return res             
 
 
-@app.route('/openJupyter/', methods=['POST'])
+@app.route('/openJupyter', methods=['POST'])
 def openJupyter():
     proc = subprocess.Popen(['jupyter', 'lab'], shell=False, stdout=subprocess.PIPE, cwd=concore_path)
     if  proc.poll() is None:
