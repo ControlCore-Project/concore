@@ -5,6 +5,7 @@ from subprocess import call
 from pathlib import Path
 import json
 import subprocess
+from flask_cors import CORS, cross_origin
 
 cur_path = os.path.dirname(os.path.abspath(__file__))
 concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
@@ -12,6 +13,9 @@ concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
 
 app = Flask(__name__)
 app.secret_key = "secret key"
+
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
 
 # To upload multiple file. For example, /upload/test?apikey=xyz
 @app.route('/upload/<dir>', methods=['POST'])
