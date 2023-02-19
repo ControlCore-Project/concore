@@ -89,15 +89,19 @@ def build(dir):
 def debug(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["debug"],shell=True , cwd=dir_path)
-    if(proc == 0):
-        resp = jsonify({'message': 'Close the pop window after obtaining result'})
-        resp.status_code = 201
-        return resp
+    if not os.path.exists(dir_path):
+        resp=jsonify({"message":"Wrong directory given"})
+        resp.status_code=500
     else:
-        resp = jsonify({'message': 'There is an Error'})
-        resp.status_code = 500
-        return resp  
+        proc = call(["debug"],shell=True , cwd=dir_path)
+        if(proc == 0):
+            resp = jsonify({'message': 'Close the pop window after obtaining result'})
+            resp.status_code = 201
+            return resp
+        else:
+            resp = jsonify({'message': 'There is an Error'})
+            resp.status_code = 500
+    return resp  
 
 
 # Give the directory of the build files that are build using ./build
