@@ -67,7 +67,7 @@ $ docker run -d --name kong \
 
 Start FRI container
 ````
-$ nohup sudo docker run --name fri -p 8090:8081 fri > controlcore.out &
+$ nohup sudo docker run --name fri -p 8090:8080 fri > controlcore.out &
 ````
 
 Delete if there is a previously configured Kong service. If not, skip this step. First you need to find the ID-VALUE for the route with a GET command before deleting the route and service.
