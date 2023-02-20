@@ -5,6 +5,7 @@ from subprocess import call
 from pathlib import Path
 import json
 import subprocess
+import platform
 from flask_cors import CORS, cross_origin
 
 cur_path = os.path.dirname(os.path.abspath(__file__))
@@ -70,14 +71,20 @@ def build(dir):
     makestudy_dir = dirname + "/" + graphml_file   #for makestudy
     dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
     if not os.path.exists(dir_path):
-        proc = call(["./makestudy", makestudy_dir], cwd=concore_path)
+        if(platform.uname=='Windows'):
+            proc= call(["makestudy", makestudy_dir],shell=True, cwd=concore_path)
+        else:
+            proc = call(["./makestudy", makestudy_dir], cwd=concore_path)
         if(proc == 0):
             resp = jsonify({'message': 'Directory successfully created'})
             resp.status_code = 201
         else:
             resp = jsonify({'message': 'There is an Error'})
-            resp.status_code = 500        
-    call(["./build"], cwd=dir_path)   
+            resp.status_code = 500   
+    if(platform.uname=='Windows'):
+        call(["build"],shell=True, cwd=dir_path)
+    else:
+        call(["./build"], cwd=dir_path)  
     return resp 
 
 
@@ -85,7 +92,10 @@ def build(dir):
 def debug(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./debug"], cwd=dir_path)
+    if(platform.uname=='Windows'):
+        proc=call(["debug"],shell=True, cwd=dir_path)
+    else:
+        proc = call(["./debug"], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'Close the pop window after obtaining result'})
         resp.status_code = 201
@@ -100,7 +110,10 @@ def debug(dir):
 def run(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./run"], cwd=dir_path)
+    if(platform.uname=='Windows'):
+        proc=call(["run"],shell=True, cwd=dir_path)
+    else:
+        proc = call(["./run"], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'result prepared'})
         resp.status_code = 201
@@ -114,7 +127,10 @@ def run(dir):
 def stop(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./stop"], cwd=dir_path)
+    if(platform.uname=='Windows'):
+        proc=call(["stop"],shell=True, cwd=dir_path)
+    else:
+        proc = call(["./stop"], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'resources cleaned'})
         resp.status_code = 201
@@ -129,7 +145,10 @@ def stop(dir):
 def clear(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./clear"], cwd=dir_path)
+    if(platform.uname=='Windows'):
+        proc=call(["clear"],shell=True, cwd=dir_path)
+    else:
+        proc = call(["./clear"], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'result deleted'})
         resp.status_code = 201
@@ -161,7 +180,10 @@ def download(dir):
 @app.route('/destroy/<dir>', methods=['DELETE'])
 def destroy(dir):
     dir = secure_filename(dir)
-    proc = call(["./destroy", dir], cwd=concore_path)
+    if(platform.uname=='Windows'):
+        proc=call(["debug"],shell=True, cwd=concore_path)
+    else:
+        proc = call(["./debug"], cwd=concore_path)
     if(proc == 0):
         resp = jsonify({'message': 'Successfuly deleted Dirctory'})
         resp.status_code = 201
