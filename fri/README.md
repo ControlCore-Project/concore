@@ -15,8 +15,6 @@ To run the FRI as a server:
 ````
 $ cd conore/fri
 
-$ git checkout dev
-
 $ cd server
 
 $ python3 main.py
