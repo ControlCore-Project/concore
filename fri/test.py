@@ -7,7 +7,7 @@ import time
 # function to test upload() method.
 
 def upload(files):
-  url = "http://127.0.0.1:5000/upload/test?apikey=xyz"
+  url = "http://127.0.0.1:5000/upload/test"
   payload={}
   headers = {}
   response = requests.request("POST", url, headers=headers, data=payload, files=files)
@@ -17,8 +17,8 @@ def upload(files):
 # # *******
 
 # function to check build
-def build(dir, graphml, apikey):
-  url = "http://127.0.0.1:5000/build/"+dir+"?"+"fetch="+graphml+"&"+"apikey="+apikey
+def build(dir, graphml):
+  url = "http://127.0.0.1:5000/build/"+dir+"?"+"fetch="+graphml
   response = requests.request("POST", url)
   print(response.text)
 
@@ -86,7 +86,7 @@ files=[
 
 upload(files)
 time.sleep(2)
-build("test", "sample", "xyz")
+build("test", "sample")
 time.sleep(6)
 method = input("methods - 1 for debug, 0 for run :")
 if method == "1":

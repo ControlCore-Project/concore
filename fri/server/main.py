@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from werkzeug.utils import secure_filename
 import os
+import subprocess
 from subprocess import call
 from pathlib import Path
 import json
-import subprocess
 import platform
 from flask_cors import CORS, cross_origin
 
@@ -21,9 +21,6 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 # To upload multiple file. For example, /upload/test?apikey=xyz
 @app.route('/upload/<dir>', methods=['POST'])
 def upload(dir):
-    apikey = request.args.get('apikey')
-    dirname = secure_filename(dir) + "_" + apikey
-
     if 'files[]' not in request.files:
         resp = jsonify({'message': 'No file in the request'})
         resp.status_code = 400
@@ -34,7 +31,7 @@ def upload(dir):
     errors = {}
     success = False
 
-    directory_name = os.path.abspath(os.path.join(concore_path, secure_filename(dirname)))
+    directory_name = os.path.abspath(os.path.join(concore_path, secure_filename(dir)))
 
     if not os.path.isdir(directory_name):
         os.mkdir(directory_name)
@@ -66,13 +63,13 @@ def upload(dir):
 @app.route('/build/<dir>', methods=['POST'])
 def build(dir):
     graphml_file = request.args.get('fetch')  
-    apikey = request.args.get('apikey') 
-    dirname = secure_filename(dir) + "_" + apikey   
-    makestudy_dir = dirname + "/" + graphml_file   #for makestudy
+    # apikey = request.args.get('apikey') 
+    # dirname = secure_filename(dir) + "_" + apikey   
+    makestudy_dir = secure_filename(dir) + "/" + graphml_file   #for makestudy
     dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
     if not os.path.exists(dir_path):
-        if(platform.uname=='Windows'):
-            proc= call(["makestudy", makestudy_dir],shell=True, cwd=concore_path)
+        if(platform.uname()[0]=='Windows'):
+            proc= call(["makestudy", makestudy_dir], shell=True, cwd=concore_path)
         else:
             proc = call(["./makestudy", makestudy_dir], cwd=concore_path)
         if(proc == 0):
@@ -81,8 +78,8 @@ def build(dir):
         else:
             resp = jsonify({'message': 'There is an Error'})
             resp.status_code = 500   
-    if(platform.uname=='Windows'):
-        call(["build"],shell=True, cwd=dir_path)
+    if(platform.uname()[0]=='Windows'):
+        call(["build"], cwd=dir_path, shell=True)
     else:
         call(["./build"], cwd=dir_path)  
     return resp 
@@ -92,7 +89,7 @@ def build(dir):
 def debug(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    if(platform.uname=='Windows'):
+    if(platform.uname()[0]=='Windows'):
         proc=call(["debug"],shell=True, cwd=dir_path)
     else:
         proc = call(["./debug"], cwd=dir_path)
@@ -110,7 +107,7 @@ def debug(dir):
 def run(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    if(platform.uname=='Windows'):
+    if(platform.uname()[0]=='Windows'):
         proc=call(["run"],shell=True, cwd=dir_path)
     else:
         proc = call(["./run"], cwd=dir_path)
@@ -127,7 +124,7 @@ def run(dir):
 def stop(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    if(platform.uname=='Windows'):
+    if(platform.uname()[0]=='Windows'):
         proc=call(["stop"],shell=True, cwd=dir_path)
     else:
         proc = call(["./stop"], cwd=dir_path)
@@ -145,7 +142,7 @@ def stop(dir):
 def clear(dir):
     dir = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    if(platform.uname=='Windows'):
+    if(platform.uname()[0]=='Windows'):
         proc=call(["clear"],shell=True, cwd=dir_path)
     else:
         proc = call(["./clear"], cwd=dir_path)
@@ -180,10 +177,10 @@ def download(dir):
 @app.route('/destroy/<dir>', methods=['DELETE'])
 def destroy(dir):
     dir = secure_filename(dir)
-    if(platform.uname=='Windows'):
-        proc=call(["debug"],shell=True, cwd=concore_path)
+    if(platform.uname()[0]=='Windows'):
+        proc=call(["destroy"],shell=True, cwd=concore_path)
     else:
-        proc = call(["./debug"], cwd=concore_path)
+        proc = call(["./destroy"], cwd=concore_path)
     if(proc == 0):
         resp = jsonify({'message': 'Successfuly deleted Dirctory'})
         resp.status_code = 201
