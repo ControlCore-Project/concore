@@ -21,6 +21,8 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 # To upload multiple file. For example, /upload/test?apikey=xyz
 @app.route('/upload/<dir>', methods=['POST'])
 def upload(dir):
+    apikey = request.args.get('apikey')
+    dirname = secure_filename(dir) + "_" + apikey
     if 'files[]' not in request.files:
         resp = jsonify({'message': 'No file in the request'})
         resp.status_code = 400
@@ -31,7 +33,7 @@ def upload(dir):
     errors = {}
     success = False
 
-    directory_name = os.path.abspath(os.path.join(concore_path, secure_filename(dir)))
+    directory_name = os.path.abspath(os.path.join(concore_path, secure_filename(dirname)))
 
     if not os.path.isdir(directory_name):
         os.mkdir(directory_name)
@@ -63,10 +65,11 @@ def upload(dir):
 @app.route('/build/<dir>', methods=['POST'])
 def build(dir):
     graphml_file = request.args.get('fetch')  
-    # apikey = request.args.get('apikey') 
-    # dirname = secure_filename(dir) + "_" + apikey   
-    makestudy_dir = secure_filename(dir) + "/" + graphml_file   #for makestudy
-    dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
+    apikey = request.args.get('apikey') 
+    dirname = secure_filename(dir) + "_" + apikey   
+    makestudy_dir = dirname + "/" + graphml_file   #for makestudy
+    dir_path_pre = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
+    dir_path = dir_path_pre + "_" + apikey
     if not os.path.exists(dir_path):
         if(platform.uname()[0]=='Windows'):
             proc= call(["makestudy", makestudy_dir], shell=True, cwd=concore_path)
@@ -88,7 +91,9 @@ def build(dir):
 @app.route('/debug/<dir>', methods=['POST'])
 def debug(dir):
     dir = secure_filename(dir)
-    dir_path = os.path.abspath(os.path.join(concore_path, dir))
+    apikey = request.args.get('apikey')
+    dir_name = dir + "_" + apikey
+    dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
     if(platform.uname()[0]=='Windows'):
         proc=call(["debug"],shell=True, cwd=dir_path)
     else:
@@ -106,7 +111,9 @@ def debug(dir):
 @app.route('/run/<dir>', methods=['POST'])
 def run(dir):
     dir = secure_filename(dir)
-    dir_path = os.path.abspath(os.path.join(concore_path, dir))
+    apikey = request.args.get('apikey')
+    dir_name = dir + "_" + apikey
+    dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
     if(platform.uname()[0]=='Windows'):
         proc=call(["run"],shell=True, cwd=dir_path)
     else:
@@ -123,7 +130,9 @@ def run(dir):
 @app.route('/stop/<dir>', methods=['POST'])
 def stop(dir):
     dir = secure_filename(dir)
-    dir_path = os.path.abspath(os.path.join(concore_path, dir))
+    apikey = request.args.get('apikey')
+    dir_name = dir + "_" + apikey
+    dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
     if(platform.uname()[0]=='Windows'):
         proc=call(["stop"],shell=True, cwd=dir_path)
     else:
@@ -141,7 +150,9 @@ def stop(dir):
 @app.route('/clear/<dir>', methods=['POST'])
 def clear(dir):
     dir = secure_filename(dir)
-    dir_path = os.path.abspath(os.path.join(concore_path, dir))
+    apikey = request.args.get('apikey')
+    dir_name = dir + "_" + apikey
+    dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
     if(platform.uname()[0]=='Windows'):
         proc=call(["clear"],shell=True, cwd=dir_path)
     else:
@@ -160,7 +171,9 @@ def clear(dir):
 def download(dir):
     download_file = request.args.get('fetch')
     sub_folder = request.args.get('fetchDir')
-    dirname = secure_filename(dir) + "/" + secure_filename(sub_folder)
+    apikey = request.args.get('apikey')
+    dir_pre = secure_filename(dir) + "_" + apikey
+    dirname = dir_pre + "/" + secure_filename(sub_folder)
     directory_name = os.path.abspath(os.path.join(concore_path, dirname))
     if not os.path.exists(directory_name):
         resp = jsonify({'message': 'Directory not found'})
@@ -193,7 +206,9 @@ def destroy(dir):
 @app.route('/getFilesList/<dir>', methods=['POST'])
 def getFilesList(dir):
     sub_dir = request.args.get('fetch')
-    dirname = secure_filename(dir) + "/" + secure_filename(sub_dir)
+    apikey = request.args.get('apikey')
+    dir_pre = secure_filename(dir) + "_" + apikey 
+    dirname = dir_pre + "/" + secure_filename(sub_dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dirname))
     res = []
     res = os.listdir(dir_path) 
