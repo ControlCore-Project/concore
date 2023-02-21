@@ -46,7 +46,6 @@ if os.path.exists(CONCOREPATH+"/concore.repo"): # 12/04/21
 prefixedgenode = ""
 sourcedir = sys.argv[2]
 outdir = sys.argv[3]
-
 if not os.path.isdir(sourcedir):
     print(sourcedir+" does not exist")
     quit()
@@ -922,4 +921,3 @@ if concoretype != "windows":
     os.chmod(outdir+"/maxtime",stat.S_IRWXU) 
     os.chmod(outdir+"/params",stat.S_IRWXU) 
     os.chmod(outdir+"/unlock",stat.S_IRWXU) 
-
