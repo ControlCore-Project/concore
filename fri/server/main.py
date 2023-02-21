@@ -22,7 +22,7 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 @app.route('/upload/<dir>', methods=['POST'])
 def upload(dir):
     apikey = request.args.get('apikey')
-    if(apikey == ""):
+    if(apikey == None):
         dirname = secure_filename(dir)
     else:
         dirname = secure_filename(dir) + "_" + apikey
