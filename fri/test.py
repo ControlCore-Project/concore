@@ -13,7 +13,6 @@ def upload(files):
   response = requests.request("POST", url, headers=headers, data=payload, files=files)
   print(response.text)
 
-
 # # *******
 
 # function to check build
@@ -23,37 +22,36 @@ def build(dir, graphml, apikey):
   print(response.text)
 
 # function to debug
-def debug(graphml):
-  url = "http://127.0.0.1:5000/debug/"+graphml
+def debug(graphml, apikey):
+  url = "http://127.0.0.1:5000/debug/"+graphml+"?"+"apikey="+apikey
   response = requests.request("POST", url)
   print(response.text) 
 
 # function to test run() method.
-def run(graphml):
-  url = "http://127.0.0.1:5000/run/"+graphml
+def run(graphml, apikey):
+  url = "http://127.0.0.1:5000/run/"+graphml+"?"+"apikey="+apikey
   response = requests.request("POST", url)
   print(response.text)
 
-def clear(graphml):
-  url = "http://127.0.0.1:5000/clear/"+graphml
+def clear(graphml, apikey):
+  url = "http://127.0.0.1:5000/clear/"+graphml+"?"+"apikey="+apikey
   response = requests.request("POST", url)
   print(response.text)
 
-def stop(graphml):
-  url = "http://127.0.0.1:5000/stop/"+graphml
+def stop(graphml, apikey):
+  url = "http://127.0.0.1:5000/stop/"+graphml+"?"+"apikey="+apikey
   response = requests.request("POST", url)
   print(response.text)    
 
-
 #function to destroy dir.
-def destroy(dir):
-  url = "http://127.0.0.1:5000/destroy/" + dir
+def destroy(dir, apikey):
+  url = "http://127.0.0.1:5000/destroy/" + dir+"?"+"apikey="+apikey
   response = requests.request("DELETE", url)
 
   print(response.text)  
   
-def getFilesList(dir, sub_dir = ""):
-  url = "http://127.0.0.1:5000/getFilesList/" + dir + "?"+"fetch="+sub_dir
+def getFilesList(apikey, dir, sub_dir = ""):
+  url = "http://127.0.0.1:5000/getFilesList/" + dir + "?"+"fetch="+sub_dir+"&"+"apikey="+apikey
   response = requests.request("POST", url)
   print(response.text) 
 
@@ -63,8 +61,8 @@ def openJupyter():
   print(response.text)
 
 # function to test download() method.
-def download(dir, subDir, fileName ):
-  url = "http://127.0.0.1:5000/download/"+dir+"?"+"fetchDir="+subDir+"&"+"fetch="+ fileName
+def download(dir, subDir, fileName , apikey ):
+  url = "http://127.0.0.1:5000/download/"+dir+"?"+"fetchDir="+subDir+"&"+"fetch="+ fileName+"&"+"apikey="+apikey
   urllib.request.urlretrieve(url, fileName)
 
 # file list to be uploaded
@@ -83,25 +81,22 @@ files=[
   ('files[]',(file_name3,open(path_file3,'rb'),'application/octet-stream')),
 ]
 
-
 upload(files)
 time.sleep(2)
 build("test", "sample", "xyz")
 time.sleep(6)
 method = input("methods - 1 for debug, 0 for run :")
 if method == "1":
-  debug("sample")
+  debug("sample", "xyz")
 else:  
-  run("sample")
+  run("sample", "xyz")
 time.sleep(2)  
-stop("sample")
+stop("sample", "xyz")
 time.sleep(2) 
-getFilesList("sample", "cu")
-getFilesList("sample", "pym") 
+getFilesList("xyz", "sample", "CU")
+getFilesList("xyz","sample", "PYM") 
 time.sleep(5)
-download("sample", "cu", "u")
-clear("sample")
-destroy("sample")
+download("sample", "CU", "u", "xyz")
+clear("sample", "xyz")
+destroy("sample", "xyz")
 openJupyter()
-
-
