@@ -45,13 +45,8 @@ if os.path.exists(CONCOREPATH+"/concore.repo"): # 12/04/21
 
 prefixedgenode = ""
 sourcedir = sys.argv[2]
-apikeyindex = sourcedir.find('_')
-if sys.argv[4]=='windows':
-    apikey = sourcedir[apikeyindex:-1]
-else:
-    apikey = sourcedir[apikeyindex:]
-outdirpre = sys.argv[3]
-outdir = outdirpre + apikey
+outdir = sys.argv[3]
+
 if not os.path.isdir(sourcedir):
     print(sourcedir+" does not exist")
     quit()
