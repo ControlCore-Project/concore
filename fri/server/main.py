@@ -79,9 +79,15 @@ def build(dir):
         dir_path = os.path.abspath(os.path.join(concore_path, out_dir)) #path for ./build
     if not os.path.exists(dir_path):
         if(platform.uname()[0]=='Windows'):
-            proc= call(["makestudy", makestudy_dir, out_dir], shell=True, cwd=concore_path)
+            if(out_dir == None or out_dir == ""):
+                proc= call(["makestudy", makestudy_dir], shell=True, cwd=concore_path)
+            else:
+                proc= call(["makestudy", makestudy_dir, out_dir], shell=True, cwd=concore_path)
         else:
-            proc = call(["./makestudy", makestudy_dir, out_dir], cwd=concore_path)
+            if(out_dir == None or out_dir == ""):
+                proc= call(["./makestudy", makestudy_dir], cwd=concore_path)
+            else:
+                proc= call(["./makestudy", makestudy_dir, out_dir], cwd=concore_path)
         if(proc == 0):
             resp = jsonify({'message': 'Directory successfully created'})
             resp.status_code = 201
