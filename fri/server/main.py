@@ -67,17 +67,21 @@ def upload(dir):
 def build(dir):
     graphml_file = request.args.get('fetch')  
     apikey = request.args.get('apikey') 
+    out_dir = request.args.get('outdir')
     if(apikey == None):
         dirname = secure_filename(dir)
     else:
         dirname = secure_filename(dir) + "_" + apikey
     makestudy_dir = dirname + "/" + graphml_file   #for makestudy
-    dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
+    if(out_dir == None or out_dir == ""):
+        dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
+    else:
+        dir_path = os.path.abspath(os.path.join(concore_path, out_dir)) #path for ./build
     if not os.path.exists(dir_path):
         if(platform.uname()[0]=='Windows'):
-            proc= call(["makestudy", makestudy_dir], shell=True, cwd=concore_path)
+            proc= call(["makestudy", makestudy_dir, out_dir], shell=True, cwd=concore_path)
         else:
-            proc = call(["./makestudy", makestudy_dir], cwd=concore_path)
+            proc = call(["./makestudy", makestudy_dir, out_dir], cwd=concore_path)
         if(proc == 0):
             resp = jsonify({'message': 'Directory successfully created'})
             resp.status_code = 201
