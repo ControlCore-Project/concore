@@ -16,8 +16,8 @@ def upload(files):
 # # *******
 
 # function to check build
-def build(dir, graphml, apikey):
-  url = "http://127.0.0.1:5000/build/"+dir+"?"+"fetch="+graphml+"&"+"apikey="+apikey
+def build(dir, graphml, outdir, apikey):
+  url = "http://127.0.0.1:5000/build/"+dir+"?"+"fetch="+graphml+"&"+"outdir="+outdir+"&"+"apikey="+apikey
   response = requests.request("POST", url)
   print(response.text)
 
@@ -83,20 +83,20 @@ files=[
 
 upload(files)
 time.sleep(2)
-build("test", "sample", "xyz")
+build("test", "sample", "sample-anyname", "xyz")
 time.sleep(6)
 method = input("methods - 1 for debug, 0 for run :")
 if method == "1":
-  debug("sample", "xyz")
+  debug("sample-anyname", "xyz")
 else:  
-  run("sample", "xyz")
+  run("sample-anyname", "xyz")
 time.sleep(2)  
-stop("sample", "xyz")
+stop("sample-anyname", "xyz")
 time.sleep(2) 
-getFilesList("xyz", "sample", "CU")
-getFilesList("xyz","sample", "PYM") 
+getFilesList("xyz", "sample-anyname", "CU")
+getFilesList("xyz","sample-anyname", "PYM") 
 time.sleep(5)
-download("sample", "CU", "u", "xyz")
-clear("sample", "xyz")
-destroy("sample", "xyz")
+download("sample-anyname", "CU", "u", "xyz")
+clear("sample-anyname", "xyz")
+destroy("sample-anyname", "xyz")
 openJupyter()
