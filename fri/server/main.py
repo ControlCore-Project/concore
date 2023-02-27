@@ -191,9 +191,9 @@ def download(dir):
 def destroy(dir):
     dir = secure_filename(dir)
     if(platform.uname()[0]=='Windows'):
-        proc=call(["destroy"],shell=True, cwd=concore_path)
+        proc=call(["destroy", dir],shell=True, cwd=concore_path)
     else:
-        proc = call(["./destroy"], cwd=concore_path)
+        proc = call(["./destroy", dir], cwd=concore_path)
     if(proc == 0):
         resp = jsonify({'message': 'Successfuly deleted Dirctory'})
         resp.status_code = 201
