@@ -85,8 +85,8 @@ upload(files)
 time.sleep(2)
 build("test", "sample", "sample-anyname", "xyz")
 time.sleep(6)
-method = input("methods - 1 for debug, 0 for run :")
-if method == "1":
+method = int(input("methods - 1 for debug, 0 for run :"))
+if method == 1:
   debug("sample-anyname", "xyz")
 else:  
   run("sample-anyname", "xyz")
