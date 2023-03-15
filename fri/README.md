@@ -4,9 +4,10 @@ The Control-Core File Receiving Interface (FRI) is built with is Python-3.10. It
 
 # Install Dependencies
 
-Install Jupyter lab
 ````
-$ pip install jupyterlab
+$ cd conore/fri
+
+$ pip3 install -r requirements.txt
 ````
 
 # Running the FRI and a quick test.
