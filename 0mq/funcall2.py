@@ -24,6 +24,7 @@ while(concore2.simtime<concore.maxtime):
     #    ym = concore2.read(concore.iport['Y1'],"ym",init_simtime_ym)
     paired_transmitter = PairedTransmitter(
         remote_host="localhost", exposed_commands=[],  
+        #remote_host="193.136.132.10", exposed_commands=[],  
         remote_port=2345, listen_port=2346,)
     paired_transmitter.start_background_sync() 
     ym = paired_transmitter.request_with_immediate_reply(
