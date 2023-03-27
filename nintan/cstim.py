@@ -1,7 +1,7 @@
 import concore
 from ast import literal_eval
 import time
-concore.delay = 0.001
+concore.delay = 0.01
 init_simtime_u = "[0.0, 0.0, 0.0]"
 init_simtime_ym = "[0.0, 0.0, 0.0]"
 minElasped = 10000000
