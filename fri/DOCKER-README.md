@@ -9,9 +9,9 @@ $ curl -fsSL https://get.docker.com/ | sh
 ````
 Optional command:- To run docker commands without sudo 
 ````
-$ sudo usermod -aG docker <laptop_username>
+$ sudo usermod -aG docker <system_username>
 ````
-The above command add the laptop username in the docker group, Restart the system to complete the process. 
+The above command add the system username in the docker group, Restart the system to complete the process. 
 
 After restart run 
 
