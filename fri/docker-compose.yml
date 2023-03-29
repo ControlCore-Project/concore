@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  fri:
+    build:
+      context: .
+    image: fri
+    ports:
+      - 8090:8080
+    command: tail -f /dev/null
+
+  kong-database:
+    image: cassandra:3
+    ports:
+      - 9042:9042
+
+  kong:
+    image: kong
+    depends_on:
+      - kong-database
+    environment:
+      KONG_DATABASE: cassandra
+      KONG_PG_HOST: kong-database
+      KONG_PG_PASSWORD: kong
+      KONG_CASSANDRA_CONTACT_POINTS: kong-database
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
+    ports:
+      - 80:8000
+      - 8443:8443
+      - 8001:8001
+      - 8444:8444
+
+  
