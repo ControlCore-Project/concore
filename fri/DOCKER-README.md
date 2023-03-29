@@ -1,3 +1,24 @@
+# Install Docker:-
+
+Open Terminal and run the following commands:-
+
+````
+$ sudo apt-get update
+$ sudo apt-get install curl
+$ curl -fsSL https://get.docker.com/ | sh
+````
+Optional command:- To run docker commands without sudo 
+````
+$ sudo usermod -aG docker <laptop_username>
+````
+The above command add the laptop username in the docker group, Restart the system to complete the process. 
+
+After restart run 
+
+```` 
+$ sudo service docker start 
+````
+
 # Building FRI Container
 
 Now, we elaborate on building FRI as a container, together with the Kong API Gateway.
@@ -15,7 +36,7 @@ First build the Docker Container of the FRI.
 ````
 $ git pull
 
-$ sudo docker build -t fri .
+$ docker build -t fri .
 ````
 
 # Running Control-Core FRI with Kong as containers
@@ -107,17 +128,17 @@ $ tail -f controlcore.out
 ````
 or
 ````
-$ sudo docker logs fri -f
+$ docker logs fri -f
 ````
 Find the FRI docker container
 ````
-$ sudo docker ps
+$ docker ps
 ````
 CONTAINER ID        IMAGE               COMMAND              CREATED             STATUS              PORTS                NAMES
 dfdd3b3d3308        fri            "python main.py"   38 minutes ago      Up 38 minutes       0.0.0.0:80->80/tcp   fri
 
 Access the container
 ````
-$ sudo docker exec -it dfdd /bin/bash
+$ docker exec -it dfdd /bin/bash
 ````
 
