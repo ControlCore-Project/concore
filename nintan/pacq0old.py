@@ -2,9 +2,8 @@ import concore
 import time
 import threading
 
-global ymglobal,counter
+global ymglobal
 ymglobal = 0
-counter = 0
 
 def extract(ampD):
     s = 0.0
@@ -13,7 +12,9 @@ def extract(ampD):
     return s/len(ampD)
 
 def acq():
-    global ymglobal,counter
+  global ymglobal
+  counter = 0
+  while(True):
     ampT = []
     ampD = []
     for block in range(numBlocks):
@@ -23,9 +24,20 @@ def acq():
     print(ampT)
     print(ampD)
     ymglobal = extract(ampD)
-    print("ymglobal="+str(ymglobal))
+    print(ymglobal)
     counter = counter +  numBlocks*framesPerBlock 
-    time.sleep(5)
+    time.sleep(1)
+
+acq_thread = threading.Thread(target=acq, daemon=True)
+
+def cnt():
+    count = 0
+    while(True):
+        print(count)
+        count = (count + 1)%10
+        time.sleep(1)
+
+#cnt_thread = threading.Thread(target=cnt, daemon=True)
 
 #initialization
 numBlocks = 3
@@ -37,19 +49,13 @@ init_simtime_ym = "[0.0, 0.0, 0.0]"
 
 ym = concore.initval(init_simtime_ym)
 
-acq_thread = threading.Thread(target=acq, daemon=True)
-nxtacq_thread = threading.Thread(target=acq, daemon=True)
+#cnt_thread.start()
 acq_thread.start()
 while(concore.simtime<concore.maxtime):
     while concore.unchanged():
         ym = concore.read(1,"ym",init_simtime_ym)
-    acq_thread.join()
     ym[0]  = ymglobal 
-    acq_thread = nxtacq_thread
-    acq_thread.start()
-    nxtacq_thread = threading.Thread(target=acq, daemon=True)
     print("")
     print("ym="+str(ym[0]));
     concore.write(1,"ym",ym)
-acq_thread.join()
 print("retry="+str(concore.retrycount))
