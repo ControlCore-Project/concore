@@ -7,23 +7,23 @@ global counter
 counter = 0
 
 
-def extract(ampD):
+def extract(amplifierData):
     s = 0.0
-    for data in ampD:
+    for data in amplifierData:
        s += data
        time.sleep(TIME_DATA/4) #make extract really slow for testing
-    return s/len(ampD)
+    return s/len(amplifierData)
 
 def acq():
     global counter
-    global ampT,ampD
+    global amplifierTimestamps,amplifierData
     for block in range(numBlocks):
         for frame in range(framesPerBlock):
-            ampT.append(counter + block*framesPerBlock+frame)
-            ampD.append(counter + abs(frame-framesPerBlock/2))
+            amplifierTimestamps.append(counter + block*framesPerBlock+frame)
+            amplifierData.append(counter + abs(frame-framesPerBlock/2))
             time.sleep(TIME_DATA)
-    print(ampT)
-    print(ampD)
+    print(amplifierTimestamps)
+    print(amplifierData)
     counter = counter +  numBlocks*framesPerBlock 
 
 #initialization
@@ -39,17 +39,17 @@ ym = concore.initval(init_simtime_ym)
 
 acq_thread = threading.Thread(target=acq, daemon=True)
 nxtacq_thread = threading.Thread(target=acq, daemon=True)
-ampT = []
-ampD = []
+amplifierTimestamps = []
+amplifierData = []
 acq_thread.start()
 while(concore.simtime<concore.maxtime):
     while concore.unchanged():
         ym = concore.read(1,"ym",init_simtime_ym)
     acq_thread.join()
     acq_thread = nxtacq_thread
-    oldAmpD = ampD
-    ampT = []
-    ampD = []
+    oldAmpD = amplifierData
+    amplifierTimestamps = []
+    amplifierData = []
     acq_thread.start()
     nxtacq_thread = threading.Thread(target=acq, daemon=True)
     ym[0] = extract(oldAmpD)
