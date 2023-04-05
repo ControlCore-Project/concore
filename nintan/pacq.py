@@ -1,3 +1,4 @@
+# acq and init taken from: https://intantech.com/files/RHX_TCP.zip
 # In order to run this example script successfully, the Intan RHX software
 # should first be started, and through Network -> Remote TCP Control:
 # Command Output should open a connection at 127.0.0.1, Port 5000.
