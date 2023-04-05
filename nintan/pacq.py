@@ -108,7 +108,7 @@ commandReturn = str(scommand.recv(COMMAND_BUFFER_SIZE), "utf-8")
 expectedReturnString = "Return: SampleRateHertz "
 if commandReturn.find(expectedReturnString) == -1: # Look for "Return: SampleRateHertz N" where N is the sample rate
         raise Exception('Unable to get sample rate from server')
-    else:
+else:
         sampleRate = float(commandReturn[len(expectedReturnString):])
 
 # Calculate timestep from sample rate
