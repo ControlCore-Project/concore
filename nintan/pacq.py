@@ -12,6 +12,19 @@ import concore
 import time
 import threading
 import socket
+import matplotlib.pyplot as plt
+
+try:
+    showPlot = concore.params['plot']
+except:
+    showPlot = False
+
+try:
+    tsamp = concore.params['tsamp']
+    if tsamp > 1:
+       tsamp = 1
+except:
+    tsamp = 1 
 
 def extract(amplifierData):
     s = 0.0
@@ -39,9 +52,9 @@ def readUint16(array, arrayIndex):
     return variable, arrayIndex
 
 def acq():
-    # Run controller for 1 second
+    # Run controller for tsamp second
     scommand.sendall(b'set runmode run')
-    time.sleep(1)
+    time.sleep(tsamp)
     scommand.sendall(b'set runmode stop')
 
     # Read waveform data
@@ -152,13 +165,20 @@ while(concore.simtime<concore.maxtime):
         ym = concore.read(1,"ym",init_simtime_ym)
     acq_thread.join()
     acq_thread = nxtacq_thread
+    oldAmpT = amplifierTimestamps
     oldAmpD = amplifierData
     amplifierTimestamps = []
     amplifierData = []
     acq_thread.start()
     nxtacq_thread = threading.Thread(target=acq, daemon=True)
     ym[0] = extract(oldAmpD)
-    print("ym="+str(ym[0]));
+    print("ym="+str(ym[0]))
+    if showPlot:
+        plt.plot(oldAmpT,oldAmpD)
+        plt.title("ym="+str(ym[0]))
+        plt.xlabel('Time (s)')
+        plt.ylabel('Voltage (uV)')
+        plt.show()
     concore.write(1,"ym",ym)
 acq_thread.join()
 print("retry="+str(concore.retrycount))

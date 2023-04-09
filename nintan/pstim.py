@@ -10,7 +10,11 @@ from nidaqmx.stream_writers import DigitalSingleChannelWriter
 
 global uglobal
 uglobal = 0.5
-PULSE_WIDTH = 10
+
+try:
+  PULSE_WIDTH = concore.params['pw']
+except:
+  PULSE_WIDTH = 10
 
 def pwm():
     while(True):
@@ -20,15 +24,15 @@ def pwm():
         if ulocal > 1.0:
             ulocal = 1.0
         
-        print("+")
+        if PULSE_WIDTH >= 2:
+            print("+")
         writer.write_one_sample_one_line(data=1,timeout=10)
         time.sleep(PULSE_WIDTH*ulocal)
-        # accurate_delay(PULSE_WIDTH*ulocal)
 
-        print("-")
+        if PULSE_WIDTH >= 2:
+            print("-")
         writer.write_one_sample_one_line(data=0,timeout=10)
         time.sleep(PULSE_WIDTH*(1.0-ulocal))
-        # accurate_delay(PULSE_WIDTH*(1.0-ulocal))
 
 pwm_thread = threading.Thread(target=pwm, daemon=True)
 

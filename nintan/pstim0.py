@@ -5,7 +5,10 @@ import threading
 
 global uglobal
 uglobal = 0.5
-PULSE_WIDTH = 10
+try:
+  PULSE_WIDTH = concore.params['pw']
+except:
+  PULSE_WIDTH = 10
 
 def pwm():
     while(True):
