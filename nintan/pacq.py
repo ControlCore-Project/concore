@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 try:
     showPlot = concore.params['plot']
 except:
-    showPlot = False
+    showPlot = 0
 
 try:
     tsamp = concore.params['tsamp']
@@ -25,6 +25,11 @@ try:
        tsamp = 1
 except:
     tsamp = 1 
+
+def validseq(t):
+    for i in range(0,len(t)-1):
+        if t[i] >= t[i+1]:
+             print('i='+str(i)+': '+str(t[i])+'>='+str(t[i+1]))
 
 def extract(amplifierData):
     s = 0.0
@@ -50,6 +55,16 @@ def readUint16(array, arrayIndex):
     variable = int.from_bytes(variableBytes, byteorder='little', signed=False)
     arrayIndex = arrayIndex + 2
     return variable, arrayIndex
+
+def clearall():
+    # Clear TCP data output to ensure no TCP channels are enabled
+    scommand.sendall(b'execute clearalldataoutputs')
+    time.sleep(0.1)
+    # Send TCP commands to set up TCP Data Output Enabled for wide
+    # band of channel A-010
+    scommand.sendall(b'set a-010.tcpdataoutputenabled true')
+    time.sleep(0.1)
+
 
 def acq():
     # Run controller for tsamp second
@@ -127,14 +142,6 @@ else:
 # Calculate timestep from sample rate
 timestep = 1 / sampleRate
 
-# Clear TCP data output to ensure no TCP channels are enabled
-scommand.sendall(b'execute clearalldataoutputs')
-time.sleep(0.1)
-
-# Send TCP commands to set up TCP Data Output Enabled for wide
-# band of channel A-010
-scommand.sendall(b'set a-010.tcpdataoutputenabled true')
-time.sleep(0.1)
 
 # Calculations for accurate parsing
 # At 30 kHz with 1 channel, 1 second of wideband waveform data (including magic number, timestamps, and amplifier data) is 181,420 bytes
@@ -148,6 +155,7 @@ framesPerBlock = 128
 waveformBytesPerFrame = 4 + 2
 waveformBytesPerBlock = framesPerBlock * waveformBytesPerFrame + 4
 
+clearall()
         
 concore.delay = 0.01
 init_simtime_u = "[0.0, 0.0, 0.0]"
@@ -169,16 +177,23 @@ while(concore.simtime<concore.maxtime):
     oldAmpD = amplifierData
     amplifierTimestamps = []
     amplifierData = []
-    acq_thread.start()
-    nxtacq_thread = threading.Thread(target=acq, daemon=True)
-    ym[0] = extract(oldAmpD)
-    print("ym="+str(ym[0]))
-    if showPlot:
+    if showPlot&1==1:
         plt.plot(oldAmpT,oldAmpD)
-        plt.title("ym="+str(ym[0]))
+        plt.title("ym="+str(extract(oldAmpD))
         plt.xlabel('Time (s)')
         plt.ylabel('Voltage (uV)')
         plt.show()
+    if showPlot&2==2:
+        plt.plot(range(0,len(oldAmpD)),oldAmpD)
+        plt.title("ym="+str(extract(oldAmpD))
+        plt.xlabel('index')
+        plt.ylabel('Voltage (uV)')
+        plt.show()
+    acq_thread.start()
+    nxtacq_thread = threading.Thread(target=acq, daemon=True)
+    ym[0] = extract(oldAmpD)
+    validseq(oldAmpT)
+    print("ym="+str(ym[0]))
     concore.write(1,"ym",ym)
 acq_thread.join()
 print("retry="+str(concore.retrycount))

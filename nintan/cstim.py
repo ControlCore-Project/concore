@@ -1,6 +1,12 @@
 import concore
 from ast import literal_eval
 import time
+
+try:
+    bangbang = concore.params['bang']
+except:
+    bangbang = False
+
 concore.delay = 0.01
 init_simtime_u = "[0.0, 0.0, 0.0]"
 init_simtime_ym = "[0.0, 0.0, 0.0]"
@@ -12,11 +18,17 @@ wallclock1 = time.perf_counter()
 while(concore.simtime<concore.maxtime):
     while concore.unchanged():
         ym = concore.read(1,"ym",init_simtime_ym)
-    try:
-        u[0] = float(literal_eval(input()))
-    except:
-        print("bad input, using .5 instead")
-        u[0] = 0.5        
+    if bangbang:
+        if ym[0] > 0:
+            u[0] = 0.9
+        else:
+            u[0] = 0.1
+    else:
+        try:
+            u[0] = float(literal_eval(input()))
+        except:
+            print("bad input, using .5 instead")
+            u[0] = 0.5        
     print("ym="+str(ym[0])+" u="+str(u[0]));
     concore.write(1,"u",u);
     wallclock2 = time.perf_counter()
