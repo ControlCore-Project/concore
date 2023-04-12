@@ -179,7 +179,7 @@ while(concore.simtime<concore.maxtime):
     amplifierData = []
     if showPlot&1==1:
         plt.plot(oldAmpT,oldAmpD)
-        plt.title("ym="+str(extract(oldAmpD))
+        plt.title("ym="+str(extract(oldAmpD)))
         plt.xlabel('Time (s)')
         plt.ylabel('Voltage (uV)')
         plt.show()
