@@ -185,7 +185,7 @@ while(concore.simtime<concore.maxtime):
         plt.show()
     if showPlot&2==2:
         plt.plot(range(0,len(oldAmpD)),oldAmpD)
-        plt.title("ym="+str(extract(oldAmpD))
+        plt.title("ym="+str(extract(oldAmpD)))
         plt.xlabel('index')
         plt.ylabel('Voltage (uV)')
         plt.show()
