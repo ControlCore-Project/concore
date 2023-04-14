@@ -64,7 +64,8 @@ def clearall():
     # band of channel A-010
     scommand.sendall(b'set a-010.tcpdataoutputenabled true')
     time.sleep(0.1)
-
+    scommand.sendall(b'set TCPNumberDataBlocksPerWrite 4')
+    time.sleep(0.1)
 
 def acq():
     # Run controller for tsamp second
