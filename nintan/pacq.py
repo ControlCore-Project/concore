@@ -64,8 +64,6 @@ def clearall():
     # band of channel A-010
     scommand.sendall(b'set a-010.tcpdataoutputenabled true')
     time.sleep(0.1)
-    scommand.sendall(b'set TCPNumberDataBlocksPerWrite 4')
-    time.sleep(0.1)
 
 def acq():
     # Run controller for tsamp second
@@ -131,6 +129,9 @@ if not isStopped:
         scommand.sendall(b'set runmode stop')
         time.sleep(0.1) # Allow time for RHX software to accept this command before the next one comes
 
+scommand.sendall(b'set TCPNumberDataBlocksPerWrite 20')
+time.sleep(0.1)
+ 
 # Query sample rate from RHX software
 scommand.sendall(b'get sampleratehertz')
 commandReturn = str(scommand.recv(COMMAND_BUFFER_SIZE), "utf-8")
