@@ -27,9 +27,12 @@ except:
     tsamp = 1 
 
 def validseq(t):
+    validindex = 0 
     for i in range(0,len(t)-1):
         if t[i] >= t[i+1]:
-             print('i='+str(i)+': '+str(t[i])+'>='+str(t[i+1]))
+             print('i='+str(i)+': '+str(t[i])+'>='+str(t[i+1])+' len='+str(len(t)))
+             validindex = i+1 
+    return validindex
 
 def extract(amplifierData):
     s = 0.0
@@ -193,8 +196,40 @@ while(concore.simtime<concore.maxtime):
         plt.show()
     acq_thread.start()
     nxtacq_thread = threading.Thread(target=acq, daemon=True)
+    validindex = validseq(oldAmpT):
+    if validindex == 0:
+        if oldAmpT[0] != 0:
+            print("validseq yet starttime="+str(oldAmpT[0]))
+    else:
+        if oldAmpT[validindex] != 0:
+            print(str(validindex)+" starttime="+str(oldAmpT[validindex]))
+        if showPlot&4==4:
+            plt.plot(oldAmpT,oldAmpD)
+            plt.title("ym="+str(extract(oldAmpD))+" len="+str(len(oldAmpD)))
+            plt.xlabel('Time (s)')
+            plt.ylabel('Voltage (uV)')
+            plt.show()
+        if showPlot&8==8:
+            plt.plot(range(0,len(oldAmpD)),oldAmpD)
+            plt.title("ym="+str(extract(oldAmpD))+" len="+str(len(oldAmpD)))
+            plt.xlabel('index')
+            plt.ylabel('Voltage (uV)')
+            plt.show()
+        oldAmpT = oldAmpT[validindex:]
+        oldAmpD = oldAmpD[validindex:]
+        if showPlot&4==4:
+            plt.plot(oldAmpT,oldAmpD)
+            plt.title("ym="+str(extract(oldAmpD))+" len="+str(len(oldAmpD)))
+            plt.xlabel('Time (s)')
+            plt.ylabel('Voltage (uV)')
+            plt.show()
+        if showPlot&8==8:
+            plt.plot(range(0,len(oldAmpD)),oldAmpD)
+            plt.title("ym="+str(extract(oldAmpD))+" len="+str(len(oldAmpD)))
+            plt.xlabel('index')
+            plt.ylabel('Voltage (uV)')
+            plt.show()
     ym[0] = extract(oldAmpD)
-    validseq(oldAmpT)
     print("ym="+str(ym[0]))
     concore.write(1,"ym",ym)
 acq_thread.join()
