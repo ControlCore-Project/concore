@@ -196,7 +196,7 @@ while(concore.simtime<concore.maxtime):
         plt.show()
     acq_thread.start()
     nxtacq_thread = threading.Thread(target=acq, daemon=True)
-    validindex = validseq(oldAmpT):
+    validindex = validseq(oldAmpT)
     if validindex == 0:
         if oldAmpT[0] != 0:
             print("validseq yet starttime="+str(oldAmpT[0]))
