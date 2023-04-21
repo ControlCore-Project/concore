@@ -73,16 +73,6 @@ def acq():
     scommand.sendall(b'set runmode run')
     time.sleep(tsamp)
     scommand.sendall(b'set runmode stop')
-    # Suggestion from Adrian at Intan 4/21/22
-    t1 = time.perf_counter()
-    scommand.sendall(b'get runmode')
-    commandReturn = str(scommand.recv(COMMAND_BUFFER_SIZE), "utf-8")
-    isStopped = commandReturn == "Return: RunMode Stop"
-    while not isStopped:
-        scommand.sendall(b'get runmode')
-        commandReturn = str(scommand.recv(COMMAND_BUFFER_SIZE), "utf-8")
-        isStopped = commandReturn == "Return: RunMode Stop"
-    t2 = time.perf_counter()
 
     # Read waveform data
     rawData = swaveform.recv(WAVEFORM_BUFFER_SIZE)
@@ -113,8 +103,7 @@ def acq():
             
             # Scale this sample to convert to microVolts
             amplifierData.append(0.195 * (rawSample - 32768))
-     t3 = time.perf_counter()
-     print(str(t2-t1)+' stop time '+str(t3-t2)+' parse time')
+
     
 #initialization
 # Declare buffer size for reading from TCP command socket
