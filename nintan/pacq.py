@@ -113,8 +113,8 @@ def acq():
             
             # Scale this sample to convert to microVolts
             amplifierData.append(0.195 * (rawSample - 32768))
-     t3 = time.perf_counter()
-     print(str(t2-t1)+' stop time '+str(t3-t2)+' parse time')
+    t3 = time.perf_counter()
+    print(str(t2-t1)+' stop time '+str(t3-t2)+' parse time')
     
 #initialization
 # Declare buffer size for reading from TCP command socket
