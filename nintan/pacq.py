@@ -73,12 +73,16 @@ def acq():
     scommand.sendall(b'set runmode run')
     time.sleep(tsamp)
     scommand.sendall(b'set runmode stop')
+
     # Suggestion from Adrian at Intan 4/21/22
     t1 = time.perf_counter()
+    time.sleep(0.04)
     scommand.sendall(b'get runmode')
     commandReturn = str(scommand.recv(COMMAND_BUFFER_SIZE), "utf-8")
     isStopped = commandReturn == "Return: RunMode Stop"
     while not isStopped:
+        time.sleep(0.01)
+        print('Wait')
         scommand.sendall(b'get runmode')
         commandReturn = str(scommand.recv(COMMAND_BUFFER_SIZE), "utf-8")
         isStopped = commandReturn == "Return: RunMode Stop"
