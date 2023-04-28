@@ -13,6 +13,7 @@ import time
 import threading
 import socket
 import matplotlib.pyplot as plt
+import numpy as np
 
 try:
     showPlot = concore.params['plot']
