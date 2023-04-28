@@ -41,6 +41,20 @@ def extract(amplifierData):
        #time.sleep(0.5/len(amplifierData)) #make extract really slow for testing
     return s/len(amplifierData)
 
+def smooth_freq(y,bins):
+    f=np.fft.fft(y)
+    f0=np.abs(f[-(bins-1):-1])
+    f1=np.abs(f[-bins:-2])
+    f2=np.abs(f[-(bins+1):-3])
+    fa=f2+2*f1+f2
+    return bins-np.argmax((np.abs(fa)))
+
+def dom_freq(y,t):
+    ttot = (t[-1] - t[0]) * len(y)/(len(y)-1)
+    f = np.fft.fft(y)
+    fi = np.argmax((np.abs(f)))
+    return np.fft.fftfreq(len(y))[fi]*len(y)/ttot
+
 def readUint32(array, arrayIndex):
     variableBytes = array[arrayIndex : arrayIndex + 4]
     variable = int.from_bytes(variableBytes, byteorder='little', signed=False)
