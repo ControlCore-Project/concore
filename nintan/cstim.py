@@ -43,6 +43,9 @@ while(concore.simtime<concore.maxtime):
             print("bad input, using .5 instead")
             u[0] = 0.5        
     print("ym="+str(ym[0])+" u="+str(u[0]));
+    print("min="+str(minElasped))
+    print("avg="+str(sumElasped/max(1,concore.simtime)))
+    print("max="+str(maxElasped))
     concore.write(1,"u",u);
     wallclock2 = time.perf_counter()
     elasped = wallclock2-wallclock1
