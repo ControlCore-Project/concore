@@ -37,7 +37,7 @@ try:
         sparams = sparams[0:sparams.find('"')]
     if sparams != '{':
         print("converting sparams: "+sparams)
-        sparams = "{'"+re.sub(';',",'",re.sub('=',"':",re.sub(' ','',sparams)))+"}"
+        sparams = "{'"+re.sub(',',",'",re.sub('=',"':",re.sub(' ','',sparams)))+"}"
         print("converted sparams: " + sparams)
     try:
         params = literal_eval(sparams)
@@ -45,13 +45,6 @@ try:
         print("bad params: "+sparams)
 except:
     params = dict()
-#9/30/22
-def tryparam(n,i):
-    try:
-       return params[n]
-    except:
-       return i
-
 
 #9/12/21
 def default_maxtime(default):
@@ -77,14 +70,11 @@ def read(port, name, initstr):
     try:
         infile = open(inpath+str(port)+"/"+name);
         ins = infile.read()
-        infile.close()
     except:
         ins = initstr
     while len(ins)==0:
         time.sleep(delay)
-        infile = open(inpath+str(port)+"/"+name);
         ins = infile.read()
-        infile.close()
         retrycount += 1
     s += ins
     inval = literal_eval(ins)
@@ -113,3 +103,4 @@ def initval(simtime_val):
     val = literal_eval(simtime_val)
     simtime = val[0]
     return val[1:]
+

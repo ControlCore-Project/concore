@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from werkzeug.utils import secure_filename
 import os
+import subprocess
 from subprocess import call
 from pathlib import Path
 import json
-import subprocess
+import platform
 from flask_cors import CORS, cross_origin
 
 cur_path = os.path.dirname(os.path.abspath(__file__))
@@ -21,8 +22,10 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 @app.route('/upload/<dir>', methods=['POST'])
 def upload(dir):
     apikey = request.args.get('apikey')
-    dirname = secure_filename(dir) + "_" + apikey
-
+    if(apikey == None):
+        dirname = secure_filename(dir)
+    else:
+        dirname = secure_filename(dir) + "_" + apikey
     if 'files[]' not in request.files:
         resp = jsonify({'message': 'No file in the request'})
         resp.status_code = 400
@@ -37,7 +40,6 @@ def upload(dir):
 
     if not os.path.isdir(directory_name):
         os.mkdir(directory_name)
-
 
     for file in files:
         if file:
@@ -60,32 +62,52 @@ def upload(dir):
         return resp
 
 
-
 # to download /build/<dir>?fetch=<graphml>. For example, /build/test?fetch=sample1&apikey=xyz
 @app.route('/build/<dir>', methods=['POST'])
 def build(dir):
     graphml_file = request.args.get('fetch')  
     apikey = request.args.get('apikey') 
-    dirname = secure_filename(dir) + "_" + apikey   
+    out_dir = request.args.get('outdir')
+    if(apikey == None):
+        dirname = secure_filename(dir)
+    else:
+        dirname = secure_filename(dir) + "_" + apikey
     makestudy_dir = dirname + "/" + graphml_file   #for makestudy
-    dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
+    if(out_dir == None or out_dir == ""):
+        dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
+    else:
+        dir_path = os.path.abspath(os.path.join(concore_path, out_dir)) #path for ./build
     if not os.path.exists(dir_path):
-        proc = call(["./makestudy", makestudy_dir], cwd=concore_path)
+        if(platform.uname()[0]=='Windows'):
+            if(out_dir == None or out_dir == ""):
+                proc= call(["makestudy", makestudy_dir], shell=True, cwd=concore_path)
+            else:
+                proc= call(["makestudy", makestudy_dir, out_dir], shell=True, cwd=concore_path)
+        else:
+            if(out_dir == None or out_dir == ""):
+                proc= call(["./makestudy", makestudy_dir], cwd=concore_path)
+            else:
+                proc= call(["./makestudy", makestudy_dir, out_dir], cwd=concore_path)
         if(proc == 0):
             resp = jsonify({'message': 'Directory successfully created'})
             resp.status_code = 201
         else:
             resp = jsonify({'message': 'There is an Error'})
-            resp.status_code = 500        
-    call(["./build"], cwd=dir_path)   
+            resp.status_code = 500   
+    if(platform.uname()[0]=='Windows'):
+        call(["build"], cwd=dir_path, shell=True)
+    else:
+        call(["./build"], cwd=dir_path)  
     return resp 
-
 
 @app.route('/debug/<dir>', methods=['POST'])
 def debug(dir):
-    dir = secure_filename(dir)
-    dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./debug"], cwd=dir_path)
+    dir_name = secure_filename(dir)
+    dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
+    if(platform.uname()[0]=='Windows'):
+        proc=call(["debug"],shell=True, cwd=dir_path)
+    else:
+        proc = call(["./debug"], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'Close the pop window after obtaining result'})
         resp.status_code = 201
@@ -95,12 +117,14 @@ def debug(dir):
         resp.status_code = 500
         return resp  
 
-
 @app.route('/run/<dir>', methods=['POST'])
 def run(dir):
-    dir = secure_filename(dir)
-    dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./run"], cwd=dir_path)
+    dir_name = secure_filename(dir)
+    dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
+    if(platform.uname()[0]=='Windows'):
+        proc=call(["run"],shell=True, cwd=dir_path)
+    else:
+        proc = call(["./run"], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'result prepared'})
         resp.status_code = 201
@@ -112,9 +136,12 @@ def run(dir):
 
 @app.route('/stop/<dir>', methods=['POST'])
 def stop(dir):
-    dir = secure_filename(dir)
-    dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./stop"], cwd=dir_path)
+    dir_name = secure_filename(dir)
+    dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
+    if(platform.uname()[0]=='Windows'):
+        proc=call(["stop"],shell=True, cwd=dir_path)
+    else:
+        proc = call(["./stop"], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'resources cleaned'})
         resp.status_code = 201
@@ -127,9 +154,12 @@ def stop(dir):
 
 @app.route('/clear/<dir>', methods=['POST'])
 def clear(dir):
-    dir = secure_filename(dir)
-    dir_path = os.path.abspath(os.path.join(concore_path, dir))
-    proc = call(["./clear"], cwd=dir_path)
+    dir_name = secure_filename(dir)
+    dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
+    if(platform.uname()[0]=='Windows'):
+        proc=call(["clear"],shell=True, cwd=dir_path)
+    else:
+        proc = call(["./clear"], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'result deleted'})
         resp.status_code = 201
@@ -157,11 +187,13 @@ def download(dir):
         resp.status_code = 400
         return resp
 
-
 @app.route('/destroy/<dir>', methods=['DELETE'])
 def destroy(dir):
     dir = secure_filename(dir)
-    proc = call(["./destroy", dir], cwd=concore_path)
+    if(platform.uname()[0]=='Windows'):
+        proc=call(["destroy", dir],shell=True, cwd=concore_path)
+    else:
+        proc = call(["./destroy", dir], cwd=concore_path)
     if(proc == 0):
         resp = jsonify({'message': 'Successfuly deleted Dirctory'})
         resp.status_code = 201
@@ -181,7 +213,6 @@ def getFilesList(dir):
     res = json.dumps(res)  
     return res             
 
-
 @app.route('/openJupyter/', methods=['POST'])
 def openJupyter():
     proc = subprocess.Popen(['jupyter', 'lab'], shell=False, stdout=subprocess.PIPE, cwd=concore_path)
@@ -193,7 +224,6 @@ def openJupyter():
         resp = jsonify({'message': 'There is an Error'})
         resp.status_code = 500
         return resp 
-
 
 
 if __name__ == "__main__":
