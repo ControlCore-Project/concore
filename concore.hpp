@@ -12,15 +12,21 @@
 //libraries for platform independent delay. Supports C++11 upwards
 #include <chrono>
 #include <thread>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <unistd.h>
 
 using namespace std;
 
 class Concore{
 
+private:
     //private variables
     string s="",olds="";
     string inpath = "./in";
     string outpath = "./out";
+    int shmId_;
+    int* sharedData_;
 
  public:
     double delay = 1;
@@ -33,6 +39,51 @@ class Concore{
     Concore(){
         iport = mapParser("concore.iport");
         oport = mapParser("concore.oport");         
+    }
+
+    ~Concore()
+    {
+        // Detach the shared memory segment from the process
+        shmdt(sharedData_);
+
+        // Remove the shared memory segment
+        shmctl(shmId_, IPC_RMID, nullptr);
+    }
+
+
+    void createSharedMemory()
+    {
+         // Generate a unique key for the shared memory segment
+        key_t key = ftok("shared_memory_key", 'R');
+
+        // Create a shared memory segment
+        shmId_ = shmget(key, sizeof(int), IPC_CREAT | 0666);
+
+        // Attach the shared memory segment to the process's address space
+        sharedData_ = static_cast<int*>(shmat(shmId_, nullptr, 0));
+    }
+
+    void getSharedMemory()
+    {
+        // Generate the same unique key for the shared memory segment
+        key_t key = ftok("shared_memory_key", 'R');
+
+        // Get the created shared memory segment
+        while (true) {
+            // Get the shared memory segment created by Writer
+            shmId_ = shmget(key, sizeof(int), 0666);
+
+            // Check if shared memory exists
+            if (shmId_ != -1) {
+                break; // Break the loop if shared memory exists
+            }
+
+            std::cout << "Shared memory does not exist. Make sure the shared memory creation process is active." << std::endl;
+            sleep(1); // Sleep for 1 second before checking again
+        }
+
+        // Attach the shared memory segment to the process's address space
+        sharedData_ = static_cast<int*>(shmat(shmId_, nullptr, 0));
     }
 
     map<string,int> mapParser(string filename){
