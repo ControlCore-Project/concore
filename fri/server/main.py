@@ -213,6 +213,24 @@ def getFilesList(dir):
     res = json.dumps(res)  
     return res             
 
+@app.route('/contribute', methods=['POST'])
+def contributeStudy():
+    BOT_TOKEN = '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'
+    REPO_NAME = 'concore'
+    OWNER_NAME = 'parteekcoder'
+    PR_TITLE = request.args.get('title')
+    PR_BODY = request.args.get('desc')
+    AUTHOR_NAME = request.args.get('auth')
+    STUDY_NAME = request.args.get('study')
+    STUDY_NAME_PATH = request.args.get('path')
+    arguments = [BOT_TOKEN,REPO_NAME,OWNER_NAME,PR_TITLE,PR_BODY,AUTHOR_NAME,STUDY_NAME,STUDY_NAME_PATH]
+    if(platform.uname()[0]=='Windows'):
+        proc = call(["contribute",BOT_TOKEN,REPO_NAME,OWNER_NAME,PR_TITLE,PR_BODY,AUTHOR_NAME,STUDY_NAME,STUDY_NAME_PATH],shell=True, cwd=concore_path)
+    else:
+        proc = call(["./contribute",BOT_TOKEN,REPO_NAME,OWNER_NAME,PR_TITLE,PR_BODY,AUTHOR_NAME,STUDY_NAME,STUDY_NAME_PATH], cwd=concore_path)
+    resp = jsonify({'message':1})
+    return resp
+
 @app.route('/openJupyter/', methods=['POST'])
 def openJupyter():
     proc = subprocess.Popen(['jupyter', 'lab'], shell=False, stdout=subprocess.PIPE, cwd=concore_path)
