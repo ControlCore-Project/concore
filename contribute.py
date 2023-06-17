@@ -4,19 +4,16 @@ import os,sys,time,platform,base64
 
 # Intializing the Variables
 # Hashed token
-BOT_TOKEN = 'Z2l0aHViX3BhdF8xMUFYM1pBT1kwR0lTTm5jWFlObXdhX3hQa2xyOVdSZ0ZMRURGcERFNFBzbW9zZFFUTzZaNTBBZkcwY2dYSVNKZ2FCSUtNWUo3SGpXTnlxTFda'
-REPO_NAME = 'concore'        #repo-name
-OWNER_NAME = 'parteekcoder'  #bot
+BOT_TOKEN = 'Z2l0aHViX3BhdF8xMUFYS0pGVFkwUWVWZ3AzbkpkWk8yX3BOc1VncDFIVDMwZVNXcHhBNm9acHhMaGZGdU5CdE85TGpqdXF1UWRRNzI2S01aUk5HRUNGanFWNDZi'
+REPO_NAME = 'concore'        #repo name
+OWNER_NAME = 'parteekcoder123'  #bot account name
 STUDY_NAME =  sys.argv[1]
 STUDY_NAME_PATH =  sys.argv[2]
 AUTHOR_NAME =  sys.argv[3]
 BRANCH_NAME =  sys.argv[4]
 PR_TITLE =  sys.argv[5]
 PR_BODY =  sys.argv[6]
-
-# if author name has spaces
-DIR_PATH = AUTHOR_NAME + '_' + STUDY_NAME
-UPSTREAM_OWNER = 'parteekcoder123'
+UPSTREAM_OWNER = 'parteekcoder'   # upstream to which examples should be contributed
 
 
 # Defining Functions
@@ -80,7 +77,7 @@ def fetchUpstream(repo,base_sha,branch):
 def runWorkflow(repo,upstream_repo):
     openPR = anyOpenPR(upstream_repo)
     if openPR==None:
-        workflow_runned = repo.get_workflow(id_or_name="pull_request.yml").create_dispatch(ref=BRANCH_NAME,inputs={'title':PR_TITLE,'body':PR_BODY})
+        workflow_runned = repo.get_workflow(id_or_name="pull_request.yml").create_dispatch(ref=BRANCH_NAME,inputs={'title':PR_TITLE,'body':PR_BODY,'upstreamRepo':upstream_repo,'botRepo':OWNER_NAME,'repo':REPO_NAME})
         if not workflow_runned:
             print("Some Error Occured.Please try after some time")
             exit(0)
@@ -133,6 +130,8 @@ try:
         PR_TITLE="Contributing Study "+AUTHOR_NAME+" "+STUDY_NAME
     if PR_BODY=="#":
         PR_BODY="Study Contributed by "+ AUTHOR_NAME
+    AUTHOR_NAME = AUTHOR_NAME.replace(" ","_")
+    DIR_PATH = AUTHOR_NAME + '_' + STUDY_NAME
     g = Github(decode_token(BOT_TOKEN))
     repo = g.get_user(OWNER_NAME).get_repo(REPO_NAME)
     upstream_repo = g.get_repo(f'{UPSTREAM_OWNER}/{REPO_NAME}') #controlcore-Project/concore
