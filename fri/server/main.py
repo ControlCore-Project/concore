@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_file, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 import subprocess
-from subprocess import call
+from subprocess import call,check_output
 from pathlib import Path
 import json
 import platform
@@ -168,6 +168,35 @@ def clear(dir):
         resp = jsonify({'message': 'There is an Error'})
         resp.status_code = 500
         return resp
+
+@app.route('/contribute', methods=['POST'])
+def contribute():
+    try:
+        data = request.json
+        PR_TITLE = data.get('title')
+        PR_BODY = data.get('desc')
+        AUTHOR_NAME = data.get('auth')
+        STUDY_NAME = data.get('study')
+        STUDY_NAME_PATH = data.get('path')
+        BRANCH_NAME = data.get('branch')
+        if(platform.uname()[0]=='Windows'):
+            proc=check_output(["contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME,BRANCH_NAME,PR_TITLE,PR_BODY],cwd=concore_path,shell=True)
+        else:
+            proc = check_output(["./contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME,BRANCH_NAME,PR_TITLE,PR_BODY],cwd=concore_path)
+        output_string = proc.decode()
+        status=200
+        if output_string.find("/pulls/")!=-1:
+            status=200
+        elif output_string.find("error")!=-1:
+            status=501
+        else:
+            status=400
+        return jsonify({'message': output_string}),status
+    except Exception as e:
+        print(e)
+        output_string = "Some Error occured.Please try after some time"
+        status=501
+    return jsonify({'message': output_string}),status
 
 # to download /download/<dir>?fetch=<downloadfile>. For example, /download/test?fetchDir=xyz&fetch=u
 @app.route('/download/<dir>', methods=['POST', 'GET'])
