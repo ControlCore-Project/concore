@@ -285,7 +285,7 @@ private:
             if (sharedData_ && sharedData_[0] != '\0') {
                 std::string message(sharedData_, strnlen(sharedData_, 256));
                 ins = message;
-                std::cout << "Received message: " << message << " ins " << ins.length() << std::endl;
+                // std::cout << "Received message: " << message << " ins " << ins.length() << std::endl;
             } 
             else 
             {
