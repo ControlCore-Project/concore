@@ -65,7 +65,10 @@ def upload(dir):
 # to download /build/<dir>?fetch=<graphml>. For example, /build/test?fetch=sample1&apikey=xyz
 @app.route('/build/<dir>', methods=['POST'])
 def build(dir):
-    graphml_file = request.args.get('fetch')  
+    graphml_file = request.args.get('fetch')
+    params = request.args.get('params')
+    docker = request.args.get('docker')
+    maxtime = request.args.get('maxtime')
     apikey = request.args.get('apikey') 
     out_dir = request.args.get('outdir')
     if(apikey == None):
@@ -80,14 +83,26 @@ def build(dir):
     if not os.path.exists(dir_path):
         if(platform.uname()[0]=='Windows'):
             if(out_dir == None or out_dir == ""):
-                proc= call(["makestudy", makestudy_dir], shell=True, cwd=concore_path)
+                if(docker == 'true'):
+                    proc= call(["makedocker", makestudy_dir], shell=True, cwd=concore_path)
+                else:
+                    proc= call(["makestudy", makestudy_dir], shell=True, cwd=concore_path)
             else:
-                proc= call(["makestudy", makestudy_dir, out_dir], shell=True, cwd=concore_path)
+                if(docker == 'true'):
+                    proc= call(["makedocker", makestudy_dir, out_dir], shell=True, cwd=concore_path)
+                else:
+                    proc= call(["makestudy", makestudy_dir, out_dir], shell=True, cwd=concore_path)
         else:
             if(out_dir == None or out_dir == ""):
-                proc= call(["./makestudy", makestudy_dir], cwd=concore_path)
+                if(docker == 'true'):
+                    proc= call(["./makedocker", makestudy_dir], cwd=concore_path)
+                else:
+                    proc= call(["./makestudy", makestudy_dir], cwd=concore_path)
             else:
-                proc= call(["./makestudy", makestudy_dir, out_dir], cwd=concore_path)
+                if(docker == 'true'):
+                    proc= call(["./makedocker", makestudy_dir, out_dir], cwd=concore_path)
+                else:
+                    proc= call(["./makestudy", makestudy_dir, out_dir], cwd=concore_path)
         if(proc == 0):
             resp = jsonify({'message': 'Directory successfully created'})
             resp.status_code = 201
@@ -96,8 +111,16 @@ def build(dir):
             resp.status_code = 500   
     if(platform.uname()[0]=='Windows'):
         call(["build"], cwd=dir_path, shell=True)
+        if(maxtime != None and maxtime != ''):
+            proc=call(["maxtime", maxtime],shell=True, cwd=dir_path)
+        if(params != None and params != ''):
+            proc=call(["params", params],shell=True, cwd=dir_path)
     else:
-        call(["./build"], cwd=dir_path)  
+        call(["./build"], cwd=dir_path)
+        if(maxtime != None and maxtime != ''):
+            proc=call(["./maxtime", maxtime], cwd=dir_path)
+        if(params != None and params != ''):
+            proc=call(["./params", params], cwd=dir_path)
     return resp 
 
 @app.route('/debug/<dir>', methods=['POST'])
@@ -154,12 +177,23 @@ def stop(dir):
 
 @app.route('/clear/<dir>', methods=['POST'])
 def clear(dir):
+    unlock = request.args.get('unlock')
+    params = request.args.get('params')
+    maxtime = request.args.get('maxtime')
     dir_name = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
     if(platform.uname()[0]=='Windows'):
         proc=call(["clear"],shell=True, cwd=dir_path)
+        if(maxtime != None and maxtime != ''):
+            proc=call(["maxtime", maxtime],shell=True, cwd=dir_path)
+        if(params != None and params != ''):
+            proc=call(["params", params],shell=True, cwd=dir_path)
     else:
         proc = call(["./clear"], cwd=dir_path)
+        if(maxtime != None and maxtime != ''):
+            proc=call(["./maxtime", maxtime], cwd=dir_path)
+        if(params != None and params != ''):
+            proc=call(["./params", params], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'result deleted'})
         resp.status_code = 201
