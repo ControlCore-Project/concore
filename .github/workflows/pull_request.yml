@@ -1,0 +1,31 @@
+name: Automatic Pull request
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: 'title of example'
+        required: true
+      body:
+        description: 'description of example'
+        required: true
+      upstreamRepo:
+        description: 'Upstream repo'
+        required: true
+      botRepo:
+        description: 'bot repo'
+        required: true
+      repo:
+        description: 'repo name'
+        required: true
+
+jobs:
+  create-pull-request:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Create PR
+        run: |
+          gh pr create --repo ${{ github.event.inputs.upstreamRepo }}/${{ github.event.inputs.repo }} --head ${{ github.event.inputs.botRepo }}:${{ github.ref }} --base main --title "${{ github.event.inputs.title }}" --body "${{ github.event.inputs.body }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
