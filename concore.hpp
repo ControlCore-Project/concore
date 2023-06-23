@@ -12,15 +12,25 @@
 //libraries for platform independent delay. Supports C++11 upwards
 #include <chrono>
 #include <thread>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <unistd.h>
+#include <cstring>
+#include <cctype>
 
 using namespace std;
 
 class Concore{
 
+private:
     //private variables
     string s="",olds="";
     string inpath = "./in";
     string outpath = "./out";
+    int shmId_;
+    char* sharedData_;
+    // File sharing:- 0, Shared Memory:- 1
+    int communication_ = 0;
 
  public:
     double delay = 1;
@@ -32,8 +42,95 @@ class Concore{
     //Constructor to put in iport and oport values in map
     Concore(){
         iport = mapParser("concore.iport");
-        oport = mapParser("concore.oport");         
+        oport = mapParser("concore.oport");   
+        std::map<std::string, int>::iterator it_iport = iport.begin();
+        std::map<std::string, int>::iterator it_oport = oport.begin();
+        int iport_number = AlphanumericSM(it_iport->first);
+        int oport_number = AlphanumericSM(it_oport->first);
+
+        if(iport_number != -1 || oport_number != -1)
+        {
+            communication_ = 1;
+            if(iport_number > oport_number)
+            {
+                this->createSharedMemory();
+            }
+            else
+            {
+                this->getSharedMemory();
+            }
+        }      
     }
+
+    /**
+     * return number if number is greater than zero
+     * and alphanumeric
+    */
+    int AlphanumericSM(const std::string& input) {
+        bool isPureAlphabetic = true;
+        for (char c : input) {
+            if (!std::isalpha(c)) {
+                isPureAlphabetic = false;
+                break;
+            }
+        }
+
+        if (isPureAlphabetic) {
+            return -1;
+        } else {
+            if (int(input[0]))
+            { 
+                return int(input[0]);
+            }
+            return -1;
+        }
+    }
+
+    ~Concore()
+    {
+        // Detach the shared memory segment from the process
+        shmdt(sharedData_);
+
+        // Remove the shared memory segment
+        shmctl(shmId_, IPC_RMID, nullptr);
+    }
+
+
+    void createSharedMemory()
+    {
+        std::cout << "create SM" << std::endl;
+        shmId_ = shmget(1237, 256, IPC_CREAT | 0666);
+        if (shmId_ == -1) {
+            std::cerr << "Failed to create shared memory segment." << std::endl;
+        }
+
+        // Attach the shared memory segment to the process's address space
+        sharedData_ = static_cast<char*>(shmat(shmId_, NULL, 0));
+        if (sharedData_ == reinterpret_cast<char*>(-1)) {
+            std::cerr << "Failed to attach shared memory segment." << std::endl;
+        }
+    }
+
+    void getSharedMemory()
+    {
+        std::cout << "get SM" << std::endl;
+        while (true) {
+            // Get the shared memory segment created by Writer
+            shmId_ = shmget(1237, 256, 0666);
+
+            // Check if shared memory exists
+            if (shmId_ != -1) {
+                break; // Break the loop if shared memory exists
+            }
+
+            std::cout << "Shared memory does not exist. Make sure the writer process is running." << std::endl;
+            sleep(1); // Sleep for 1 second before checking again
+        }
+
+        // Attach the shared memory segment to the process's address space
+        sharedData_ = static_cast<char*>(shmat(shmId_, NULL, 0));
+    }
+    
 
     map<string,int> mapParser(string filename){
         map<string,int> ans;
@@ -112,8 +209,18 @@ class Concore{
         return temp;
     }
 
+    vector<double> read(int port, string name, string initstr)
+    {
+        if(communication_ == 1)
+        {
+            return read_SM(port, name, initstr);
+        }
+
+        return read_FM(port, name, initstr);
+    }
+
     //accepts the file name as string and returns a string of file content
-    vector<double> read(int port, string name, string initstr){
+    vector<double> read_FM(int port, string name, string initstr){
         chrono::milliseconds timespan((int)(1000*delay));
         this_thread::sleep_for(timespan);
         string ins;
@@ -159,6 +266,60 @@ class Concore{
         }
         s += ins;
 
+        vector<double> inval = parser(ins);
+        simtime = simtime > inval[0] ? simtime : inval[0];
+
+        //returning a string with data excluding simtime
+        inval.erase(inval.begin());
+        return inval;
+
+    }
+
+    //accepts the file name as string and returns a string of file content
+    vector<double> read_SM(int port, string name, string initstr){
+        chrono::milliseconds timespan((int)(1000*delay));
+        this_thread::sleep_for(timespan);
+        string ins = "";
+        try {
+        if (shmId_ != -1) {
+            if (sharedData_ && sharedData_[0] != '\0') {
+                std::string message(sharedData_, strnlen(sharedData_, 256));
+                ins = message;
+                // std::cout << "Received message: " << message << " ins " << ins.length() << std::endl;
+            } 
+            else 
+            {
+                throw 505;
+            }
+        } 
+        else 
+        {
+            throw 505;
+        }
+        } catch (...) {
+            ins = initstr;
+        }
+        
+        while ((int)ins.length()==0){
+            this_thread::sleep_for(timespan);
+            try{
+                if(shmId_ != -1) {
+                    std::cout << "in read while\n";
+                    std::string message(sharedData_, strnlen(sharedData_, 256));
+                    ins = message;
+                    retrycount++;
+                }
+                else{
+                    retrycount++;
+                    throw 505;
+                }
+            }
+            //observed retry count in C++ from various tests is approx 80.
+            catch(...){
+                cout<<"Read error";
+            }
+        }
+        s += ins;
 
         vector<double> inval = parser(ins);
         simtime = simtime > inval[0] ? simtime : inval[0];
@@ -169,8 +330,28 @@ class Concore{
 
     }
 
+    void write(int port, string name, vector<double> val, int delta=0)
+    {
+        if(communication_ == 1)
+        {
+            return write_SM(port, name, val, delta);
+        }
+
+        return write_FM(port, name, val, delta);
+    }
+
+    void write(int port, string name, string val, int delta=0)
+    {
+        if(communication_ == 1)
+        {
+            return write_SM(port, name, val, delta);
+        }
+
+        return write_FM(port, name, val, delta);
+    }
+
     //write method, accepts a vector double and writes it to the file
-    void write(int port, string name, vector<double> val, int delta=0){
+    void write_FM(int port, string name, vector<double> val, int delta=0){
 
         try {
             ofstream outfile;
@@ -194,7 +375,7 @@ class Concore{
     }
 
     //write method, accepts a string and writes it to the file
-    void write(int port, string name, string val, int delta=0){
+    void write_FM(int port, string name, string val, int delta=0){
         chrono::milliseconds timespan((int)(2000*delay));
         this_thread::sleep_for(timespan);
         try {
@@ -204,6 +385,45 @@ class Concore{
             if(outfile){
                 outfile<<val;
                 outfile.close();
+            }
+            else throw 505;
+        }
+        catch(...){
+            cout<<"skipping +"<<outpath<<port<<" /"<<name;
+        }
+    }
+
+    //write method, accepts a vector double and writes it to the file
+    void write_SM(int port, string name, vector<double> val, int delta=0){
+
+        try {
+            std::ostringstream outfile;
+            if(shmId_ != -1){
+                val.insert(val.begin(),simtime+delta);
+                outfile<<'[';
+                for(int i=0;i<val.size()-1;i++)
+                    outfile<<val[i]<<',';
+                outfile<<val[val.size()-1]<<']';
+                std::string result = outfile.str();
+                std::strncpy(sharedData_, result.c_str(), 256 - 1);
+                }
+            else{
+                throw 505;
+                }
+            }
+
+        catch(...){
+            cout<<"skipping +"<<outpath<<port<<" /"<<name;
+        }
+    }
+
+    //write method, accepts a string and writes it to the file
+    void write_SM(int port, string name, string val, int delta=0){
+        chrono::milliseconds timespan((int)(2000*delay));
+        this_thread::sleep_for(timespan);
+        try {
+            if(shmId_ != -1){
+                std::strncpy(sharedData_, val.c_str(), 256 - 1);
             }
             else throw 505;
         }
