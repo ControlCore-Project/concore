@@ -35,5 +35,6 @@ then
     echo "either do ./destroy $studydir, or choose a unique name as 2nd arg"
 else
     echo "python3 mkconcore.py $graphml $sourcedir $studydir docker"
-    python3 mkconcore.py $graphml $sourcedir $studydir docker 
+    python3 mkconcore.py $graphml $sourcedir $studydir docker
+    chmod +x */*
 fi
