@@ -27,10 +27,15 @@ private:
     string s="",olds="";
     string inpath = "./in";
     string outpath = "./out";
-    int shmId_;
-    char* sharedData_;
+
+    int shmId_create;
+    int shmId_get;
+
+    char* sharedData_create;
+    char* sharedData_get;
     // File sharing:- 0, Shared Memory:- 1
-    int communication_ = 0;
+    int communication_iport = 0;
+    int communication_oport = 0;
 
  public:
     double delay = 1;
@@ -45,81 +50,92 @@ private:
         oport = mapParser("concore.oport");   
         std::map<std::string, int>::iterator it_iport = iport.begin();
         std::map<std::string, int>::iterator it_oport = oport.begin();
-        int iport_number = AlphanumericSM(it_iport->first);
-        int oport_number = AlphanumericSM(it_oport->first);
+        int iport_number = generateNumberString(it_iport->first);
+        int oport_number = generateNumberString(it_oport->first);
 
-        if(iport_number != -1 || oport_number != -1)
+        if(oport_number != -1)
         {
-            communication_ = 1;
-            if(iport_number > oport_number)
-            {
-                this->createSharedMemory();
-            }
-            else
-            {
-                this->getSharedMemory();
-            }
-        }      
-    }
+            communication_oport = 1;
+            this->createSharedMemory(oport_number);
+        }  
 
-    /**
-     * return number if number is greater than zero
-     * and alphanumeric
-    */
-    int AlphanumericSM(const std::string& input) {
-        bool isPureAlphabetic = true;
-        for (char c : input) {
-            if (!std::isalpha(c)) {
-                isPureAlphabetic = false;
-                break;
-            }
-        }
-
-        if (isPureAlphabetic) {
-            return -1;
-        } else {
-            if (int(input[0]))
-            { 
-                return int(input[0]);
-            }
-            return -1;
-        }
+        if(iport_number != -1)
+        {
+            communication_iport = 1;
+            this->getSharedMemory(iport_number);
+        }    
     }
 
     ~Concore()
     {
         // Detach the shared memory segment from the process
-        shmdt(sharedData_);
+        shmdt(sharedData_create);
+        shmdt(sharedData_get);
 
         // Remove the shared memory segment
-        shmctl(shmId_, IPC_RMID, nullptr);
+        shmctl(shmId_create, IPC_RMID, nullptr);
     }
 
+    std::map<char, int> createAlphabetMap() {
+        std::map<char, int> alphabetMap;
 
-    void createSharedMemory()
+        for (char c = 'A'; c <= 'Z'; ++c) {
+            alphabetMap[c] = c - 'A' + 1;
+        }
+
+        return alphabetMap;
+    }
+
+    key_t generateNumberString(const std::string& str) {
+        std::map<char, int> alphabetMap = createAlphabetMap();
+        std::string numberString;
+
+        // Find the number of leading digits in the input string
+        size_t numDigits = 0;
+        std::string start_digit = "";
+        while (numDigits < str.length() && std::isdigit(str[numDigits])) {
+            numberString += str[numDigits];
+            ++numDigits;
+        }
+
+        if (numDigits == 0)
+        {
+            return -1;
+        }
+
+        // Concatenate the numbers for the first three alphabet characters after the digits
+        for (size_t i = numDigits; i < str.length() && i < numDigits + 3; ++i) {
+            char c = std::toupper(str[i]);
+            if (alphabetMap.count(c) > 0) {
+                numberString += std::to_string(alphabetMap[c]);
+            }
+        }
+
+        return std::stoi(numberString);
+    }
+
+    void createSharedMemory(key_t key)
     {
-        std::cout << "create SM" << std::endl;
-        shmId_ = shmget(1237, 256, IPC_CREAT | 0666);
-        if (shmId_ == -1) {
+        shmId_create = shmget(key, 256, IPC_CREAT | 0666);
+
+        if (shmId_create == -1) {
             std::cerr << "Failed to create shared memory segment." << std::endl;
         }
 
         // Attach the shared memory segment to the process's address space
-        sharedData_ = static_cast<char*>(shmat(shmId_, NULL, 0));
-        if (sharedData_ == reinterpret_cast<char*>(-1)) {
+        sharedData_create = static_cast<char*>(shmat(shmId_create, NULL, 0));
+        if (sharedData_create == reinterpret_cast<char*>(-1)) {
             std::cerr << "Failed to attach shared memory segment." << std::endl;
         }
     }
 
-    void getSharedMemory()
+    void getSharedMemory(key_t key)
     {
-        std::cout << "get SM" << std::endl;
         while (true) {
             // Get the shared memory segment created by Writer
-            shmId_ = shmget(1237, 256, 0666);
-
+            shmId_get = shmget(key, 256, 0666);
             // Check if shared memory exists
-            if (shmId_ != -1) {
+            if (shmId_get != -1) {
                 break; // Break the loop if shared memory exists
             }
 
@@ -128,9 +144,8 @@ private:
         }
 
         // Attach the shared memory segment to the process's address space
-        sharedData_ = static_cast<char*>(shmat(shmId_, NULL, 0));
+        sharedData_get = static_cast<char*>(shmat(shmId_get, NULL, 0));
     }
-    
 
     map<string,int> mapParser(string filename){
         map<string,int> ans;
@@ -211,7 +226,7 @@ private:
 
     vector<double> read(int port, string name, string initstr)
     {
-        if(communication_ == 1)
+        if(communication_iport == 1)
         {
             return read_SM(port, name, initstr);
         }
@@ -281,9 +296,9 @@ private:
         this_thread::sleep_for(timespan);
         string ins = "";
         try {
-        if (shmId_ != -1) {
-            if (sharedData_ && sharedData_[0] != '\0') {
-                std::string message(sharedData_, strnlen(sharedData_, 256));
+        if (shmId_get != -1) {
+            if (sharedData_get && sharedData_get[0] != '\0') {
+                std::string message(sharedData_get, strnlen(sharedData_get, 256));
                 ins = message;
                 // std::cout << "Received message: " << message << " ins " << ins.length() << std::endl;
             } 
@@ -303,9 +318,9 @@ private:
         while ((int)ins.length()==0){
             this_thread::sleep_for(timespan);
             try{
-                if(shmId_ != -1) {
+                if(shmId_get != -1) {
                     std::cout << "in read while\n";
-                    std::string message(sharedData_, strnlen(sharedData_, 256));
+                    std::string message(sharedData_get, strnlen(sharedData_get, 256));
                     ins = message;
                     retrycount++;
                 }
@@ -332,7 +347,7 @@ private:
 
     void write(int port, string name, vector<double> val, int delta=0)
     {
-        if(communication_ == 1)
+        if(communication_oport == 1)
         {
             return write_SM(port, name, val, delta);
         }
@@ -342,7 +357,7 @@ private:
 
     void write(int port, string name, string val, int delta=0)
     {
-        if(communication_ == 1)
+        if(communication_oport == 1)
         {
             return write_SM(port, name, val, delta);
         }
@@ -398,14 +413,14 @@ private:
 
         try {
             std::ostringstream outfile;
-            if(shmId_ != -1){
+            if(shmId_create != -1){
                 val.insert(val.begin(),simtime+delta);
                 outfile<<'[';
                 for(int i=0;i<val.size()-1;i++)
                     outfile<<val[i]<<',';
                 outfile<<val[val.size()-1]<<']';
                 std::string result = outfile.str();
-                std::strncpy(sharedData_, result.c_str(), 256 - 1);
+                std::strncpy(sharedData_create, result.c_str(), 256 - 1);
                 }
             else{
                 throw 505;
@@ -422,8 +437,8 @@ private:
         chrono::milliseconds timespan((int)(2000*delay));
         this_thread::sleep_for(timespan);
         try {
-            if(shmId_ != -1){
-                std::strncpy(sharedData_, val.c_str(), 256 - 1);
+            if(shmId_create != -1){
+                std::strncpy(sharedData_create, val.c_str(), 256 - 1);
             }
             else throw 505;
         }
