@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from werkzeug.utils import secure_filename
+import xml.etree.ElementTree as ET
 import os
 import subprocess
 from subprocess import call
@@ -17,6 +18,17 @@ app.secret_key = "secret key"
 
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
+
+def check_node_labels(graphml_file):
+    tree = ET.parse(graphml_file)
+    root = tree.getroot()
+    namespace = {'y': 'http://www.yworks.com/xml/graphml'}
+    node_labels = root.findall('.//y:NodeLabel', namespace)
+    for node_label in node_labels:
+        label = node_label.text
+        if label.endswith('.m'):
+            return True
+    return False
 
 # To upload multiple file. For example, /upload/test?apikey=xyz
 @app.route('/upload/<dir>', methods=['POST'])
@@ -68,6 +80,7 @@ def build(dir):
     graphml_file = request.args.get('fetch')
     params = request.args.get('params')
     docker = request.args.get('docker')
+    octave = request.args.get('octave')
     maxtime = request.args.get('maxtime')
     apikey = request.args.get('apikey') 
     out_dir = request.args.get('outdir')
@@ -80,6 +93,11 @@ def build(dir):
         dir_path = os.path.abspath(os.path.join(concore_path, graphml_file)) #path for ./build
     else:
         dir_path = os.path.abspath(os.path.join(concore_path, out_dir)) #path for ./build
+    
+    dotMCheck = check_node_labels(os.path.abspath(os.path.join(concore_path, makestudy_dir)) + '.graphml')
+    if((dotMCheck == False or octave == 'false') and os.path.isfile(os.path.abspath(os.path.join(concore_path, 'concore.octave')))):
+        proc= call(["rm", "concore.octave"], cwd=concore_path)
+
     if not os.path.exists(dir_path):
         if(platform.uname()[0]=='Windows'):
             if(out_dir == None or out_dir == ""):
@@ -95,11 +113,15 @@ def build(dir):
         else:
             if(out_dir == None or out_dir == ""):
                 if(docker == 'true'):
+                    if(octave == 'true' and dotMCheck):
+                        proc= call(["touch", "concore.octave"], cwd=concore_path)
                     proc= call(["./makedocker", makestudy_dir], cwd=concore_path)
                 else:
                     proc= call(["./makestudy", makestudy_dir], cwd=concore_path)
             else:
                 if(docker == 'true'):
+                    if(octave == 'true' and dotMCheck):
+                        proc= call(["touch", "concore.octave"], cwd=concore_path)
                     proc= call(["./makedocker", makestudy_dir, out_dir], cwd=concore_path)
                 else:
                     proc= call(["./makestudy", makestudy_dir, out_dir], cwd=concore_path)
