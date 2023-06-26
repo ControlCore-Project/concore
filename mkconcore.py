@@ -432,6 +432,7 @@ if (concoretype=="docker"):
                         fcopy.write('CMD ["./a.out"]\n')  # 7/02/21
                 fsource.close() 
 
+    fbuild.write('#!/bin/bash' + "\n")
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0 and sourcecode.find(".")!=-1: #3/28/21
@@ -462,6 +463,7 @@ if (concoretype=="docker"):
 
     fbuild.close()
 
+    frun.write('#!/bin/bash' + "\n")
     i=0
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
@@ -482,6 +484,7 @@ if (concoretype=="docker"):
         i=i+1
     frun.close()
 
+    fstop.write('#!/bin/bash' + "\n")
     i=0 #  3/27/21
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
@@ -493,6 +496,7 @@ if (concoretype=="docker"):
         i=i+1
     fstop.close()
 
+    fclear.write('#!/bin/bash' + "\n")
     i=0 #  9/13/21
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
@@ -505,6 +509,7 @@ if (concoretype=="docker"):
         i=i+1
     fclear.close()
 
+    fmaxtime.write('#!/bin/bash' + "\n")
     fmaxtime.write('echo "$1" >concore.maxtime\n')
     fmaxtime.write('echo "FROM alpine:3.8" > Dockerfile\n')
     fmaxtime.write('sudo docker build -t docker-concore .\n')
@@ -543,6 +548,7 @@ if (concoretype=="docker"):
     fmaxtime.write('rm concore.maxtime\n')
     fmaxtime.close()
 
+    fparams.write('#!/bin/bash' + "\n")
     fparams.write('echo "$1" >concore.params\n')
     fparams.write('echo "FROM alpine:3.8" > Dockerfile\n')
     fparams.write('sudo docker build -t docker-concore .\n')
@@ -581,7 +587,7 @@ if (concoretype=="docker"):
     fparams.write('rm concore.params\n')
     fparams.close()
 
-
+    funlock.write('#!/bin/bash' + "\n")
     funlock.write('echo "FROM alpine:3.8" > Dockerfile\n')
     funlock.write('sudo docker build -t docker-concore .\n')
     funlock.write('sudo docker run --name=concore')
@@ -618,7 +624,7 @@ if (concoretype=="docker"):
     funlock.write('rm Dockerfile\n')
     funlock.close()
 
-
+    fdebug.write('#!/bin/bash' + "\n")
     i=0
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
@@ -873,6 +879,8 @@ for node in nodes_dict:
     i=i+1
 fmaxtime.close()
 
+if concoretype=="posix":
+    fparams.write('#!/bin/bash' + "\n")
 i=0 #  9/18/22
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
@@ -888,7 +896,8 @@ for node in nodes_dict:
     i=i+1
 fparams.close()
 
-
+if concoretype=="posix":
+    funlock.write('#!/bin/bash' + "\n")
 i=0 #  9/12/21
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
