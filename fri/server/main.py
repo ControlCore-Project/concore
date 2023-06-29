@@ -182,7 +182,10 @@ def contribute():
         if(platform.uname()[0]=='Windows'):
             proc=check_output(["contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME,BRANCH_NAME,PR_TITLE,PR_BODY],cwd=concore_path,shell=True)
         else:
-            proc = check_output(["./contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME,BRANCH_NAME,PR_TITLE,PR_BODY],cwd=concore_path)
+            if len(BRANCH_NAME)==0:
+                proc = check_output(["./contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME],cwd=concore_path)
+            else:
+                proc = check_output(["./contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME,BRANCH_NAME,PR_TITLE,PR_BODY],cwd=concore_path)
         output_string = proc.decode()
         status=200
         if output_string.find("/pulls/")!=-1:
@@ -193,7 +196,6 @@ def contribute():
             status=400
         return jsonify({'message': output_string}),status
     except Exception as e:
-        print(e)
         output_string = "Some Error occured.Please try after some time"
         status=501
     return jsonify({'message': output_string}),status

@@ -2,3 +2,4 @@ Flask
 gunicorn==20.1.0
 FLASK_CORS
 jupyterlab
+PyGithub

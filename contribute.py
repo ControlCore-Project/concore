@@ -4,8 +4,8 @@ import os,sys,time,platform,base64
 
 # Intializing the Variables
 # Hashed token
-BOT_TOKEN = 'Z2l0aHViX3BhdF8xMUFYS0pGVFkwUWVWZ3AzbkpkWk8yX3BOc1VncDFIVDMwZVNXcHhBNm9acHhMaGZGdU5CdE85TGpqdXF1UWRRNzI2S01aUk5HRUNGanFWNDZi'
-REPO_NAME = 'concore'        #repo name
+BOT_TOKEN = 'Z2l0aHViX3BhdF8xMUFYS0pGVFkwd2xwT0dmYldFOTBBXzN3Nkx2THpiaUFKek5pTDdqNlpLUzVwUUpoTlJWR3dtNnM0NWNDa0RmWTJaTTZLSUpHRHhERlhrZlJS'
+REPO_NAME = 'concore-studies'        #repo name
 OWNER_NAME = 'parteekcoder123'  #bot account name
 STUDY_NAME =  sys.argv[1]
 STUDY_NAME_PATH =  sys.argv[2]
@@ -13,8 +13,7 @@ AUTHOR_NAME =  sys.argv[3]
 BRANCH_NAME =  sys.argv[4]
 PR_TITLE =  sys.argv[5]
 PR_BODY =  sys.argv[6]
-UPSTREAM_OWNER = 'parteekcoder'   # upstream to which examples should be contributed
-
+UPSTREAM_OWNER = 'ControlCore-Project'   # upstream to which examples should be contributed
 
 # Defining Functions
 def checkInputValidity():
@@ -77,9 +76,9 @@ def fetchUpstream(repo,base_sha,branch):
 def runWorkflow(repo,upstream_repo):
     openPR = anyOpenPR(upstream_repo)
     if openPR==None:
-        workflow_runned = repo.get_workflow(id_or_name="pull_request.yml").create_dispatch(ref=BRANCH_NAME,inputs={'title':PR_TITLE,'body':PR_BODY,'upstreamRepo':upstream_repo,'botRepo':OWNER_NAME,'repo':REPO_NAME})
+        workflow_runned = repo.get_workflow(id_or_name="pull_request.yml").create_dispatch(ref=BRANCH_NAME,inputs={'title':PR_TITLE,'body':PR_BODY,'upstreamRepo':UPSTREAM_OWNER,'botRepo':OWNER_NAME,'repo':REPO_NAME})
         if not workflow_runned:
-            print("Some Error Occured.Please try after some time")
+            print("Some error occured.Please try after some time")
             exit(0)
         else:
             printPRStatus(upstream_repo)
@@ -105,10 +104,10 @@ def isImageFile(filename):
     return file_extension.lower() in image_extensions
 
 # Encode Github Token
-def encode_token(token):
-    encoded_bytes = base64.b64encode(token.encode('utf-8'))
-    encoded_token = encoded_bytes.decode('utf-8')
-    return encoded_token
+# def encode_token(token):
+#     encoded_bytes = base64.b64encode(token.encode('utf-8'))
+#     encoded_token = encoded_bytes.decode('utf-8')
+#     return encoded_token
 
 
 # Decode Github Token
