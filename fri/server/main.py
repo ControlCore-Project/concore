@@ -96,7 +96,10 @@ def build(dir):
     
     dotMCheck = check_node_labels(os.path.abspath(os.path.join(concore_path, makestudy_dir)) + '.graphml')
     if((dotMCheck == False or octave == 'false') and os.path.isfile(os.path.abspath(os.path.join(concore_path, 'concore.octave')))):
-        proc= call(["rm", "concore.octave"], cwd=concore_path)
+        if(platform.uname()[0]!='Windows'):
+            proc= call(["rm", "concore.octave"], cwd=concore_path)
+        else:
+            proc= call(["del", "concore.octave"], cwd=concore_path)
 
     if not os.path.exists(dir_path):
         if(platform.uname()[0]=='Windows'):
