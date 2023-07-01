@@ -99,7 +99,14 @@ def build(dir):
         if(platform.uname()[0]!='Windows'):
             proc= call(["rm", "concore.octave"], cwd=concore_path)
         else:
-            proc= call(["del", "concore.octave"], cwd=concore_path)
+            proc= call(["del", "concore.octave"], shell=True, cwd=concore_path)
+
+    if(octave == 'true' and dotMCheck):
+        if(platform.uname()[0]!='Windows'):
+            proc= call(["touch", "concore.octave"], cwd=concore_path)
+        else:
+            proc= open(os.path.abspath(os.path.join(concore_path, 'concore.octave')), 'x')
+                        
 
     if not os.path.exists(dir_path):
         if(platform.uname()[0]=='Windows'):
@@ -116,15 +123,11 @@ def build(dir):
         else:
             if(out_dir == None or out_dir == ""):
                 if(docker == 'true'):
-                    if(octave == 'true' and dotMCheck):
-                        proc= call(["touch", "concore.octave"], cwd=concore_path)
                     proc= call(["./makedocker", makestudy_dir], cwd=concore_path)
                 else:
                     proc= call(["./makestudy", makestudy_dir], cwd=concore_path)
             else:
                 if(docker == 'true'):
-                    if(octave == 'true' and dotMCheck):
-                        proc= call(["touch", "concore.octave"], cwd=concore_path)
                     proc= call(["./makedocker", makestudy_dir, out_dir], cwd=concore_path)
                 else:
                     proc= call(["./makestudy", makestudy_dir, out_dir], cwd=concore_path)
