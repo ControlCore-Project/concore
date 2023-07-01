@@ -50,8 +50,8 @@ private:
         oport = mapParser("concore.oport");   
         std::map<std::string, int>::iterator it_iport = iport.begin();
         std::map<std::string, int>::iterator it_oport = oport.begin();
-        int iport_number = generateNumberString(it_iport->first);
-        int oport_number = generateNumberString(it_oport->first);
+        int iport_number = ExtractNumeric(it_iport->first);
+        int oport_number = ExtractNumeric(it_oport->first);
 
         if(oport_number != -1)
         {
@@ -76,18 +76,7 @@ private:
         shmctl(shmId_create, IPC_RMID, nullptr);
     }
 
-    std::map<char, int> createAlphabetMap() {
-        std::map<char, int> alphabetMap;
-
-        for (char c = 'A'; c <= 'Z'; ++c) {
-            alphabetMap[c] = c - 'A' + 1;
-        }
-
-        return alphabetMap;
-    }
-
-    key_t generateNumberString(const std::string& str) {
-        std::map<char, int> alphabetMap = createAlphabetMap();
+    key_t ExtractNumeric(const std::string& str) {
         std::string numberString;
 
         // Find the number of leading digits in the input string
@@ -95,7 +84,7 @@ private:
         std::string start_digit = "";
         while (numDigits < str.length() && std::isdigit(str[numDigits])) {
             numberString += str[numDigits];
-            ++numDigits;
+            ++numDigits;          
         }
 
         if (numDigits == 0)
@@ -103,11 +92,11 @@ private:
             return -1;
         }
 
-        // Concatenate the numbers for the first three alphabet characters after the digits
-        for (size_t i = numDigits; i < str.length() && i < numDigits + 3; ++i) {
-            char c = std::toupper(str[i]);
-            if (alphabetMap.count(c) > 0) {
-                numberString += std::to_string(alphabetMap[c]);
+        if (numDigits == 1)
+        {
+            if (std::stoi(numberString) <= 0)
+            {
+                return -1;
             }
         }
 
