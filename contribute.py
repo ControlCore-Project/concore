@@ -4,17 +4,16 @@ import os,sys,time,platform,base64
 
 # Intializing the Variables
 # Hashed token
-BOT_TOKEN = 'Z2l0aHViX3BhdF8xMUFYS0pGVFkwUWVWZ3AzbkpkWk8yX3BOc1VncDFIVDMwZVNXcHhBNm9acHhMaGZGdU5CdE85TGpqdXF1UWRRNzI2S01aUk5HRUNGanFWNDZi'
-REPO_NAME = 'concore'        #repo name
-OWNER_NAME = 'parteekcoder123'  #bot account name
+BOT_TOKEN = 'Z2l0aHViX3BhdF8xMUFYS0pGVFkwd2xwT0dmYldFOTBBXzN3Nkx2THpiaUFKek5pTDdqNlpLUzVwUUpoTlJWR3dtNnM0NWNDa0RmWTJaTTZLSUpHRHhERlhrZlJS'
+BOT_REPO_NAME = 'concore-studies-staging'        #bot repo name
+UPSTREAM_REPO_NAME = 'concore-studies'        #bot repo name
+OWNER_NAME = 'ControlCore-Project'  #account name
 STUDY_NAME =  sys.argv[1]
 STUDY_NAME_PATH =  sys.argv[2]
 AUTHOR_NAME =  sys.argv[3]
 BRANCH_NAME =  sys.argv[4]
 PR_TITLE =  sys.argv[5]
 PR_BODY =  sys.argv[6]
-UPSTREAM_OWNER = 'parteekcoder'   # upstream to which examples should be contributed
-
 
 # Defining Functions
 def checkInputValidity():
@@ -34,7 +33,7 @@ def getPRs(upstream_repo):
         exit(0)
 
 def printPR(pr):
-    print(f'Check your example here https://github.com/{UPSTREAM_OWNER}/pulls/'+str(pr.number),end="")
+    print(f'Check your example here https://github.com/{OWNER_NAME}/{UPSTREAM_REPO_NAME}/pulls/'+str(pr.number),end="")
 
 def anyOpenPR(upstream_repo):
     pr = getPRs(upstream_repo)
@@ -45,7 +44,7 @@ def anyOpenPR(upstream_repo):
             break
     return openPr
 
-def commitAndUpdateRef(upstream_repo,repo,tree_content,commit,branch):
+def commitAndUpdateRef(repo,tree_content,commit,branch):
     try:
         new_tree = repo.create_git_tree(tree=tree_content,base_tree=commit.commit.tree)
         new_commit = repo.create_git_commit("commit message",new_tree,[commit.commit])
@@ -64,22 +63,12 @@ def appendBlobInTree(repo,content,file_path,tree_content):
     tree_content.append( github.InputGitTreeElement(path=file_path,mode="100644",type="blob",sha=blob.sha))
 
 
-def fetchUpstream(repo,base_sha,branch):
-    try:
-        result = repo.compare(base=base_sha,head=branch.commit.commit.sha)
-        if result.behind_by>0:
-            ref = repo.get_git_ref("heads/"+branch.name)
-            ref.edit(base_sha)
-    except Exception as e:
-        exit(0)
-
-
 def runWorkflow(repo,upstream_repo):
     openPR = anyOpenPR(upstream_repo)
     if openPR==None:
-        workflow_runned = repo.get_workflow(id_or_name="pull_request.yml").create_dispatch(ref=BRANCH_NAME,inputs={'title':PR_TITLE,'body':PR_BODY,'upstreamRepo':upstream_repo,'botRepo':OWNER_NAME,'repo':REPO_NAME})
+        workflow_runned = repo.get_workflow(id_or_name="pull_request.yml").create_dispatch(ref=BRANCH_NAME,inputs={'title':PR_TITLE,'body':PR_BODY,'upstreamRepo':UPSTREAM_REPO_NAME,'account':OWNER_NAME})
         if not workflow_runned:
-            print("Some Error Occured.Please try after some time")
+            print("Some error occured.Please try after some time")
             exit(0)
         else:
             printPRStatus(upstream_repo)
@@ -104,12 +93,6 @@ def isImageFile(filename):
     _, file_extension = os.path.splitext(filename)
     return file_extension.lower() in image_extensions
 
-# Encode Github Token
-def encode_token(token):
-    encoded_bytes = base64.b64encode(token.encode('utf-8'))
-    encoded_token = encoded_bytes.decode('utf-8')
-    return encoded_token
-
 
 # Decode Github Token
 def decode_token(encoded_token):
@@ -127,14 +110,14 @@ try:
     if BRANCH_NAME=="#":
         BRANCH_NAME=AUTHOR_NAME+"_"+STUDY_NAME
     if PR_TITLE=="#":
-        PR_TITLE="Contributing Study "+AUTHOR_NAME+" "+STUDY_NAME
+        PR_TITLE=f"Contributing Study {STUDY_NAME} by {AUTHOR_NAME}"
     if PR_BODY=="#":
-        PR_BODY="Study Contributed by "+ AUTHOR_NAME
+        PR_BODY=f"Study Name: {STUDY_NAME} \n Author Name: {AUTHOR_NAME}"
     AUTHOR_NAME = AUTHOR_NAME.replace(" ","_")
     DIR_PATH = AUTHOR_NAME + '_' + STUDY_NAME
     g = Github(decode_token(BOT_TOKEN))
-    repo = g.get_user(OWNER_NAME).get_repo(REPO_NAME)
-    upstream_repo = g.get_repo(f'{UPSTREAM_OWNER}/{REPO_NAME}') #controlcore-Project/concore
+    repo = g.get_user(OWNER_NAME).get_repo(BOT_REPO_NAME)
+    upstream_repo = g.get_repo(f'{OWNER_NAME}/{UPSTREAM_REPO_NAME}') #controlcore-Project/concore
     base_ref = upstream_repo.get_branch(repo.default_branch)
     branches = repo.get_branches()
     BRANCH_NAME = BRANCH_NAME.replace(" ","_")
@@ -173,7 +156,7 @@ try:
             file_path = f'{DIR_PATH+path.removeprefix(STUDY_NAME_PATH)}'
             if(platform.uname()[0]=='Windows'): file_path=file_path.replace("\\","/")
             appendBlobInTree(repo,content,file_path,tree_content)
-    commitAndUpdateRef(upstream_repo,repo,tree_content,base_ref.commit,branch)
+    commitAndUpdateRef(repo,tree_content,base_ref.commit,branch)
     runWorkflow(repo,upstream_repo)
 except Exception as e:
     print("Some error Occured.Please try again after some time.",end="")
