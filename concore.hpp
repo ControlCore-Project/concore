@@ -20,6 +20,10 @@
 
 using namespace std;
 
+/**
+ * @class Concore
+ * @brief Class representing the Concore implementation in C++
+ */
 class Concore{
 
 private:
@@ -44,14 +48,18 @@ private:
     map <string, int> iport;
     map <string, int> oport;
 
-    //Constructor to put in iport and oport values in map
+    /**
+     * @brief Constructor for Concore class.
+     *        Initializes the iport and oport maps by parsing the respective files.
+     *        It also creates or attaches to the shared memory segment if required.
+     */
     Concore(){
         iport = mapParser("concore.iport");
         oport = mapParser("concore.oport");   
         std::map<std::string, int>::iterator it_iport = iport.begin();
         std::map<std::string, int>::iterator it_oport = oport.begin();
-        int iport_number = generateNumberString(it_iport->first);
-        int oport_number = generateNumberString(it_oport->first);
+        int iport_number = ExtractNumeric(it_iport->first);
+        int oport_number = ExtractNumeric(it_oport->first);
 
         if(oport_number != -1)
         {
@@ -66,6 +74,10 @@ private:
         }    
     }
 
+    /**
+     * @brief Destructor for Concore class.
+     *        Detaches and removes the shared memory segment if shared memory created.
+     */
     ~Concore()
     {
         // Detach the shared memory segment from the process
@@ -76,18 +88,13 @@ private:
         shmctl(shmId_create, IPC_RMID, nullptr);
     }
 
-    std::map<char, int> createAlphabetMap() {
-        std::map<char, int> alphabetMap;
-
-        for (char c = 'A'; c <= 'Z'; ++c) {
-            alphabetMap[c] = c - 'A' + 1;
-        }
-
-        return alphabetMap;
-    }
-
-    key_t generateNumberString(const std::string& str) {
-        std::map<char, int> alphabetMap = createAlphabetMap();
+    /**
+     * @brief Extracts the numeric part from a string.
+     * @param str The input string.
+     * @return The numeric part of the string.
+     *         Returns -1 if the string does not contain a numeric part.
+     */
+    key_t ExtractNumeric(const std::string& str) {
         std::string numberString;
 
         // Find the number of leading digits in the input string
@@ -95,7 +102,7 @@ private:
         std::string start_digit = "";
         while (numDigits < str.length() && std::isdigit(str[numDigits])) {
             numberString += str[numDigits];
-            ++numDigits;
+            ++numDigits;          
         }
 
         if (numDigits == 0)
@@ -103,17 +110,21 @@ private:
             return -1;
         }
 
-        // Concatenate the numbers for the first three alphabet characters after the digits
-        for (size_t i = numDigits; i < str.length() && i < numDigits + 3; ++i) {
-            char c = std::toupper(str[i]);
-            if (alphabetMap.count(c) > 0) {
-                numberString += std::to_string(alphabetMap[c]);
+        if (numDigits == 1)
+        {
+            if (std::stoi(numberString) <= 0)
+            {
+                return -1;
             }
         }
 
         return std::stoi(numberString);
     }
 
+    /**
+     * @brief Creates a shared memory segment with the given key.
+     * @param key The key for the shared memory segment.
+     */
     void createSharedMemory(key_t key)
     {
         shmId_create = shmget(key, 256, IPC_CREAT | 0666);
@@ -129,6 +140,11 @@ private:
         }
     }
 
+    /**
+     * @brief Retrieves an existing shared memory segment with the given key.
+     *        Waits until the shared memory segment is created by the writer process.
+     * @param key The key for the shared memory segment.
+     */
     void getSharedMemory(key_t key)
     {
         while (true) {
@@ -147,6 +163,11 @@ private:
         sharedData_get = static_cast<char*>(shmat(shmId_get, NULL, 0));
     }
 
+    /**
+     * @brief Parses a file containing port and number mappings and returns a map of the values.
+     * @param filename The name of the file to parse.
+     * @return A map of port names and their corresponding numbers.
+     */
     map<string,int> mapParser(string filename){
         map<string,int> ans;
 
@@ -191,7 +212,10 @@ private:
         return ans;
     }
 
-    //function to compare and determine whether file content has been changed
+    /**
+     * @brief function to compare and determine whether file content has been changed.
+     * @return true if the content has not changed, false otherwise.
+     */
     bool unchanged(){
         if(olds.compare(s)==0){
             s = "";
@@ -203,6 +227,11 @@ private:
         }
     }
 
+    /**
+     * @brief Parses a string and extracts a vector of double values.
+     * @param f The input string to parse.
+     * @return A vector of double values extracted from the input string.
+     */
     vector<double> parser(string f){
         vector<double> temp;
         string value = "";
@@ -224,6 +253,13 @@ private:
         return temp;
     }
 
+    /**
+     * @brief deviate the read to either the SM (Shared Memory) or FM (File Method) communication protocol based on iport and oport.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param initstr The initial string
+     * @return 
+     */
     vector<double> read(int port, string name, string initstr)
     {
         if(communication_iport == 1)
@@ -234,7 +270,13 @@ private:
         return read_FM(port, name, initstr);
     }
 
-    //accepts the file name as string and returns a string of file content
+    /**
+     * @brief Reads data from a specified port and name using the FM (File Method) communication protocol.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param initstr The initial string.
+     * @return a string of file content
+     */
     vector<double> read_FM(int port, string name, string initstr){
         chrono::milliseconds timespan((int)(1000*delay));
         this_thread::sleep_for(timespan);
@@ -290,7 +332,13 @@ private:
 
     }
 
-    //accepts the file name as string and returns a string of file content
+    /**
+     * @brief Reads data from the shared memory segment based on the specified port and name.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param initstr The initial string to use if the shared memory is not found.
+     * @return string of file content
+     */
     vector<double> read_SM(int port, string name, string initstr){
         chrono::milliseconds timespan((int)(1000*delay));
         this_thread::sleep_for(timespan);
@@ -345,6 +393,13 @@ private:
 
     }
 
+    /**
+     * @brief deviate the write to either the SM (Shared Memory) or FM (File Method) communication protocol based on iport and oport.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The vector of double values to write.
+     * @param delta The delta value (default: 0).
+     */
     void write(int port, string name, vector<double> val, int delta=0)
     {
         if(communication_oport == 1)
@@ -355,6 +410,14 @@ private:
         return write_FM(port, name, val, delta);
     }
 
+
+    /**
+     * @brief deviate the write to either the SM (Shared Memory) or FM (File Method) communication protocol based on iport and oport.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */    
     void write(int port, string name, string val, int delta=0)
     {
         if(communication_oport == 1)
@@ -365,7 +428,13 @@ private:
         return write_FM(port, name, val, delta);
     }
 
-    //write method, accepts a vector double and writes it to the file
+    /**
+     * @brief write method, accepts a vector double and writes it to the file
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */
     void write_FM(int port, string name, vector<double> val, int delta=0){
 
         try {
@@ -389,7 +458,13 @@ private:
         }
     }
 
-    //write method, accepts a string and writes it to the file
+    /**
+     * @brief write method, accepts a string and writes it to the file
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */
     void write_FM(int port, string name, string val, int delta=0){
         chrono::milliseconds timespan((int)(2000*delay));
         this_thread::sleep_for(timespan);
@@ -408,7 +483,13 @@ private:
         }
     }
 
-    //write method, accepts a vector double and writes it to the file
+    /**
+     * @brief Writes a vector of double values to the shared memory segment based on the specified port and name.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The vector of double values to write.
+     * @param delta The delta value (default: 0).
+     */
     void write_SM(int port, string name, vector<double> val, int delta=0){
 
         try {
@@ -432,7 +513,13 @@ private:
         }
     }
 
-    //write method, accepts a string and writes it to the file
+    /**
+     * @brief Writes a string to the shared memory segment based on the specified port and name.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */
     void write_SM(int port, string name, string val, int delta=0){
         chrono::milliseconds timespan((int)(2000*delay));
         this_thread::sleep_for(timespan);
@@ -447,7 +534,11 @@ private:
         }
     }
     
-    //Initialising
+    /**
+     * @brief Initializes the system with the given input values.
+     * @param f The input string containing the values.
+     * @return A vector of double values representing the initialized system state.
+     */
     vector<double> initval(string f){
         //parsing
         vector<double> val = parser(f);
@@ -459,5 +550,4 @@ private:
         val.erase(val.begin());
         return val;
     }    
-
 };
