@@ -36,5 +36,4 @@ then
 else
     echo "python3 mkconcore.py $graphml $sourcedir $studydir docker"
     python3 mkconcore.py $graphml $sourcedir $studydir docker
-    chmod +x */*
 fi

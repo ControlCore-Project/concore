@@ -39,10 +39,8 @@ else
     then
        echo "python3 mkconcore.py $graphml $sourcedir $studydir macos"
        python3 mkconcore.py $graphml $sourcedir $studydir macos
-       chmod +x */*
     else
        echo "python3 mkconcore.py $graphml $sourcedir $studydir ubuntu"
        python3 mkconcore.py $graphml $sourcedir $studydir ubuntu
-       chmod +x */*
     fi
 fi
