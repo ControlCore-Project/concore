@@ -1,9 +1,20 @@
 function [regulator, sstarg, estmtr] = NMPC_initialization()
-if length(version())>10
-    addpath('casadi', 'mpctools')
+if ismac
+    if length(version())>10
+        addpath('casadi_mac', 'mpctools_mac')
+    end
+elseif isunix
+    % Code to run on Linux platform
+elseif ispc
+    if length(version())>10
+        addpath('casadi', 'mpctools')
+    else
+        addpath('casadi_octave', 'mpctools')
+    end
 else
-    addpath('casadi_octave', 'mpctools')
+    disp('Platform not supported')
 end
+
 load('nmpcData.mat')
 mpc = import_mpctools();
 % Parameters and sizes for the nonlinear system
