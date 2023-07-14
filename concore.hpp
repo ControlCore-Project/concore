@@ -12,15 +12,34 @@
 //libraries for platform independent delay. Supports C++11 upwards
 #include <chrono>
 #include <thread>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <unistd.h>
+#include <cstring>
+#include <cctype>
 
 using namespace std;
 
+/**
+ * @class Concore
+ * @brief Class representing the Concore implementation in C++
+ */
 class Concore{
 
+private:
     //private variables
     string s="",olds="";
     string inpath = "./in";
     string outpath = "./out";
+
+    int shmId_create;
+    int shmId_get;
+
+    char* sharedData_create;
+    char* sharedData_get;
+    // File sharing:- 0, Shared Memory:- 1
+    int communication_iport = 0;
+    int communication_oport = 0;
 
  public:
     double delay = 1;
@@ -29,12 +48,126 @@ class Concore{
     map <string, int> iport;
     map <string, int> oport;
 
-    //Constructor to put in iport and oport values in map
+    /**
+     * @brief Constructor for Concore class.
+     *        Initializes the iport and oport maps by parsing the respective files.
+     *        It also creates or attaches to the shared memory segment if required.
+     */
     Concore(){
         iport = mapParser("concore.iport");
-        oport = mapParser("concore.oport");         
+        oport = mapParser("concore.oport");   
+        std::map<std::string, int>::iterator it_iport = iport.begin();
+        std::map<std::string, int>::iterator it_oport = oport.begin();
+        int iport_number = ExtractNumeric(it_iport->first);
+        int oport_number = ExtractNumeric(it_oport->first);
+
+        if(oport_number != -1)
+        {
+            communication_oport = 1;
+            this->createSharedMemory(oport_number);
+        }  
+
+        if(iport_number != -1)
+        {
+            communication_iport = 1;
+            this->getSharedMemory(iport_number);
+        }    
     }
 
+    /**
+     * @brief Destructor for Concore class.
+     *        Detaches and removes the shared memory segment if shared memory created.
+     */
+    ~Concore()
+    {
+        // Detach the shared memory segment from the process
+        shmdt(sharedData_create);
+        shmdt(sharedData_get);
+
+        // Remove the shared memory segment
+        shmctl(shmId_create, IPC_RMID, nullptr);
+    }
+
+    /**
+     * @brief Extracts the numeric part from a string.
+     * @param str The input string.
+     * @return The numeric part of the string.
+     *         Returns -1 if the string does not contain a numeric part.
+     */
+    key_t ExtractNumeric(const std::string& str) {
+        std::string numberString;
+
+        // Find the number of leading digits in the input string
+        size_t numDigits = 0;
+        std::string start_digit = "";
+        while (numDigits < str.length() && std::isdigit(str[numDigits])) {
+            numberString += str[numDigits];
+            ++numDigits;          
+        }
+
+        if (numDigits == 0)
+        {
+            return -1;
+        }
+
+        if (numDigits == 1)
+        {
+            if (std::stoi(numberString) <= 0)
+            {
+                return -1;
+            }
+        }
+
+        return std::stoi(numberString);
+    }
+
+    /**
+     * @brief Creates a shared memory segment with the given key.
+     * @param key The key for the shared memory segment.
+     */
+    void createSharedMemory(key_t key)
+    {
+        shmId_create = shmget(key, 256, IPC_CREAT | 0666);
+
+        if (shmId_create == -1) {
+            std::cerr << "Failed to create shared memory segment." << std::endl;
+        }
+
+        // Attach the shared memory segment to the process's address space
+        sharedData_create = static_cast<char*>(shmat(shmId_create, NULL, 0));
+        if (sharedData_create == reinterpret_cast<char*>(-1)) {
+            std::cerr << "Failed to attach shared memory segment." << std::endl;
+        }
+    }
+
+    /**
+     * @brief Retrieves an existing shared memory segment with the given key.
+     *        Waits until the shared memory segment is created by the writer process.
+     * @param key The key for the shared memory segment.
+     */
+    void getSharedMemory(key_t key)
+    {
+        while (true) {
+            // Get the shared memory segment created by Writer
+            shmId_get = shmget(key, 256, 0666);
+            // Check if shared memory exists
+            if (shmId_get != -1) {
+                break; // Break the loop if shared memory exists
+            }
+
+            std::cout << "Shared memory does not exist. Make sure the writer process is running." << std::endl;
+            sleep(1); // Sleep for 1 second before checking again
+        }
+
+        // Attach the shared memory segment to the process's address space
+        sharedData_get = static_cast<char*>(shmat(shmId_get, NULL, 0));
+    }
+
+    /**
+     * @brief Parses a file containing port and number mappings and returns a map of the values.
+     * @param filename The name of the file to parse.
+     * @return A map of port names and their corresponding numbers.
+     */
     map<string,int> mapParser(string filename){
         map<string,int> ans;
 
@@ -79,7 +212,10 @@ class Concore{
         return ans;
     }
 
-    //function to compare and determine whether file content has been changed
+    /**
+     * @brief function to compare and determine whether file content has been changed.
+     * @return true if the content has not changed, false otherwise.
+     */
     bool unchanged(){
         if(olds.compare(s)==0){
             s = "";
@@ -91,6 +227,11 @@ class Concore{
         }
     }
 
+    /**
+     * @brief Parses a string and extracts a vector of double values.
+     * @param f The input string to parse.
+     * @return A vector of double values extracted from the input string.
+     */
     vector<double> parser(string f){
         vector<double> temp;
         string value = "";
@@ -112,8 +253,31 @@ class Concore{
         return temp;
     }
 
-    //accepts the file name as string and returns a string of file content
-    vector<double> read(int port, string name, string initstr){
+    /**
+     * @brief deviate the read to either the SM (Shared Memory) or FM (File Method) communication protocol based on iport and oport.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param initstr The initial string
+     * @return 
+     */
+    vector<double> read(int port, string name, string initstr)
+    {
+        if(communication_iport == 1)
+        {
+            return read_SM(port, name, initstr);
+        }
+
+        return read_FM(port, name, initstr);
+    }
+
+    /**
+     * @brief Reads data from a specified port and name using the FM (File Method) communication protocol.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param initstr The initial string.
+     * @return a string of file content
+     */
+    vector<double> read_FM(int port, string name, string initstr){
         chrono::milliseconds timespan((int)(1000*delay));
         this_thread::sleep_for(timespan);
         string ins;
@@ -159,6 +323,66 @@ class Concore{
         }
         s += ins;
 
+        vector<double> inval = parser(ins);
+        simtime = simtime > inval[0] ? simtime : inval[0];
+
+        //returning a string with data excluding simtime
+        inval.erase(inval.begin());
+        return inval;
+
+    }
+
+    /**
+     * @brief Reads data from the shared memory segment based on the specified port and name.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param initstr The initial string to use if the shared memory is not found.
+     * @return string of file content
+     */
+    vector<double> read_SM(int port, string name, string initstr){
+        chrono::milliseconds timespan((int)(1000*delay));
+        this_thread::sleep_for(timespan);
+        string ins = "";
+        try {
+        if (shmId_get != -1) {
+            if (sharedData_get && sharedData_get[0] != '\0') {
+                std::string message(sharedData_get, strnlen(sharedData_get, 256));
+                ins = message;
+                // std::cout << "Received message: " << message << " ins " << ins.length() << std::endl;
+            } 
+            else 
+            {
+                throw 505;
+            }
+        } 
+        else 
+        {
+            throw 505;
+        }
+        } catch (...) {
+            ins = initstr;
+        }
+        
+        while ((int)ins.length()==0){
+            this_thread::sleep_for(timespan);
+            try{
+                if(shmId_get != -1) {
+                    std::cout << "in read while\n";
+                    std::string message(sharedData_get, strnlen(sharedData_get, 256));
+                    ins = message;
+                    retrycount++;
+                }
+                else{
+                    retrycount++;
+                    throw 505;
+                }
+            }
+            //observed retry count in C++ from various tests is approx 80.
+            catch(...){
+                cout<<"Read error";
+            }
+        }
+        s += ins;
 
         vector<double> inval = parser(ins);
         simtime = simtime > inval[0] ? simtime : inval[0];
@@ -169,8 +393,49 @@ class Concore{
 
     }
 
-    //write method, accepts a vector double and writes it to the file
-    void write(int port, string name, vector<double> val, int delta=0){
+    /**
+     * @brief deviate the write to either the SM (Shared Memory) or FM (File Method) communication protocol based on iport and oport.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The vector of double values to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write(int port, string name, vector<double> val, int delta=0)
+    {
+        if(communication_oport == 1)
+        {
+            return write_SM(port, name, val, delta);
+        }
+
+        return write_FM(port, name, val, delta);
+    }
+
+
+    /**
+     * @brief deviate the write to either the SM (Shared Memory) or FM (File Method) communication protocol based on iport and oport.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */    
+    void write(int port, string name, string val, int delta=0)
+    {
+        if(communication_oport == 1)
+        {
+            return write_SM(port, name, val, delta);
+        }
+
+        return write_FM(port, name, val, delta);
+    }
+
+    /**
+     * @brief write method, accepts a vector double and writes it to the file
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write_FM(int port, string name, vector<double> val, int delta=0){
 
         try {
             ofstream outfile;
@@ -193,8 +458,14 @@ class Concore{
         }
     }
 
-    //write method, accepts a string and writes it to the file
-    void write(int port, string name, string val, int delta=0){
+    /**
+     * @brief write method, accepts a string and writes it to the file
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write_FM(int port, string name, string val, int delta=0){
         chrono::milliseconds timespan((int)(2000*delay));
         this_thread::sleep_for(timespan);
         try {
@@ -211,8 +482,63 @@ class Concore{
             cout<<"skipping +"<<outpath<<port<<" /"<<name;
         }
     }
+
+    /**
+     * @brief Writes a vector of double values to the shared memory segment based on the specified port and name.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The vector of double values to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write_SM(int port, string name, vector<double> val, int delta=0){
+
+        try {
+            std::ostringstream outfile;
+            if(shmId_create != -1){
+                val.insert(val.begin(),simtime+delta);
+                outfile<<'[';
+                for(int i=0;i<val.size()-1;i++)
+                    outfile<<val[i]<<',';
+                outfile<<val[val.size()-1]<<']';
+                std::string result = outfile.str();
+                std::strncpy(sharedData_create, result.c_str(), 256 - 1);
+                }
+            else{
+                throw 505;
+                }
+            }
+
+        catch(...){
+            cout<<"skipping +"<<outpath<<port<<" /"<<name;
+        }
+    }
+
+    /**
+     * @brief Writes a string to the shared memory segment based on the specified port and name.
+     * @param port The port number.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write_SM(int port, string name, string val, int delta=0){
+        chrono::milliseconds timespan((int)(2000*delay));
+        this_thread::sleep_for(timespan);
+        try {
+            if(shmId_create != -1){
+                std::strncpy(sharedData_create, val.c_str(), 256 - 1);
+            }
+            else throw 505;
+        }
+        catch(...){
+            cout<<"skipping +"<<outpath<<port<<" /"<<name;
+        }
+    }
     
-    //Initialising
+    /**
+     * @brief Initializes the system with the given input values.
+     * @param f The input string containing the values.
+     * @return A vector of double values representing the initialized system state.
+     */
     vector<double> initval(string f){
         //parsing
         vector<double> val = parser(f);
@@ -224,5 +550,4 @@ class Concore{
         val.erase(val.begin());
         return val;
     }    
-
 };
