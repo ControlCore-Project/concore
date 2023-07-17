@@ -1,13 +1,13 @@
 import github
 from github import Github
-import os,sys,time,platform,base64
+import os,sys,platform,base64
 
 # Intializing the Variables
 # Hashed token
-BOT_TOKEN = 'Z2l0aHViX3BhdF8xMUFYS0pGVFkwd2xwT0dmYldFOTBBXzN3Nkx2THpiaUFKek5pTDdqNlpLUzVwUUpoTlJWR3dtNnM0NWNDa0RmWTJaTTZLSUpHRHhERlhrZlJS'
-BOT_REPO_NAME = 'concore-studies-staging'        #bot repo name
-UPSTREAM_REPO_NAME = 'concore-studies'        #bot repo name
-OWNER_NAME = 'ControlCore-Project'  #account name
+BOT_TOKEN = "Z2l0aHViX3BhdF8xMUFYS0pGVFkwODR5OEhoZlI5VEl1X0VZZnNaNjU0WGw4OU0ycXhJc0h3TXh3RkVIZGFRQ3gwa0daZFhKUUdYbUk2QzRTU1dDNkF4clUyQWRF"
+BOT_ACCOUNT = 'concore-bot'        #bot account name
+REPO_NAME = 'concore-studies'        #study repo name
+UPSTREAM_ACCOUNT = 'ControlCore-Project'  #upstream account name
 STUDY_NAME =  sys.argv[1]
 STUDY_NAME_PATH =  sys.argv[2]
 AUTHOR_NAME =  sys.argv[3]
@@ -27,13 +27,13 @@ def checkInputValidity():
 
 def getPRs(upstream_repo):
     try:
-        return upstream_repo.get_pulls(head=f'{OWNER_NAME}:{BRANCH_NAME}')
+        return upstream_repo.get_pulls(head=f'{BOT_ACCOUNT}:{BRANCH_NAME}')
     except Exception as e:
         print("Not able to fetch Status of your example.Please try after some time.")
         exit(0)
 
 def printPR(pr):
-    print(f'Check your example here https://github.com/{OWNER_NAME}/{UPSTREAM_REPO_NAME}/pulls/'+str(pr.number),end="")
+    print(f'Check your example here https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pulls/{pr.number}',end="")
 
 def anyOpenPR(upstream_repo):
     pr = getPRs(upstream_repo)
@@ -66,7 +66,7 @@ def appendBlobInTree(repo,content,file_path,tree_content):
 def runWorkflow(repo,upstream_repo):
     openPR = anyOpenPR(upstream_repo)
     if openPR==None:
-        workflow_runned = repo.get_workflow(id_or_name="pull_request.yml").create_dispatch(ref=BRANCH_NAME,inputs={'title':PR_TITLE,'body':PR_BODY,'upstreamRepo':UPSTREAM_REPO_NAME,'account':OWNER_NAME})
+        workflow_runned = repo.get_workflow(id_or_name="pull_request.yml").create_dispatch(ref=BRANCH_NAME,inputs={'title':f"[BOT]: {PR_TITLE}",'body':PR_BODY,'upstreamRepo':UPSTREAM_ACCOUNT,'botRepo':BOT_ACCOUNT,'repo':REPO_NAME})
         if not workflow_runned:
             print("Some error occured.Please try after some time")
             exit(0)
@@ -78,20 +78,21 @@ def runWorkflow(repo,upstream_repo):
 
 def printPRStatus(upstream_repo):
     try:
-        time.sleep(15)
-        openPR = anyOpenPR(upstream_repo)
-        if openPR==None:
-            print("Someting went wrong or your example already exist.If this is not the case try with different fields")
-            exit(0)
-        printPR(openPR)
+        issues = upstream_repo.get_issues()
+        pulls = upstream_repo.get_pulls(state='all')
+        max_num = -1
+        for i in issues:
+            max_num = max(max_num,i.number)
+        for i in pulls:
+            max_num = max(max_num,i.number)
+        print(f'Check your example here https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pulls/{max_num+1}',end="")
     except Exception as e:
         print("Your example successfully uploaded but unable to fetch status.Please try again")
     
 
 def isImageFile(filename):
-    image_extensions = ['.jpeg', '.jpg', '.png']
-    _, file_extension = os.path.splitext(filename)
-    return file_extension.lower() in image_extensions
+    image_extensions = ['.jpeg', '.jpg', '.png','.gif']
+    return any(filename.endswith(ext) for ext in image_extensions)
 
 
 # Decode Github Token
@@ -114,16 +115,16 @@ try:
     if PR_BODY=="#":
         PR_BODY=f"Study Name: {STUDY_NAME} \n Author Name: {AUTHOR_NAME}"
     AUTHOR_NAME = AUTHOR_NAME.replace(" ","_")
-    DIR_PATH = AUTHOR_NAME + '_' + STUDY_NAME
+    DIR_PATH = STUDY_NAME
     g = Github(decode_token(BOT_TOKEN))
-    repo = g.get_user(OWNER_NAME).get_repo(BOT_REPO_NAME)
-    upstream_repo = g.get_repo(f'{OWNER_NAME}/{UPSTREAM_REPO_NAME}') #controlcore-Project/concore
+    repo = g.get_user(BOT_ACCOUNT).get_repo(REPO_NAME)
+    upstream_repo = g.get_repo(f'{UPSTREAM_ACCOUNT}/{REPO_NAME}') #controlcore-Project/concore-studies
     base_ref = upstream_repo.get_branch(repo.default_branch)
     branches = repo.get_branches()
     BRANCH_NAME = BRANCH_NAME.replace(" ","_")
     DIR_PATH = DIR_PATH.replace(" ","_")
     is_present = any(branch.name == BRANCH_NAME for branch in branches)
-except:
+except Exception as e:
     print("Some error occured.Authentication failed",end="")
     exit(0)
 
@@ -145,7 +146,7 @@ tree_content = []
 try:
     for root, dirs, files in os.walk(STUDY_NAME_PATH):
         for filename in files:
-            path = os.path.join(root, filename)
+            path = f"{root}/{filename}"
             if isImageFile(filename):
                 with open(path, 'rb') as file:
                     image = file.read()
