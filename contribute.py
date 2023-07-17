@@ -4,10 +4,10 @@ import os,sys,platform,base64
 
 # Intializing the Variables
 # Hashed token
-BOT_TOKEN = "Z2l0aHViX3BhdF8xMUFYS0pGVFkweWpsZUNKUk1XSU5MXzczekY5RjJjaERocGFvNWE1eGlWRmZZU2tMVWtyUjAwRHVKMXo1Q0Z5aXoyWVZYRkNCUDBYOUlkZHU1"
-BOT_ACCOUNT = 'parteekcoder123'        #bot repo name
-REPO_NAME = 'concore-studies'        #bot repo name
-UPSTREAM_ACCOUNT = 'ControlCore-Project'  #account name
+BOT_TOKEN = "Z2l0aHViX3BhdF8xMUFYS0pGVFkwODR5OEhoZlI5VEl1X0VZZnNaNjU0WGw4OU0ycXhJc0h3TXh3RkVIZGFRQ3gwa0daZFhKUUdYbUk2QzRTU1dDNkF4clUyQWRF"
+BOT_ACCOUNT = 'concore-bot'        #bot account name
+REPO_NAME = 'concore-studies'        #study repo name
+UPSTREAM_ACCOUNT = 'ControlCore-Project'  #upstream account name
 STUDY_NAME =  sys.argv[1]
 STUDY_NAME_PATH =  sys.argv[2]
 AUTHOR_NAME =  sys.argv[3]
