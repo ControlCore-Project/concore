@@ -1,4 +1,4 @@
-function [regulator, sstarg, estmtr] = NMPC_initialization()
+function [regulator, sstarg, estmtr] = NMPC_initialization(disturbancemodel)
 if ismac
     if length(version())>10
         addpath('casadi_mac', 'mpctools_mac')
@@ -15,36 +15,69 @@ else
     disp('Platform not supported')
 end
 
-load('nmpcData.mat')
+load('nmpcData.mat', 'par')
 mpc = import_mpctools();
 % Parameters and sizes for the nonlinear system
-Nx = 6;      % Number of states
-Nu = 6;      % Number of inputs
-Nu_est = 9;  % Number of inputs of estimator
-Ny = 2;      % Number of outputs
-Np = 3;      % Number of parameters in regulator 
-Nw = Nx;     % Number of state noise
-Nv = Ny;     % Number of measurement noise
-Nr = 10;      % Prediction horizon
-Ne = 10;      % Estimator moving horizon
+Nx = par.nmpc.Nx;             % Number of states
+Nu = par.nmpc.Nu;             % Number of inputs
+Nu_est = par.nmpc.Nu_est;     % Number of inputs of estimator
+Ny = par.nmpc.Ny;             % Number of outputs
+Np = par.nmpc.Np;             % Number of parameters in regulator 
+Nw = Nx;                      % Number of state noise
+Nv = Ny;                      % Number of measurement noise
+Nr = 10;                      % Prediction horizon
+Ne = 10;                      % Estimator moving horizon
+small = 1e-5;                 % small number
 % Set initial guess for nonpulsatile model                                                                                            % Initial condition of nonpulsatile model
-xs = [116; 0.1563; 0.6825; 0.1365; 3.8885; 533.9023];                    % guess of states                                            % guess of states
-us = [1.1458; 46.3619; 0.3472; 5.3633; 0.3335; 6.9279];                  % guess of inputs
-ys = xs(1:2);                                                            % guess of outputs
-p_gass = [1; 1; 1];                                                      % guess of stimulation locations
+xs = par.nmpc.xs;             % guess of states                                            
+us = par.nmpc.us;             % guess of inputs
+ys = xs(1:2);                 % guess of outputs
+p_gass = [1; 1; 1];           % guess of stimulation locations
 % Define Casadi functions for regulator.
 model_reg = @(x, u, p) ode_reg(x, u, p, par);
+% Linearize the model at this point.
 [A, B] = mpc.getLinearizedModel(model_reg, {xs, us, p_gass}, 'Delta', 0.14,'deal', true());
-ode_reg_casadi = mpc.getCasadiFunc(model_reg, [Nx, Nu, Np], {'x', 'u', 'p'}, {'ode_reg_casadi'}, 'rk4', true(), 'Delta', 1, 'M', 4);
 % Set weight matrix for cost function
 dia = zeros(Nx, 1);
 dia(1) = 1/xs(1)^2;
 dia(2) = 100/xs(2)^2;
 Qr = diag(dia);
-Rr = 0.01*diag(1./us.^2);
-%[~, Pr] = dlqr(A, B, Qr, Rr);
-%save('dlqr','Pr');
-load('dlqr','Pr');
+Rr = 0.001*diag(1./us.^2);
+[~, Pr] = dlqr(A, B, Qr, Rr);
+% Set matrices for disturbance model
+switch disturbancemodel
+case 'Good'
+    Nd = 8;
+    Bd = eye(Nu, Nd);
+    Cd = zeros(Ny, Nd);
+    Cd(1, 7) = 1;
+    Cd(2, 8) = 1;
+    Qd = diag([small*us.^2; ys(1)^2; ys(2)^2]);
+case 'No'
+    Nd = 8;
+    Bd = zeros(Nu, Nd);
+    Cd = zeros(Ny, Nd);
+    Qd = eye(Nd);
+end
+
+% Get Kalman Filter weight as a prior.
+Qe = small*diag(xs.^2);
+Re = small*diag([ys(1); 0.1*ys(2)].^2);
+Aaug = [A, B*Bd ; zeros(Nd, Nx), eye(Nd)];
+Baug = [B; zeros(Nd, Nu)];
+Gaug = eye(Nx + Nd);
+Caug = [eye(Ny, Nx), Cd];
+Qaug = blkdiag(Qe, Qd);
+Raug = Re;
+detec = rank([eye(Nx + Nd) - Aaug; Caug]);
+if detec < Nx + Nd
+    Aaug = Aaug - 1e-6*eye(size(Aaug)); % Help out dlqe a bit.
+end
+[Lkf, ~, Pe] = dlqe(Aaug, Gaug, Caug, Qaug, Raug);
+% Set casadi function
+ode_reg_casadi = mpc.getCasadiFunc(@(x, u, Bd, d, p)model_reg(x, u + Bd*d, p),...
+    {Nx, Nu, [Nu, Nd], Nd, Np}, {'x', 'u', 'Bd', 'd', 'p'}, {'ode_reg_casadi'}, ...
+    'rk4', true(), 'Delta', 1, 'M', 4);
 % Set state cost objective for regulator
 lr = @(x, u, xsp, usp, Du) (x - xsp)'*Qr*(x - xsp) + (u - usp)'*Rr*(u - usp) + Du'*Rr*Du;
 lr = mpc.getCasadiFunc(lr, [Nx, Nu, Nx, Nu, Nu], {'x', 'u', 'xsp', 'usp', 'Du'}, {'lr'});
@@ -52,63 +85,67 @@ lr = mpc.getCasadiFunc(lr, [Nx, Nu, Nx, Nu, Nu], {'x', 'u', 'xsp', 'usp', 'Du'},
 Vr = mpc.getCasadiFunc(@(x, xsp) (x - xsp)'*Pr*(x - xsp), [Nx, Nx], ...
                        {'x', 'xsp'}, {'Vr'});
 % output function
-h = mpc.getCasadiFunc(@(x)output(x), [Nx], {'x'}, {'h'});
+h = mpc.getCasadiFunc(@(x, Cd, d)output(x) + Cd*d, {Nx, [Ny, Nd], Nd}, {'x', 'Cd', 'd'}, {'h'});
 % Build MPC solvers for nonlinear models.
-prmt = struct();
-prmt.xsp = repmat(xs, 1, Nr + 1);
-prmt.usp = repmat(us, 1, Nr);
-prmt.p = repmat(p_gass, 1, Nr + 1);
-N_reg = struct('x', Nx, 'u', Nu, 'p', Np, 't', Nr, 'y', Ny);
+ulb = repmat([0.3; 5], 3, 1);
+uub = repmat([1.8; 50], 3, 1);
+lbr = struct();
+lbr.u = repmat(ulb, 1, Nr);
+ubr = struct();
+ubr.u = repmat(uub, 1, Nr);
+N_reg = struct('x', Nx, 'u', Nu, 't', Nr);
 kwargs = struct();
 kwargs.N = N_reg;
 kwargs.l = lr;
 kwargs.Vf = Vr;
-kwargs.lb = struct('u', repmat([0.3; 5; 0.3; 5; 0.3; 5], 1, Nr));
-kwargs.ub = struct('u', repmat([1.8; 50; 1.8; 50; 1.8; 50], 1, Nr));
-kwargs.par = prmt;
+kwargs.lb = lbr;
+kwargs.ub = ubr;
+kwargs.par = struct('xsp', xs, 'usp', us, 'p', p_gass, 'Bd', Bd, 'd', zeros(Nd, 1));
 kwargs.uprev = us;
-kwargs.guess = struct('x', prmt.xsp, 'u', prmt.usp);
+kwargs.guess = struct('x', repmat(xs, 1, Nr + 1), 'u', repmat(us, 1, Nr));
 kwargs.verbosity = 0;
 regulator = mpc.nmpc('f', ode_reg_casadi, '**', kwargs);
 % Build steady-state target finder.
 kwargs = struct();
-kwargs.N = N_reg;
-kwargs.lb = struct('u', [0.3; 5; 0.3; 5; 0.3; 5], 'x', 0.5*xs);
-kwargs.ub = struct('u', [1.8; 50; 1.8; 50; 1.8; 50], 'x', 2*xs);
+kwargs.N = struct('x', Nx, 'u', Nu, 'y', Ny);
+kwargs.lb = struct('u', ulb, 'x', 0.5*xs);
+kwargs.ub = struct('u', uub, 'x', 2*xs);
 kwargs.h = h;
-kwargs.par = struct('p', p_gass);
-kwargs.guess = struct('x', xs, 'u', us);
+kwargs.par = struct('p', p_gass, 'Bd', Bd, 'Cd', Cd, 'd', zeros(Nd, 1));
 kwargs.verbosity = 0;
 sstarg = mpc.sstarg('f', ode_reg_casadi, '**', kwargs);
+
 % Define Casadi functions for estimator.
-model_est = @(x, u, w) ode_est(x, u, w, par);
-ode_est_casadi = mpc.getCasadiFunc(model_est, [Nx, Nu_est, Nw], {'x', 'u', 'w'}, {'ode_est_casadi'}, 'rk4', true(), 'Delta', 1, 'M', 4);
-sig_v = 0.001*[ys(1); 0.1*ys(2)];          % Measurement noise.  
-sig_w = 0.001*xs;           % State noise.
-sig_p = 0.001*xs;           % Prior.
-Pe = diag(sig_p.^2);
-Qe = diag(sig_w.^2);
-Re = diag(sig_v.^2);
+model_est = @(x, u) ode_est(x, u, par);
+ode_est_casadi = mpc.getCasadiFunc(@(x, u, Bd, d)model_est(x, u+[0; 0; 0; Bd*d]), ...
+    {Nx, Nu_est, [Nu, Nd], Nd}, {'x', 'u', 'Bd', 'd'}, {'ode_est_casadi'}, 'rk4', ...
+    true(), 'Delta', 1, 'M', 4);
 Qeinv = mpctools.spdinv(Qe);
 Reinv = mpctools.spdinv(Re);
+Qdinv = mpctools.spdinv(Qd);
 % Set state cost for estimator
-le = mpc.getCasadiFunc(@(w, v) w'*Qeinv*w + v'*Reinv*v, [Nw, Nv], {'w', 'v'}, {'le'});
+le = mpc.getCasadiFunc(@(w, v, Dd) w'*Qeinv*w + v'*Reinv*v + Dd'*Qdinv*Dd,...
+    [Nw, Nv, Nd], {'w', 'v', 'Dd'}, {'le'});
 % Set arrival cost for estimator
-Ve = mpc.getCasadiFunc(@(x, x0bar, Peinv)(x - x0bar)'*Peinv*(x - x0bar), {Nx, Nx, [Nx, Nx]}, {'x', 'x0bar', 'Peinv'}, {'Ve'});
+Ve = mpc.getCasadiFunc(@(x, x0bar, d, d0bar, Peinv)([x; d] - [x0bar; d0bar])'*Peinv*([x; d] - [x0bar; d0bar]),...
+    {Nx, Nx, Nd, Nd, [Nx + Nd, Nx + Nd]}, {'x', 'x0bar', 'd', 'd0bar' 'Peinv'}, {'Ve'});
 % Build MHE solver
-x0bar = npm_ini;
-y0 = output(npm_ini);
-pars = struct('Peinv', mpctools.spdinv(Pe));
-N_est = struct('x', Nx, 'u', Nu_est, 'p', Np, 'w', Nw, 'y', Ny, 't', Ne);
-lbe = struct('x', repmat(0.5*xs, 1, Ne + 1)); 
-ube = struct('x', repmat(2*xs, 1, Ne + 1));
-guess = struct('x', repmat(npm_ini, 1, Ne + 1));
-estmtr = mpc.nmhe(ode_est_casadi, le, h, zeros(Nu + Np, Ne), repmat(y0, 1, Ne+1), N_est, Ve, x0bar, ...
-                 'lb', lbe, 'ub', ube, 'par', pars, 'guess', guess, 'verbosity', 0);
+N_est = struct('x', Nx, 'd', Nd, 'u', Nu_est, 'y', Ny, 't', Ne);
+pars = struct('y', par.nmpc.ysim, 'u', zeros(Nu_est, Ne), 'x0bar', par.nmpc.ini, 'Peinv', mpctools.spdinv(Pe), 'd0bar', zeros(Nd, 1), 'Bd', Bd, 'Cd', Cd);
+lbe = struct('x', repmat(0.5*xs, 1, Ne + 1), 'd', repmat(-1e-5*ones(Nd, 1), 1, Ne+1)); 
+ube = struct('x', repmat(2*xs, 1, Ne + 1), 'd', repmat(1e-5*ones(Nd, 1), 1, Ne+1));
+guess = struct('x', repmat(par.nmpc.ini, 1, Ne + 1));
+estmtr = mpc.nmhe('f', ode_est_casadi,'l', le, 'h', h, 'N', N_est, 'lx', Ve, ...
+                 'lb', lbe, 'ub', ube, 'par', pars, 'guess', guess, 'verbosity', 0, 'wadditive', true());
+switch disturbancemodel
+    case 'Good'
+        estmtr.ub.d = repmat(50*ones(Nd, 1), 1, Ne+1);
+        estmtr.lb.d = repmat(-50*ones(Nd, 1), 1, Ne+1);
+end
 end
 
 % Nonpulsatile model for estimator
-function dxdt = ode_est(x, u, w, par)
+function dxdt = ode_est(x, u, par)
 fasf = x(1)*par.Mean.fas_sp/par.Mean.Psp;
 % modified baroreceptive firing rate
 Pas1 = exp((u(4) - par.stm.Ias1)/par.stm.kas1)./(1 + exp((u(4) - par.stm.Ias1)/par.stm.kas1));
@@ -145,8 +182,9 @@ dx3dt = (-x(3)+ par.Mean.R0 + par.Mean.G_R*ns)/par.Mean.tau_R;
 dx4dt = (-x(4)+ par.Mean.Ef0 + par.Mean.G_Ef*ns)/par.Mean.tau_Ef;
 dx5dt = (-x(5)+ par.Mean.Ee0 + par.Mean.G_Ee*ns)/par.Mean.tau_Ee;
 dx6dt = (-x(6)+ par.Mean.V0 + par.Mean.G_V*ns)/par.Mean.tau_V;
-dxdt = [dx1dt + w(1); dx2dt + w(2); dx3dt + w(3); dx4dt + w(4); dx5dt + w(5); dx6dt + w(6)];
+dxdt = [dx1dt; dx2dt; dx3dt; dx4dt; dx5dt; dx6dt];
 end
+
 
 % Nonpulsatile model for regulator
 function dxdt = ode_reg(x, u, p, par)
