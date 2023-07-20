@@ -47,7 +47,7 @@ def anyOpenPR(upstream_repo):
 def commitAndUpdateRef(repo,tree_content,commit,branch):
     try:
         new_tree = repo.create_git_tree(tree=tree_content,base_tree=commit.commit.tree)
-        new_commit = repo.create_git_commit("commit message",new_tree,[commit.commit])
+        new_commit = repo.create_git_commit("commit study",new_tree,[commit.commit])
         if len(repo.compare(base=commit.commit.sha,head=new_commit.sha).files) == 0:
             print("Your don't have any new changes.May be your example is already accepted.If this is not the case try with different fields.")
             exit(0)

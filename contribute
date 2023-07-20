@@ -20,4 +20,4 @@ fi
 if [ -z $6 ]; then
 arg6="#"
 fi
-python3 contribute.py $1 $2 $3 $arg4 $arg5 $arg6
+python3 contribute.py "$1" "$2" "$3" "$arg4" "$arg5" "$arg6"
