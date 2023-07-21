@@ -9,7 +9,7 @@ REM Check and set default values for the last three arguments if not provided
 if "%~4"=="" (set arg4="#") else (set arg4=%~4)
 if "%~5"=="" (set arg5="#") else (set arg5=%~5)
 if "%~6"=="" (set arg6="#") else (set arg6=%~6)
-python contribute.py %1 %2 %3 %arg4% %arg5% %arg6%
+python contribute.py %1 %2 %3 "%arg4%" "%arg5%" "%arg6%"
 goto :eof
 
 :missing_arg
