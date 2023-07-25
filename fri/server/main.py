@@ -84,6 +84,7 @@ def build(dir):
     maxtime = request.args.get('maxtime')
     apikey = request.args.get('apikey') 
     out_dir = request.args.get('outdir')
+    output_str = ""
     if(apikey == None):
         dirname = secure_filename(dir)
     else:
@@ -112,39 +113,121 @@ def build(dir):
         if(platform.uname()[0]=='Windows'):
             if(out_dir == None or out_dir == ""):
                 if(docker == 'true'):
-                    proc= call(["makedocker", makestudy_dir], shell=True, cwd=concore_path)
+                    try:
+                        output_bytes = subprocess.check_output(["makedocker", makestudy_dir], cwd=concore_path, shell=True)
+                        output_str = output_bytes.decode("utf-8")
+                        proc = 0
+                        print(output_str)
+                    except subprocess.CalledProcessError as e:
+                        output_str = f"Docker study creation failed with return code {e.returncode} (check duplicate directory)"
+                        proc = 1
+                        print(output_str)
                 else:
-                    proc= call(["makestudy", makestudy_dir], shell=True, cwd=concore_path)
+                    try:
+                        output_bytes = subprocess.check_output(["makestudy", makestudy_dir], cwd=concore_path, shell=True)
+                        output_str = output_bytes.decode("utf-8")
+                        proc = 0
+                        print(output_str)
+                    except subprocess.CalledProcessError as e:
+                        output_str = f"Study creation failed with return code {e.returncode} (check duplicate directory)"
+                        proc = 1
+                        print(output_str)
             else:
                 if(docker == 'true'):
-                    proc= call(["makedocker", makestudy_dir, out_dir], shell=True, cwd=concore_path)
+                    try:
+                        output_bytes = subprocess.check_output(["makedocker", makestudy_dir, out_dir], cwd=concore_path, shell=True)
+                        output_str = output_bytes.decode("utf-8")
+                        proc = 0
+                        print(output_str)
+                    except subprocess.CalledProcessError as e:
+                        output_str = f"Docker study creation failed with return code {e.returncode} (check duplicate directory)"
+                        proc = 1
+                        print(output_str)
                 else:
-                    proc= call(["makestudy", makestudy_dir, out_dir], shell=True, cwd=concore_path)
+                    try:
+                        output_bytes = subprocess.check_output(["makestudy", makestudy_dir, out_dir], cwd=concore_path, shell=True)
+                        output_str = output_bytes.decode("utf-8")
+                        proc = 0
+                        print(output_str)
+                    except subprocess.CalledProcessError as e:
+                        output_str = f"Study creation failed with return code {e.returncode} (check duplicate directory)"
+                        proc = 1
+                        print(output_str)
         else:
             if(out_dir == None or out_dir == ""):
                 if(docker == 'true'):
-                    proc= call(["./makedocker", makestudy_dir], cwd=concore_path)
+                    try:
+                        output_bytes = subprocess.check_output(["./makedocker", makestudy_dir], cwd=concore_path)
+                        output_str = output_bytes.decode("utf-8")
+                        proc = 0
+                        print(output_str)
+                    except subprocess.CalledProcessError as e:
+                        output_str = f"Docker study creation failed with return code {e.returncode} (check duplicate directory)"
+                        proc = 1
+                        print(output_str)
                 else:
-                    proc= call(["./makestudy", makestudy_dir], cwd=concore_path)
+                    try:
+                        output_bytes = subprocess.check_output(["./makestudy", makestudy_dir], cwd=concore_path)
+                        output_str = output_bytes.decode("utf-8")
+                        proc = 0
+                        print(output_str)
+                    except subprocess.CalledProcessError as e:
+                        output_str = f"Study creation failed with return code {e.returncode} (check duplicate directory)"
+                        proc = 1
+                        print(output_str)
             else:
                 if(docker == 'true'):
-                    proc= call(["./makedocker", makestudy_dir, out_dir], cwd=concore_path)
+                    try:
+                        output_bytes = subprocess.check_output(["./makedocker", makestudy_dir, out_dir], cwd=concore_path)
+                        output_str = output_bytes.decode("utf-8")
+                        proc = 0
+                        print(output_str)
+                    except subprocess.CalledProcessError as e:
+                        output_str = f"Docker study creation failed with return code {e.returncode} (check duplicate directory)"
+                        proc = 1
+                        print(output_str)
                 else:
-                    proc= call(["./makestudy", makestudy_dir, out_dir], cwd=concore_path)
+                    try:
+                        output_bytes = subprocess.check_output(["./makestudy", makestudy_dir, out_dir], cwd=concore_path)
+                        output_str = output_bytes.decode("utf-8")
+                        proc = 0
+                        print(output_str)
+                    except subprocess.CalledProcessError as e:
+                        output_str = f"Study creation failed with return code {e.returncode} (check duplicate directory)"
+                        proc = 1
+                        print(output_str)
         if(proc == 0):
             resp = jsonify({'message': 'Directory successfully created'})
             resp.status_code = 201
         else:
             resp = jsonify({'message': 'There is an Error'})
-            resp.status_code = 500   
+            resp.status_code = 500
     if(platform.uname()[0]=='Windows'):
-        call(["build"], cwd=dir_path, shell=True)
+        try:
+            output_bytes = subprocess.check_output("build", cwd=dir_path, shell=True)
+            output_str = output_str + output_bytes.decode("utf-8")
+            print(output_str)
+            resp = jsonify({'message': 'Directory successfully created', 'output': output_str})
+        except subprocess.CalledProcessError as e:
+            output_str = f"Build failed with return code {e.returncode}"
+            print(output_str)
+            resp = jsonify({'message': 'Build Failed', 'output': output_str})
+            resp.status_code = 500
         if(maxtime != None and maxtime != ''):
             proc=call(["maxtime", maxtime],shell=True, cwd=dir_path)
         if(params != None and params != ''):
             proc=call(["params", params],shell=True, cwd=dir_path)
     else:
-        call(["./build"], cwd=dir_path)
+        try:
+            output_bytes = subprocess.check_output("./build", cwd=dir_path)
+            output_str = output_str + output_bytes.decode("utf-8")
+            print(output_str)
+            resp = jsonify({'message': 'Directory successfully created', 'output': output_str})
+        except subprocess.CalledProcessError as e:
+            output_str = f"Build failed with return code {e.returncode}"
+            print(output_str)
+            resp = jsonify({'message': 'Build Failed', 'output': output_str})
+            resp.status_code = 500
         if(maxtime != None and maxtime != ''):
             proc=call(["./maxtime", maxtime], cwd=dir_path)
         if(params != None and params != ''):
@@ -156,7 +239,7 @@ def debug(dir):
     dir_name = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
     if(platform.uname()[0]=='Windows'):
-        proc=call(["debug"],shell=True, cwd=dir_path)
+        proc = call(["debug"],shell=True, cwd=dir_path)
     else:
         proc = call(["./debug"], cwd=dir_path)
     if(proc == 0):
@@ -173,7 +256,7 @@ def run(dir):
     dir_name = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
     if(platform.uname()[0]=='Windows'):
-        proc=call(["run"],shell=True, cwd=dir_path)
+        proc = call(["run"],shell=True, cwd=dir_path)
     else:
         proc = call(["./run"], cwd=dir_path)
     if(proc == 0):
@@ -190,7 +273,7 @@ def stop(dir):
     dir_name = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
     if(platform.uname()[0]=='Windows'):
-        proc=call(["stop"],shell=True, cwd=dir_path)
+        proc = call(["stop"],shell=True, cwd=dir_path)
     else:
         proc = call(["./stop"], cwd=dir_path)
     if(proc == 0):
@@ -211,17 +294,17 @@ def clear(dir):
     dir_name = secure_filename(dir)
     dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
     if(platform.uname()[0]=='Windows'):
-        proc=call(["clear"],shell=True, cwd=dir_path)
+        proc = call(["clear"],shell=True, cwd=dir_path)
         if(maxtime != None and maxtime != ''):
-            proc=call(["maxtime", maxtime],shell=True, cwd=dir_path)
+            proc = call(["maxtime", maxtime],shell=True, cwd=dir_path)
         if(params != None and params != ''):
-            proc=call(["params", params],shell=True, cwd=dir_path)
+            proc = call(["params", params],shell=True, cwd=dir_path)
     else:
         proc = call(["./clear"], cwd=dir_path)
         if(maxtime != None and maxtime != ''):
-            proc=call(["./maxtime", maxtime], cwd=dir_path)
+            proc = call(["./maxtime", maxtime], cwd=dir_path)
         if(params != None and params != ''):
-            proc=call(["./params", params], cwd=dir_path)
+            proc = call(["./params", params], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'result deleted'})
         resp.status_code = 201
@@ -253,7 +336,7 @@ def download(dir):
 def destroy(dir):
     dir = secure_filename(dir)
     if(platform.uname()[0]=='Windows'):
-        proc=call(["destroy", dir],shell=True, cwd=concore_path)
+        proc = call(["destroy", dir],shell=True, cwd=concore_path)
     else:
         proc = call(["./destroy", dir], cwd=concore_path)
     if(proc == 0):
@@ -263,7 +346,7 @@ def destroy(dir):
     else:
         resp = jsonify({'message': 'There is an Error'})
         resp.status_code = 500
-        return resp   
+        return resp
 
 @app.route('/getFilesList/<dir>', methods=['POST'])
 def getFilesList(dir):
