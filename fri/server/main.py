@@ -347,6 +347,30 @@ def destroy(dir):
         resp = jsonify({'message': 'There is an Error'})
         resp.status_code = 500
         return resp
+    
+@app.route('/library/<dir>', methods=['POST'])
+def library(dir):
+    dir_name = secure_filename(dir)
+    dir_path = os.path.abspath(os.path.join(concore_path, dir_name))
+    filename = request.args.get('filename')
+    library_path = request.args.get('path')
+    proc = 0
+    if (library_path == None or library_path  == ''):
+        library_path = "../tools"
+    if(platform.uname()[0]=='Windows'):
+        proc = subprocess.check_output(["..\library", library_path, filename],shell=True, cwd=dir_path)
+    else:
+        proc = subprocess.check_output(["../library", library_path, filename], cwd=dir_path)
+    if(proc != 0):
+        resp = jsonify({'message': proc.decode("utf-8")})
+        resp.status_code = 201
+        return resp
+    else:
+        resp = jsonify({'message': 'There is an Error'})
+        resp.status_code = 500
+        return resp
+
+
 
 @app.route('/getFilesList/<dir>', methods=['POST'])
 def getFilesList(dir):
