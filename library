@@ -25,8 +25,9 @@ if [ $# = 0 ]
        if [ -e $tooldir/$filename ]
          then
            ln -s $tooldir/$filename $filename
+           echo "library link created"
          else
-           echo "$filename does not exist"
+           echo "$filename does not exist in $tooldir"
        fi
      else
        echo "$tooldir does not exist"
