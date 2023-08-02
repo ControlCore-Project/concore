@@ -1,0 +1,36 @@
+#!/bin/bash
+if [ $# = 0 ]
+  then
+    echo "library -- create a link that references "library" program or dir"
+  else
+    tooldir="../tools"
+    if [ $# = 1 ]
+      then
+        filename=$1
+      elif [ $# = 2 ]
+      then
+        tooldir=$1
+        filename=$2
+      else
+        echo "too many args"
+        exit
+    fi
+    if [ -e $filename ]
+     then
+       echo "cannot create library link over existing file"
+       exit
+     fi
+    if [ -d $tooldir ]
+     then
+       if [ -e $tooldir/$filename ]
+         then
+           ln -s $tooldir/$filename $filename
+           echo "library link created"
+         else
+           echo "$filename does not exist in $tooldir"
+       fi
+     else
+       echo "$tooldir does not exist"
+    fi
+fi
+
