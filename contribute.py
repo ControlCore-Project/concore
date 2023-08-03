@@ -68,12 +68,12 @@ def runWorkflow(repo,upstream_repo):
     if openPR==None:
         workflow_runned = repo.get_workflow(id_or_name="pull_request.yml").create_dispatch(ref=BRANCH_NAME,inputs={'title':f"[BOT]: {PR_TITLE}",'body':PR_BODY,'upstreamRepo':UPSTREAM_ACCOUNT,'botRepo':BOT_ACCOUNT,'repo':REPO_NAME})
         if not workflow_runned:
-            print("Some error occured.Please try after some time")
+            print("Some error occured. Please try after some time")
             exit(0)
         else:
             printPRStatus(upstream_repo)
     else:
-        print("Successfully uploaded all files,your example is in waiting.Please wait for us to accept it.",end="")
+        print("Successfully uploaded all files, your example is in waiting.Please wait for us to accept it.",end="")
         printPR(openPR)
 
 def printPRStatus(upstream_repo):
@@ -88,7 +88,7 @@ def printPRStatus(upstream_repo):
         time.sleep(4)
         print(f'Check your example here https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pulls/{max_num+1}',end="")
     except Exception as e:
-        print("Your example successfully uploaded but unable to fetch status.Please try again")
+        print("Your example successfully uploaded but unable to fetch status. Please try again")
     
 
 def isImageFile(filename):
@@ -131,7 +131,7 @@ try:
     DIR_PATH = DIR_PATH.replace(" ","_")
     is_present = any(branch.name == BRANCH_NAME for branch in branches)
 except Exception as e:
-    print("Some error occured.Authentication failed",end="")
+    print("Authentication failed", end="")
     exit(0)
 
 
@@ -143,7 +143,7 @@ try:
     # Get current branch
     branch = repo.get_branch(branch=BRANCH_NAME)
 except Exception as e:
-    print("Not able to create study for you.Please try again after some time",end="")
+    print("Not able to create study for you. Please try again after some time", end="")
     exit(0)
 
 
@@ -166,5 +166,6 @@ try:
     commitAndUpdateRef(repo,tree_content,base_ref.commit,branch)
     runWorkflow(repo,upstream_repo)
 except Exception as e:
-    print("Some error Occured.Please try again after some time.",end="")
+    print("An error encountered: ", end="")
+    print(e)
     exit(0)
