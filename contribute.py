@@ -1,6 +1,6 @@
 import github
 from github import Github
-import os,sys,platform,base64
+import os,sys,platform,base64,time
 
 # Intializing the Variables
 # Hashed token
@@ -85,6 +85,7 @@ def printPRStatus(upstream_repo):
             max_num = max(max_num,i.number)
         for i in pulls:
             max_num = max(max_num,i.number)
+        time.sleep(4)
         print(f'Check your example here https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pulls/{max_num+1}',end="")
     except Exception as e:
         print("Your example successfully uploaded but unable to fetch status.Please try again")
@@ -93,6 +94,11 @@ def printPRStatus(upstream_repo):
 def isImageFile(filename):
     image_extensions = ['.jpeg', '.jpg', '.png','.gif']
     return any(filename.endswith(ext) for ext in image_extensions)
+
+def remove_prefix(text, prefix):
+    if text.startswith(prefix):
+        return text[len(prefix):]
+    return text
 
 
 # Decode Github Token
@@ -154,7 +160,7 @@ try:
             else:
                 with open(path, 'r') as file:
                     content = file.read()
-            file_path = f'{DIR_PATH+path.removeprefix(STUDY_NAME_PATH)}'
+            file_path = f'{DIR_PATH+remove_prefix(path,STUDY_NAME_PATH)}'
             if(platform.uname()[0]=='Windows'): file_path=file_path.replace("\\","/")
             appendBlobInTree(repo,content,file_path,tree_content)
     commitAndUpdateRef(repo,tree_content,base_ref.commit,branch)
