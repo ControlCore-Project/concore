@@ -1,6 +1,6 @@
 import github
 from github import Github
-import os,sys,platform,base64
+import os,sys,platform,base64,time
 
 # Intializing the Variables
 # Hashed token
@@ -68,12 +68,12 @@ def runWorkflow(repo,upstream_repo):
     if openPR==None:
         workflow_runned = repo.get_workflow(id_or_name="pull_request.yml").create_dispatch(ref=BRANCH_NAME,inputs={'title':f"[BOT]: {PR_TITLE}",'body':PR_BODY,'upstreamRepo':UPSTREAM_ACCOUNT,'botRepo':BOT_ACCOUNT,'repo':REPO_NAME})
         if not workflow_runned:
-            print("Some error occured.Please try after some time")
+            print("Some error occured. Please try after some time")
             exit(0)
         else:
             printPRStatus(upstream_repo)
     else:
-        print("Successfully uploaded all files,your example is in waiting.Please wait for us to accept it.",end="")
+        print("Successfully uploaded all files, your example is in waiting.Please wait for us to accept it.",end="")
         printPR(openPR)
 
 def printPRStatus(upstream_repo):
@@ -85,20 +85,28 @@ def printPRStatus(upstream_repo):
             max_num = max(max_num,i.number)
         for i in pulls:
             max_num = max(max_num,i.number)
+        time.sleep(4)
         print(f'Check your example here https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pulls/{max_num+1}',end="")
     except Exception as e:
-        print("Your example successfully uploaded but unable to fetch status.Please try again")
+        print("Your example successfully uploaded but unable to fetch status. Please try again")
     
 
 def isImageFile(filename):
     image_extensions = ['.jpeg', '.jpg', '.png','.gif']
     return any(filename.endswith(ext) for ext in image_extensions)
 
+def remove_prefix(text, prefix):
+    if text.startswith(prefix):
+        return text[len(prefix):]
+    return text
+
 
 # Decode Github Token
 def decode_token(encoded_token):
-    decoded_bytes = base64.b64decode(encoded_token.encode('utf-8'))
-    decoded_token = decoded_bytes.decode('utf-8')
+    decoded_bytes = encoded_token.encode("ascii")
+    convertedbytes = base64.b64decode(decoded_bytes)
+    decoded_token = convertedbytes.decode("ascii")
+    print('token decoded successfully')
     return decoded_token
 
 
@@ -125,7 +133,7 @@ try:
     DIR_PATH = DIR_PATH.replace(" ","_")
     is_present = any(branch.name == BRANCH_NAME for branch in branches)
 except Exception as e:
-    print("Some error occured.Authentication failed",end="")
+    print("Authentication failed", end="")
     exit(0)
 
 
@@ -137,7 +145,7 @@ try:
     # Get current branch
     branch = repo.get_branch(branch=BRANCH_NAME)
 except Exception as e:
-    print("Not able to create study for you.Please try again after some time",end="")
+    print("Not able to create study for you. Please try again after some time", end="")
     exit(0)
 
 
@@ -150,15 +158,17 @@ try:
             if isImageFile(filename):
                 with open(path, 'rb') as file:
                     image = file.read()
+                    print('image processing')
                     content = base64.b64encode(image).decode('utf-8')
             else:
                 with open(path, 'r') as file:
                     content = file.read()
-            file_path = f'{DIR_PATH+path.removeprefix(STUDY_NAME_PATH)}'
+            file_path = f'{DIR_PATH+remove_prefix(path,STUDY_NAME_PATH)}'
             if(platform.uname()[0]=='Windows'): file_path=file_path.replace("\\","/")
             appendBlobInTree(repo,content,file_path,tree_content)
     commitAndUpdateRef(repo,tree_content,base_ref.commit,branch)
     runWorkflow(repo,upstream_repo)
 except Exception as e:
+    print(e)
     print("Some error Occured.Please try again after some time.",end="")
     exit(0)
