@@ -103,8 +103,10 @@ def remove_prefix(text, prefix):
 
 # Decode Github Token
 def decode_token(encoded_token):
-    decoded_bytes = base64.b64decode(encoded_token.encode('utf-8'))
-    decoded_token = decoded_bytes.decode('utf-8')
+    decoded_bytes = encoded_token.encode("ascii")
+    convertedbytes = base64.b64decode(decoded_bytes)
+    decoded_token = convertedbytes.decode("ascii")
+    print('token decoded successfully')
     return decoded_token
 
 
@@ -156,6 +158,7 @@ try:
             if isImageFile(filename):
                 with open(path, 'rb') as file:
                     image = file.read()
+                    print('image processing')
                     content = base64.b64encode(image).decode('utf-8')
             else:
                 with open(path, 'r') as file:
@@ -166,6 +169,6 @@ try:
     commitAndUpdateRef(repo,tree_content,base_ref.commit,branch)
     runWorkflow(repo,upstream_repo)
 except Exception as e:
-    print("An error encountered: ", end="")
     print(e)
+    print("Some error Occured.Please try again after some time.",end="")
     exit(0)
