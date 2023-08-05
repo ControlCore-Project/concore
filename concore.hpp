@@ -38,8 +38,8 @@ private:
     char* sharedData_create;
     char* sharedData_get;
     // File sharing:- 0, Shared Memory:- 1
-    int communication_iport = 0;
-    int communication_oport = 0;
+    int communication_iport = 0;  // iport refers to input port
+    int communication_oport = 0;  // oport refers to input port
 
  public:
     double delay = 1;
@@ -58,17 +58,22 @@ private:
         oport = mapParser("concore.oport");   
         std::map<std::string, int>::iterator it_iport = iport.begin();
         std::map<std::string, int>::iterator it_oport = oport.begin();
-        int iport_number = ExtractNumeric(it_iport->first);
+        int iport_number = ExtractNumeric(it_iport->first); 
         int oport_number = ExtractNumeric(it_oport->first);
+
+        // if iport_number and oport_number is equal to -1 then it refers to File Method, 
+        // otherwise it refers to Shared Memory and the number represent the unique key.
 
         if(oport_number != -1)
         {
+            // oport_number is not equal to -1 so refers to SM and value is key.
             communication_oport = 1;
             this->createSharedMemory(oport_number);
         }  
 
         if(iport_number != -1)
         {
+            // iport_number is not equal to -1 so refers to SM and value is key.
             communication_iport = 1;
             this->getSharedMemory(iport_number);
         }    
@@ -112,6 +117,7 @@ private:
 
         if (numDigits == 1)
         {
+            // this case is to avoid shared memory when there is just 0 or any negative value in front of edge.
             if (std::stoi(numberString) <= 0)
             {
                 return -1;
@@ -348,7 +354,6 @@ private:
             if (sharedData_get && sharedData_get[0] != '\0') {
                 std::string message(sharedData_get, strnlen(sharedData_get, 256));
                 ins = message;
-                // std::cout << "Received message: " << message << " ins " << ins.length() << std::endl;
             } 
             else 
             {
@@ -367,7 +372,6 @@ private:
             this_thread::sleep_for(timespan);
             try{
                 if(shmId_get != -1) {
-                    std::cout << "in read while\n";
                     std::string message(sharedData_get, strnlen(sharedData_get, 256));
                     ins = message;
                     retrycount++;
@@ -379,7 +383,7 @@ private:
             }
             //observed retry count in C++ from various tests is approx 80.
             catch(...){
-                cout<<"Read error";
+                std::cout << "Read error" << std::endl;
             }
         }
         s += ins;
