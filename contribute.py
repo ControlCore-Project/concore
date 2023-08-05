@@ -165,9 +165,13 @@ try:
                     content = file.read()
             file_path = f'{DIR_PATH+remove_prefix(path,STUDY_NAME_PATH)}'
             if(platform.uname()[0]=='Windows'): file_path=file_path.replace("\\","/")
+            print(path)
             appendBlobInTree(repo,content,file_path,tree_content)
+    print('append comp')
     commitAndUpdateRef(repo,tree_content,base_ref.commit,branch)
+    print('comit comp')
     runWorkflow(repo,upstream_repo)
+    print('work comp')
 except Exception as e:
     print(e)
     print("Some error Occured.Please try again after some time.",end="")
