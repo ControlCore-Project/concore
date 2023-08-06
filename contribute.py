@@ -59,7 +59,7 @@ def commitAndUpdateRef(repo,tree_content,commit,branch):
 
 
 def appendBlobInTree(repo,content,file_path,tree_content):
-    blob = repo.create_git_blob(content,'ascii')
+    blob = repo.create_git_blob(content,'utf-8')
     tree_content.append( github.InputGitTreeElement(path=file_path,mode="100644",type="blob",sha=blob.sha))
 
 
@@ -152,6 +152,7 @@ tree_content = []
 
 try:
     for root, dirs, files in os.walk(STUDY_NAME_PATH):
+        files = [f for f in files if not f[0] == '.']
         for filename in files:
             path = f"{root}/{filename}"
             print(path)
@@ -160,7 +161,7 @@ try:
                     image = file.read()
                     content = base64.b64encode(image).decode('utf-8')
             else:
-                with open(file=path, mode='r',encoding='ascii') as file:
+                with open(file=path, mode='r') as file:
                     content = file.read()
             file_path = f'{DIR_PATH+remove_prefix(path,STUDY_NAME_PATH)}'
             if(platform.uname()[0]=='Windows'): file_path=file_path.replace("\\","/")
