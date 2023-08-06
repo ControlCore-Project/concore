@@ -59,7 +59,7 @@ def commitAndUpdateRef(repo,tree_content,commit,branch):
 
 
 def appendBlobInTree(repo,content,file_path,tree_content):
-    blob = repo.create_git_blob(content,'utf-8')
+    blob = repo.create_git_blob(content,'ascii')
     tree_content.append( github.InputGitTreeElement(path=file_path,mode="100644",type="blob",sha=blob.sha))
 
 
@@ -106,7 +106,6 @@ def decode_token(encoded_token):
     decoded_bytes = encoded_token.encode("ascii")
     convertedbytes = base64.b64decode(decoded_bytes)
     decoded_token = convertedbytes.decode("ascii")
-    print('token decoded successfully')
     return decoded_token
 
 
@@ -155,23 +154,20 @@ try:
     for root, dirs, files in os.walk(STUDY_NAME_PATH):
         for filename in files:
             path = f"{root}/{filename}"
+            print(path)
             if isImageFile(filename):
-                with open(path, 'rb') as file:
+                with open(file=path, mode='rb') as file:
                     image = file.read()
-                    print('image processing')
                     content = base64.b64encode(image).decode('utf-8')
             else:
-                with open(path, 'r') as file:
+                with open(file=path, mode='r',encoding='ascii') as file:
                     content = file.read()
             file_path = f'{DIR_PATH+remove_prefix(path,STUDY_NAME_PATH)}'
             if(platform.uname()[0]=='Windows'): file_path=file_path.replace("\\","/")
-            print(path)
+            print('d',end="")
             appendBlobInTree(repo,content,file_path,tree_content)
-    print('append comp')
     commitAndUpdateRef(repo,tree_content,base_ref.commit,branch)
-    print('comit comp')
     runWorkflow(repo,upstream_repo)
-    print('work comp')
 except Exception as e:
     print(e)
     print("Some error Occured.Please try again after some time.",end="")
