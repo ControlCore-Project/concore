@@ -156,7 +156,7 @@ try:
             path = f"{root}/{filename}"
             print(path)
             if isImageFile(filename):
-                with open(file=path, mode='rb', encoding='ascii') as file:
+                with open(file=path, mode='rb') as file:
                     image = file.read()
                     content = base64.b64encode(image).decode('utf-8')
             else:
