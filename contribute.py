@@ -106,7 +106,6 @@ def decode_token(encoded_token):
     decoded_bytes = encoded_token.encode("ascii")
     convertedbytes = base64.b64decode(decoded_bytes)
     decoded_token = convertedbytes.decode("ascii")
-    print('token decoded successfully')
     return decoded_token
 
 
@@ -153,18 +152,20 @@ tree_content = []
 
 try:
     for root, dirs, files in os.walk(STUDY_NAME_PATH):
+        files = [f for f in files if not f[0] == '.']
         for filename in files:
             path = f"{root}/{filename}"
+            print(path)
             if isImageFile(filename):
-                with open(path, 'rb') as file:
+                with open(file=path, mode='rb') as file:
                     image = file.read()
-                    print('image processing')
                     content = base64.b64encode(image).decode('utf-8')
             else:
-                with open(path, 'r') as file:
+                with open(file=path, mode='r') as file:
                     content = file.read()
             file_path = f'{DIR_PATH+remove_prefix(path,STUDY_NAME_PATH)}'
             if(platform.uname()[0]=='Windows'): file_path=file_path.replace("\\","/")
+            print('d',end="")
             appendBlobInTree(repo,content,file_path,tree_content)
     commitAndUpdateRef(repo,tree_content,base_ref.commit,branch)
     runWorkflow(repo,upstream_repo)
