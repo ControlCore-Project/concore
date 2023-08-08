@@ -155,7 +155,6 @@ try:
         files = [f for f in files if not f[0] == '.']
         for filename in files:
             path = f"{root}/{filename}"
-            print(path)
             if isImageFile(filename):
                 with open(file=path, mode='rb') as file:
                     image = file.read()
@@ -165,7 +164,6 @@ try:
                     content = file.read()
             file_path = f'{DIR_PATH+remove_prefix(path,STUDY_NAME_PATH)}'
             if(platform.uname()[0]=='Windows'): file_path=file_path.replace("\\","/")
-            print('d',end="")
             appendBlobInTree(repo,content,file_path,tree_content)
     commitAndUpdateRef(repo,tree_content,base_ref.commit,branch)
     runWorkflow(repo,upstream_repo)
