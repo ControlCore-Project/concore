@@ -4,7 +4,7 @@ import os,sys,platform,base64,time
 
 # Intializing the Variables
 # Hashed token
-BOT_TOKEN = "Z2l0aHViX3BhdF8xMUFYS0pGVFkwODR5OEhoZlI5VEl1X0VZZnNaNjU0WGw4OU0ycXhJc0h3TXh3RkVIZGFRQ3gwa0daZFhKUUdYbUk2QzRTU1dDNkF4clUyQWRF"
+BOT_TOKEN = "Z2l0aHViX3BhdF8xMUFYS0pGVFkwU2VhNW9ORjRyN0E5X053WDAwTVBUUU5RVUNTa2lNNlFYZHJET1lZa3B4cTIxS091YVhkeVhUYmRQMzdVUkZaRWpFMjlRRXM5"
 BOT_ACCOUNT = 'concore-bot'        #bot account name
 REPO_NAME = 'concore-studies'        #study repo name
 UPSTREAM_ACCOUNT = 'ControlCore-Project'  #upstream account name
