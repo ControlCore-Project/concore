@@ -1,4 +1,3 @@
-from cgi import test
 import requests
 import os
 import urllib.request
