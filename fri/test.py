@@ -1,11 +1,9 @@
-from cgi import test
 import requests
 import os
 import urllib.request
 import time
 
 # function to test upload() method.
-
 def upload(files):
   url = "http://127.0.0.1:5000/upload/test?apikey=xyz"
   payload={}
@@ -62,8 +60,13 @@ def openJupyter():
 
 # function to test download() method.
 def download(dir, subDir, fileName , apikey ):
-  url = "http://127.0.0.1:5000/download/"+dir+"?"+"fetchDir="+subDir+"&"+"fetch="+ fileName+"&"+"apikey="+apikey
-  urllib.request.urlretrieve(url, fileName)
+    url = "http://127.0.0.1:5000/download/" + dir + "?" + "fetchDir=" + subDir + "&" + "fetch=" + fileName + "&" + "apikey=" + apikey
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(fileName, 'wb') as f:
+            f.write(response.content)
+    else:
+        print(f"Failed to download: {response.status_code}, {response.text}")
 
 # file list to be uploaded
 cur_path = os.path.dirname(os.path.abspath(__file__))
