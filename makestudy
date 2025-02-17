@@ -1,7 +1,7 @@
-#!/bin/bash
-if [ $# == 0 ]
-then
-    echo "Make a concore study "
+#!/usr/bin/env bash
+
+if [ "$#" -eq 0 ]; then
+    echo "Make a concore study"
     echo "  ./makestudy path/name.graphml"
     echo "  ./makestudy path/name.graphml study"
     echo "In the first case, the name of the study is the same as the name of the .graphml"
@@ -9,38 +9,37 @@ then
     echo "The equivalent mkconcore.py is displayed"
     exit
 fi
-graphml=$1
-if [ -e $graphml ]
-then
-    sourcedir=$(dirname "$graphml")
+
+graphml="$1"
+
+if [ -e "$graphml" ]; then
+    sourcedir="$(dirname "$graphml")"
 else
-    graphml=$graphml'.graphml'
-    if [ -e $graphml ]
-    then
-        sourcedir=$(dirname "$graphml")
+    graphml="${graphml}.graphml"
+    if [ -e "$graphml" ]; then
+        sourcedir="$(dirname "$graphml")"
     else
         echo "$graphml does not exist"
         exit
     fi
 fi
-if [ $# = 1 ]
-then
-    studydir=`basename ${graphml%\.*}`
+
+if [ "$#" -eq 1 ]; then
+    studydir="$(basename "${graphml%.*}")"
 else
-    studydir=$2
+    studydir="$2"
 fi
-if [ -e $studydir ]
-then
-    echo "cannot make $studydir because one already exists with that name"
-    echo "either do ./destroy $studydir, or choose a unique name as 2nd arg"
+
+if [ -e "$studydir" ]; then
+    echo "Cannot make $studydir because one already exists with that name"
+    echo "Either do ./destroy $studydir, or choose a unique name as 2nd arg"
+    exit
 else
-    which osascript >/dev/null
-    if [ $? == 0 ] 
-    then
-       echo "python3 mkconcore.py $graphml $sourcedir $studydir macos"
-       python3 mkconcore.py $graphml $sourcedir $studydir macos
+    if command -v osascript >/dev/null; then
+        echo "python3 mkconcore.py \"$graphml\" \"$sourcedir\" \"$studydir\" macos"
+        python3 mkconcore.py "$graphml" "$sourcedir" "$studydir" macos
     else
-       echo "python3 mkconcore.py $graphml $sourcedir $studydir ubuntu"
-       python3 mkconcore.py $graphml $sourcedir $studydir ubuntu
+        echo "python3 mkconcore.py \"$graphml\" \"$sourcedir\" \"$studydir\" ubuntu"
+        python3 mkconcore.py "$graphml" "$sourcedir" "$studydir" ubuntu
     fi
 fi
