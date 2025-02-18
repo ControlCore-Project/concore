@@ -15,7 +15,6 @@ CPPWIN    = "g++"        #Windows C++  6/22/21
 CPPEXE    = "g++"        #Ubuntu/macOS C++  6/22/21
 VWIN      = "iverilog"   #Windows verilog  6/25/21
 VEXE      = "iverilog"   #Ubuntu/macOS verilog  6/25/21
-CPPEXE    = "g++"        #Ubuntu/macOS C++  6/22/21
 PYTHONEXE = "python3"    #Ubuntu/macOS python 3
 PYTHONWIN = "python"         #Windows python 3
 MATLABEXE = "matlab"     #Ubuntu/macOS matlab 
@@ -74,7 +73,6 @@ if os.path.exists(outdir):
     print("if intended, remove or rename "+outdir+" first")
     quit()
 
-currentdir = os.getcwd()
 os.mkdir(outdir)
 os.chdir(outdir)
 if concoretype == "windows":
