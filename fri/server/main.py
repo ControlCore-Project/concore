@@ -149,7 +149,7 @@ def build(dir):
             if(out_dir == None or out_dir == ""):
                 if(docker == 'true'):
                     try:
-                        output_bytes = subprocess.check_output(["./makedocker", makestudy_dir], cwd=concore_path)
+                        output_bytes = subprocess.check_output([r"./makedocker", makestudy_dir], cwd=concore_path)
                         output_str = output_bytes.decode("utf-8")
                         proc = 0
                     except subprocess.CalledProcessError as e:
@@ -157,7 +157,7 @@ def build(dir):
                         proc = 1
                 else:
                     try:
-                        output_bytes = subprocess.check_output(["./makestudy", makestudy_dir], cwd=concore_path)
+                        output_bytes = subprocess.check_output([r"./makestudy", makestudy_dir], cwd=concore_path)
                         output_str = output_bytes.decode("utf-8")
                         proc = 0
                     except subprocess.CalledProcessError as e:
@@ -166,7 +166,7 @@ def build(dir):
             else:
                 if(docker == 'true'):
                     try:
-                        output_bytes = subprocess.check_output(["./makedocker", makestudy_dir, out_dir], cwd=concore_path)
+                        output_bytes = subprocess.check_output([r"./makedocker", makestudy_dir, out_dir], cwd=concore_path)
                         output_str = output_bytes.decode("utf-8")
                         proc = 0
                     except subprocess.CalledProcessError as e:
@@ -174,7 +174,7 @@ def build(dir):
                         proc = 1
                 else:
                     try:
-                        output_bytes = subprocess.check_output(["./makestudy", makestudy_dir, out_dir], cwd=concore_path)
+                        output_bytes = subprocess.check_output([r"./makestudy", makestudy_dir, out_dir], cwd=concore_path)
                         output_str = output_bytes.decode("utf-8")
                         proc = 0
                     except subprocess.CalledProcessError as e:
@@ -201,7 +201,7 @@ def build(dir):
             proc=call(["params", params],shell=True, cwd=dir_path)
     else:
         try:
-            output_bytes = subprocess.check_output("./build", cwd=dir_path)
+            output_bytes = subprocess.check_output(r"./build", cwd=dir_path)
             output_str = output_str + output_bytes.decode("utf-8")
             resp = jsonify({'message': 'Directory successfully created', 'output': output_str})
         except subprocess.CalledProcessError as e:
@@ -209,9 +209,9 @@ def build(dir):
             resp = jsonify({'message': 'Build Failed', 'output': output_str})
             resp.status_code = 500
         if(maxtime != None and maxtime != ''):
-            proc=call(["./maxtime", maxtime], cwd=dir_path)
+            proc=call([r"./maxtime", maxtime], cwd=dir_path)
         if(params != None and params != ''):
-            proc=call(["./params", params], cwd=dir_path)
+            proc=call([r"./params", params], cwd=dir_path)
     return resp 
 
 @app.route('/debug/<dir>', methods=['POST'])
@@ -221,7 +221,7 @@ def debug(dir):
     if(platform.uname()[0]=='Windows'):
         proc = call(["debug"],shell=True, cwd=dir_path)
     else:
-        proc = call(["./debug"], cwd=dir_path)
+        proc = call([r"./debug"], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'Close the pop window after obtaining result'})
         resp.status_code = 201
@@ -238,7 +238,7 @@ def run(dir):
     if(platform.uname()[0]=='Windows'):
         proc = call(["run"],shell=True, cwd=dir_path)
     else:
-        proc = call(["./run"], cwd=dir_path)
+        proc = call([r"./run"], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'result prepared'})
         resp.status_code = 201
@@ -255,7 +255,7 @@ def stop(dir):
     if(platform.uname()[0]=='Windows'):
         proc = call(["stop"],shell=True, cwd=dir_path)
     else:
-        proc = call(["./stop"], cwd=dir_path)
+        proc = call([r"./stop"], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'resources cleaned'})
         resp.status_code = 201
@@ -280,11 +280,11 @@ def clear(dir):
         if(params != None and params != ''):
             proc = call(["params", params],shell=True, cwd=dir_path)
     else:
-        proc = call(["./clear"], cwd=dir_path)
+        proc = call([r"./clear"], cwd=dir_path)
         if(maxtime != None and maxtime != ''):
-            proc = call(["./maxtime", maxtime], cwd=dir_path)
+            proc = call([r"./maxtime", maxtime], cwd=dir_path)
         if(params != None and params != ''):
-            proc = call(["./params", params], cwd=dir_path)
+            proc = call([r"./params", params], cwd=dir_path)
     if(proc == 0):
         resp = jsonify({'message': 'result deleted'})
         resp.status_code = 201
@@ -308,9 +308,9 @@ def contribute():
             proc=check_output(["contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME,BRANCH_NAME,PR_TITLE,PR_BODY],cwd=concore_path,shell=True)
         else:
             if len(BRANCH_NAME)==0:
-                proc = check_output(["./contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME],cwd=concore_path)
+                proc = check_output([r"./contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME],cwd=concore_path)
             else:
-                proc = check_output(["./contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME,BRANCH_NAME,PR_TITLE,PR_BODY],cwd=concore_path)
+                proc = check_output([r"./contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME,BRANCH_NAME,PR_TITLE,PR_BODY],cwd=concore_path)
         output_string = proc.decode()
         status=200
         if output_string.find("/pulls/")!=-1:
@@ -349,7 +349,7 @@ def destroy(dir):
     if(platform.uname()[0]=='Windows'):
         proc = call(["destroy", dir],shell=True, cwd=concore_path)
     else:
-        proc = call(["./destroy", dir], cwd=concore_path)
+        proc = call([r"./destroy", dir], cwd=concore_path)
     if(proc == 0):
         resp = jsonify({'message': 'Successfuly deleted Dirctory'})
         resp.status_code = 201
@@ -367,11 +367,11 @@ def library(dir):
     library_path = request.args.get('path')
     proc = 0
     if (library_path == None or library_path  == ''):
-        library_path = "../tools"
+        library_path = r"../tools"
     if(platform.uname()[0]=='Windows'):
-        proc = subprocess.check_output(["..\library", library_path, filename],shell=True, cwd=dir_path)
+        proc = subprocess.check_output([r"..\library", library_path, filename],shell=True, cwd=dir_path)
     else:
-        proc = subprocess.check_output(["../library", library_path, filename], cwd=dir_path)
+        proc = subprocess.check_output([r"../library", library_path, filename], cwd=dir_path)
     if(proc != 0):
         resp = jsonify({'message': proc.decode("utf-8")})
         resp.status_code = 201

@@ -15,7 +15,6 @@ CPPWIN    = "g++"        #Windows C++  6/22/21
 CPPEXE    = "g++"        #Ubuntu/macOS C++  6/22/21
 VWIN      = "iverilog"   #Windows verilog  6/25/21
 VEXE      = "iverilog"   #Ubuntu/macOS verilog  6/25/21
-CPPEXE    = "g++"        #Ubuntu/macOS C++  6/22/21
 PYTHONEXE = "python3"    #Ubuntu/macOS python 3
 PYTHONWIN = "python"         #Windows python 3
 MATLABEXE = "matlab"     #Ubuntu/macOS matlab 
@@ -74,7 +73,6 @@ if os.path.exists(outdir):
     print("if intended, remove or rename "+outdir+" first")
     quit()
 
-currentdir = os.getcwd()
 os.mkdir(outdir)
 os.chdir(outdir)
 if concoretype == "windows":
@@ -778,57 +776,59 @@ for node in nodes_dict:
                   frun.write('start /B /D '+containername+" "+MATLABWIN+' -batch "run('+"'"+sourcecode+"'"+')"'+" >"+containername+"\\concoreout.txt\n")
                   fdebug.write('start /D '+containername+" cmd /K " +MATLABWIN+' -batch "run('+"'"+sourcecode+"'"+')"'+"\n")
       else:
-          if langext=="py":
-              frun.write('(cd '+containername+";"+PYTHONEXE+" "+sourcecode+" >concoreout.txt&echo $!>concorepid)&\n")
-              if ubuntu:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('xterm -e bash -c "cd $concorewd/'+containername+";"+PYTHONEXE+" "+sourcecode+';bash"&\n')
-              else:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";"+PYTHONEXE+" "+sourcecode+'\\""\n')
-          elif langext=="cpp": # 6/22/21
-              frun.write('(cd '+containername+";"+CPPEXE+" "+sourcecode+";./a.out >concoreout.txt&echo $!>concorepid)&\n")
-              if ubuntu:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('xterm -e bash -c "cd $concorewd/'+containername+";"+CPPEXE+" "+sourcecode+';./a.out;bash"&\n')
-              else:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";"+CPPEXE+" "+sourcecode+';./a.out\\""\n')
-          elif langext=="v": # 6/25/21
-              frun.write('(cd '+containername+";"+VEXE+" "+sourcecode+";./a.out >concoreout.txt&echo $!>concorepid)&\n")
-              if ubuntu:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('xterm -e bash -c "cd $concorewd/'+containername+";"+VEXE+" "+sourcecode+';./a.out;bash"&\n')
-              else:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";"+VEXE+" "+sourcecode+';vvp a.out\\""\n')
-          elif langext=="sh": # 5/19/21
-              frun.write('(cd '+containername+";./"+sourcecode+" "+ MCRPATH + " >concoreout.txt&echo $!>concorepid)&\n")
-              if ubuntu:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('xterm -e bash -c "cd $concorewd/'+containername+";./"+sourcecode+' '+MCRPATH+';bash"&\n')
-              else: # 11/23/21 MCRPATH
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";./"+sourcecode+' '+MCRPATH+'\\""\n')
-          elif langext=="m":  #3/23/21
-              if M_IS_OCTAVE:
-                  frun.write('(cd '+containername+";"+ OCTAVEEXE+' -qf --eval run\\(\\'+"'"+sourcecode+"\\'"+'\\)'+" >concoreout.txt&echo $!>concorepid)&\n")
-                  if ubuntu:
-                      fdebug.write('concorewd=`pwd`\n')
-                      fdebug.write('xterm -e bash -c "cd $concorewd/'+containername+";"+OCTAVEEXE+' -qf --eval run\\(\\'+"'"+sourcecode+"\\'"+'\\);bash"&'+"\n")
-                  else:
-                      fdebug.write('concorewd=`pwd`\n')
-                      fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";"+OCTAVEEXE+' -qf --eval run\\\\\\(\\\\\\'+"'"+sourcecode+"\\\\\\'"+'\\\\\\)\\""'+"\n")
-              else:  #  4/2/21
-                  frun.write('(cd '
-+containername+";"+ MATLABEXE+' -batch run\\(\\'+"'"+sourcecode+"\\'"+'\\)'+" >concoreout.txt&echo $!>concorepid)&\n")
-                  if ubuntu:
-                      fdebug.write('concorewd=`pwd`\n')
-                      fdebug.write('xterm -e bash -c "cd $concorewd/' +containername+";"+ MATLABEXE+' -batch run\\(\\'+"'"+sourcecode+"\\'"+'\\);bash"&\n' )
-                  else:
-                      fdebug.write('concorewd=`pwd`\n')
-                      fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/' +containername+";"+ MATLABEXE+' -batch run\\\\\\(\\\\\\'+"'"+sourcecode+"\\\\\\'"+'\\\\\\)\\""\n' )
+            if langext == "py":
+                frun.write('(cd "' + containername + '"; ' + PYTHONEXE + ' ' + sourcecode + ' >concoreout.txt & echo $! >concorepid) &\n')
+                if ubuntu:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ' + PYTHONEXE + ' ' + sourcecode + '; bash" &\n')
+                else:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ' + PYTHONEXE + ' ' + sourcecode + '\\"" \n')
 
+            elif langext == "cpp":  # 6/22/21
+                frun.write('(cd "' + containername + '"; ' + CPPEXE + ' ' + sourcecode + '; ./a.out >concoreout.txt & echo $! >concorepid) &\n')
+                if ubuntu:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ' + CPPEXE + ' ' + sourcecode + '; ./a.out; bash" &\n')
+                else:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ' + CPPEXE + ' ' + sourcecode + '; ./a.out\\"" \n')
+
+            elif langext == "v":    # 6/25/21
+                frun.write('(cd "' + containername + '"; ' + VEXE + ' ' + sourcecode + '; ./a.out >concoreout.txt & echo $! >concorepid) &\n')
+                if ubuntu:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ' + VEXE + ' ' + sourcecode + '; ./a.out; bash" &\n')
+                else:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ' + VEXE + ' ' + sourcecode + '; vvp a.out\\"" \n')
+
+            elif langext == "sh":   # 5/19/21
+                frun.write('(cd "' + containername + '"; ./' + sourcecode + ' ' + MCRPATH + ' >concoreout.txt & echo $! >concorepid) &\n')
+                if ubuntu:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ./' + sourcecode + ' ' + MCRPATH + '; bash" &\n')
+                else:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ./' + sourcecode + ' ' + MCRPATH + '\\"" \n')
+
+            elif langext == "m":    #3/23/21
+                if M_IS_OCTAVE:
+                    frun.write('(cd "' + containername + '"; ' + OCTAVEEXE + ' -qf --eval run(\\\'' + sourcecode + '\\\') >concoreout.txt & echo $! >concorepid) &\n')
+                    if ubuntu:
+                        fdebug.write('concorewd="$(pwd)"\n')
+                        fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ' + OCTAVEEXE + ' -qf --eval run(\\\'' + sourcecode + '\\\'); bash" &\n')
+                    else:
+                        fdebug.write('concorewd="$(pwd)"\n')
+                        fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ' + OCTAVEEXE + ' -qf --eval run(\\\\\\\'' + sourcecode + '\\\\\\\')\\"" \n')
+                else:
+                    frun.write('(cd "' + containername + '"; ' + MATLABEXE + ' -batch run(\\\'' + sourcecode + '\\\') >concoreout.txt & echo $! >concorepid) &\n')
+                    if ubuntu:
+                        fdebug.write('concorewd="$(pwd)"\n')
+                        fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ' + MATLABEXE + ' -batch run(\\\'' + sourcecode + '\\\'); bash" &\n')
+                    else:
+                        fdebug.write('concorewd="$(pwd)"\n')
+                        fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ' + MATLABEXE + ' -batch run(\\\\\\\'' + sourcecode + '\\\\\\\')\\"" \n')
 if concoretype=="posix":
     fstop.write('#!/bin/bash' + "\n")
 i=0 #  3/30/21
@@ -906,7 +906,7 @@ for node in nodes_dict:
         writeedges = volswr[i]
         while writeedges.find(":") != -1: 
             if concoretype=="windows":
-                funlock.write('copy %HOMEDRIVE%%HOMEPATH%\concore.apikey' + writeedges.split(":")[0].split("-v")[1]+ "\\concore.apikey\n")
+                funlock.write('copy %HOMEDRIVE%%HOMEPATH%\\concore.apikey' + writeedges.split(":")[0].split("-v")[1]+ "\\concore.apikey\n")
             else:
                 funlock.write('cp ~/concore.apikey ' + writeedges.split(":")[0].split("-v")[1]+ "/concore.apikey\n")
             writeedges = writeedges[writeedges.find(":")+1:]
