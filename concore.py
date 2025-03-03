@@ -12,15 +12,16 @@ if hasattr(sys, 'getwindowsversion'):
     with open("concorekill.bat","w") as fpid:
         fpid.write("taskkill /F /PID "+str(os.getpid())+"\n")
 
-try:
-    iport = literal_eval(open("concore.iport").read())
-except:
-    iport = dict()
-try:
-    oport = literal_eval(open("concore.oport").read())
-except:
-    oport = dict()
-
+def safe_literal_eval(filename, defaultValue):
+    try:
+        with open(filename, "r") as file:
+            return literal_eval(file.read())
+    except (FileNotFoundError, SyntaxError, ValueError, Exception) as e:
+        print(f"Error reading {filename}: {e}")
+        return defaultValue
+    
+iport = safe_literal_eval("concore.iport", {})
+oport = safe_literal_eval("concore.oport", {})
 
 s = ''
 olds = ''
@@ -28,6 +29,7 @@ delay = 1
 retrycount = 0
 inpath = "./in" #must be rel path for local
 outpath = "./out"
+simtime = 0
 
 #9/21/22
 try:
@@ -46,70 +48,92 @@ try:
 except:
     params = dict()
 #9/30/22
-def tryparam(n,i):
-    try:
-       return params[n]
-    except:
-       return i
+def tryparam(n, i):
+    return params.get(n, i)
 
 
 #9/12/21
 def default_maxtime(default):
     global maxtime
-    try:
-        maxtime = literal_eval(open(inpath+"1/concore.maxtime").read())
-    except:
-        maxtime = default 
+    maxtime = safe_literal_eval(os.path.join(inpath + "1", "concore.maxtime"), default)
+
 default_maxtime(100)
 
 def unchanged():
-    global olds,s
-    if olds==s:
+    global olds, s
+    if olds == s:
         s = ''
         return True
-    else:       
-        olds = s       
-        return False
+    olds = s
+    return False
 
 def read(port, name, initstr):
-    global s,simtime,retrycount
+    global s, simtime, retrycount
+    max_retries=5
     time.sleep(delay)
+    file_path = os.path.join(inpath+str(port), name)
+
     try:
-        infile = open(inpath+str(port)+"/"+name);
-        ins = infile.read()
-        infile.close()
-    except:
+        with open(file_path, "r") as infile:
+            ins = infile.read()
+    except FileNotFoundError:
+        print(f"File {file_path} not found, using default value.")
         ins = initstr
-    while len(ins)==0:
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
+        return initstr
+
+    attempts = 0
+    while len(ins) == 0 and attempts < max_retries:
         time.sleep(delay)
-        infile = open(inpath+str(port)+"/"+name);
-        ins = infile.read()
-        infile.close()
+        try:
+            with open(file_path, "r") as infile:
+                ins = infile.read()
+        except Exception as e:
+            print(f"Retry {attempts + 1}: Error reading {file_path} - {e}")
+        attempts += 1
         retrycount += 1
+
+    if len(ins) == 0:
+        print(f"Max retries reached for {file_path}, using default value.")
+        return initstr
+
     s += ins
-    inval = literal_eval(ins)
-    simtime = max(simtime,inval[0])
-    return inval[1:]
+    try:
+        inval = literal_eval(ins)
+        simtime = max(simtime, inval[0])
+        return inval[1:]
+    except Exception as e:
+        print(f"Error parsing {ins}: {e}")
+        return initstr
+
 
 def write(port, name, val, delta=0):
-    global outpath,simtime
-    if isinstance(val,str):
-        time.sleep(2*delay)
-    elif isinstance(val,list)==False:
-        print("mywrite must have list or str")
-        quit() 
+    global simtime
+    file_path = os.path.join(outpath+str(port), name)
+
+    if isinstance(val, str):
+        time.sleep(2 * delay)
+    elif not isinstance(val, list):
+        print("write must have list or str")
+        return
+
     try:
-        with open(outpath+str(port)+"/"+name,"w") as outfile:     
-            if isinstance(val,list):
-                outfile.write(str([simtime+delta]+val))
+        with open(file_path, "w") as outfile:
+            if isinstance(val, list):
+                outfile.write(str([simtime + delta] + val))
                 simtime += delta
             else:
                 outfile.write(val)
-    except:
-        print("skipping"+outpath+str(port)+"/"+name);
+    except Exception as e:
+        print(f"Error writing to {file_path}: {e}")
 
 def initval(simtime_val):
     global simtime
-    val = literal_eval(simtime_val)
-    simtime = val[0]
-    return val[1:]
+    try:
+        val = literal_eval(simtime_val)
+        simtime = val[0]
+        return val[1:]
+    except Exception as e:
+        print(f"Error parsing simtime_val: {e}")
+        return []
