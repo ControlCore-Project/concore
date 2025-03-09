@@ -9,20 +9,39 @@ services:
       - 8090:8080
     command: tail -f /dev/null
 
-  kong-database:
-    image: cassandra:3
+  postgres:
+    image: postgres:13
+    container_name: kong-database
+    restart: always
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kong
+      POSTGRES_DB: kong
     ports:
-      - 9042:9042
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  kong-migrations:
+    image: kong
+    depends_on:
+      - postgres
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+    command: kong migrations bootstrap
 
   kong:
     image: kong
     depends_on:
-      - kong-database
+      - kong-migrations
     environment:
-      KONG_DATABASE: cassandra
+      KONG_DATABASE: postgres
       KONG_PG_HOST: kong-database
+      KONG_PG_USER: kong
       KONG_PG_PASSWORD: kong
-      KONG_CASSANDRA_CONTACT_POINTS: kong-database
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
@@ -34,4 +53,5 @@ services:
       - 8001:8001
       - 8444:8444
 
-  
+volumes:
+  postgres_data:
