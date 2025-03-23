@@ -17,45 +17,36 @@ PR_BODY =  sys.argv[6]
 
 # Defining Functions
 def checkInputValidity():
-    if AUTHOR_NAME=="" or STUDY_NAME=="" or STUDY_NAME=="":
+    if not AUTHOR_NAME or not STUDY_NAME or not STUDY_NAME_PATH:
         print("Please Provide necessary Inputs")
-        exit(0)
+        exit(1)
     if not os.path.isdir(STUDY_NAME_PATH):
         print("Directory doesnot Exists.Invalid Path")
-        exit(0)
-
-
-def getPRs(upstream_repo):
-    try:
-        return upstream_repo.get_pulls(head=f'{BOT_ACCOUNT}:{BRANCH_NAME}')
-    except Exception as e:
-        print("Not able to fetch Status of your example.Please try after some time.")
-        exit(0)
+        exit(1)
 
 def printPR(pr):
     print(f'Check your example here https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pulls/{pr.number}',end="")
 
 def anyOpenPR(upstream_repo):
-    pr = getPRs(upstream_repo)
-    openPr=None
-    for i in pr:
-        if i.state=="open":
-            openPr=i
-            break
-    return openPr
+    try:
+        prs = upstream_repo.get_pulls(state='open', head=f'{BOT_ACCOUNT}:{BRANCH_NAME}')
+        return prs[0] if prs.totalCount > 0 else None
+    except Exception:
+        print("Unable to fetch PR status. Try again later.")
+        exit(1)
 
 def commitAndUpdateRef(repo,tree_content,commit,branch):
     try:
         new_tree = repo.create_git_tree(tree=tree_content,base_tree=commit.commit.tree)
-        new_commit = repo.create_git_commit("commit study",new_tree,[commit.commit])
+        new_commit = repo.create_git_commit(f"Committing Study Named {STUDY_NAME}",new_tree,[commit.commit])
         if len(repo.compare(base=commit.commit.sha,head=new_commit.sha).files) == 0:
             print("Your don't have any new changes.May be your example is already accepted.If this is not the case try with different fields.")
-            exit(0)
+            exit(1)
         ref = repo.get_git_ref("heads/"+branch.name)
         ref.edit(new_commit.sha,True)
     except Exception as e:
         print("failed to Upload your example.Please try after some time.",end="")
-        exit(0)
+        exit(1)
 
 
 def appendBlobInTree(repo,content,file_path,tree_content):
@@ -65,31 +56,33 @@ def appendBlobInTree(repo,content,file_path,tree_content):
 
 def runWorkflow(repo,upstream_repo):
     openPR = anyOpenPR(upstream_repo)
-    if openPR==None:
-        workflow_runned = repo.get_workflow(id_or_name="pull_request.yml").create_dispatch(ref=BRANCH_NAME,inputs={'title':f"[BOT]: {PR_TITLE}",'body':PR_BODY,'upstreamRepo':UPSTREAM_ACCOUNT,'botRepo':BOT_ACCOUNT,'repo':REPO_NAME})
-        if not workflow_runned:
-            print("Some error occured. Please try after some time")
-            exit(0)
-        else:
+    if not openPR:
+        try:
+            repo.get_workflow("pull_request.yml").create_dispatch(
+                ref=BRANCH_NAME,
+                inputs={'title': f"[BOT]: {PR_TITLE}", 'body': PR_BODY, 'upstreamRepo': UPSTREAM_ACCOUNT, 'botRepo': BOT_ACCOUNT, 'repo': REPO_NAME}
+            )
             printPRStatus(upstream_repo)
+        except Exception as e:
+            print(f"Error triggering workflow. Try again later.\n ERROR: {e}")
+            exit(1)
     else:
-        print("Successfully uploaded all files, your example is in waiting.Please wait for us to accept it.",end="")
-        printPR(openPR)
+        print(f"Successfully uploaded. Waiting for approval: https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pull/{openPR.number}")
 
 def printPRStatus(upstream_repo):
-    try:
-        issues = upstream_repo.get_issues()
-        pulls = upstream_repo.get_pulls(state='all')
-        max_num = -1
-        for i in issues:
-            max_num = max(max_num,i.number)
-        for i in pulls:
-            max_num = max(max_num,i.number)
-        time.sleep(4)
-        print(f'Check your example here https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pulls/{max_num+1}',end="")
-    except Exception as e:
-        print("Your example successfully uploaded but unable to fetch status. Please try again")
-    
+    attempts = 5
+    delay = 2
+    for i in range(attempts):
+        print(f"Attempt: {i}")
+        try:
+            latest_pr = upstream_repo.get_pulls(state='open', sort='created', direction='desc')[0]
+            print(f"Check your example here: https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pull/{latest_pr.number}")
+            return
+        except Exception:
+            time.sleep(delay)
+            delay *= 2
+    print("Uploaded successfully, but unable to fetch status.")
+
 
 def isImageFile(filename):
     image_extensions = ['.jpeg', '.jpg', '.png','.gif']
@@ -115,37 +108,34 @@ checkInputValidity()
 
 # Authenticating Github with Access token
 try:
-    if BRANCH_NAME=="#":
-        BRANCH_NAME=AUTHOR_NAME+"_"+STUDY_NAME
-    if PR_TITLE=="#":
-        PR_TITLE=f"Contributing Study {STUDY_NAME} by {AUTHOR_NAME}"
-    if PR_BODY=="#":
-        PR_BODY=f"Study Name: {STUDY_NAME} \n Author Name: {AUTHOR_NAME}"
-    AUTHOR_NAME = AUTHOR_NAME.replace(" ","_")
+    BRANCH_NAME = AUTHOR_NAME.replace(" ", "_") + "_" + STUDY_NAME if BRANCH_NAME == "#" else BRANCH_NAME.replace(" ", "_")
+    PR_TITLE = f"Contributing Study {STUDY_NAME} by {AUTHOR_NAME}" if PR_TITLE == "#" else PR_TITLE
+    PR_BODY = f"Study Name: {STUDY_NAME}\nAuthor Name: {AUTHOR_NAME}" if PR_BODY == "#" else PR_BODY
     DIR_PATH = STUDY_NAME
+    DIR_PATH = DIR_PATH.replace(" ","_")
     g = Github(decode_token(BOT_TOKEN))
     repo = g.get_user(BOT_ACCOUNT).get_repo(REPO_NAME)
     upstream_repo = g.get_repo(f'{UPSTREAM_ACCOUNT}/{REPO_NAME}') #controlcore-Project/concore-studies
     base_ref = upstream_repo.get_branch(repo.default_branch)
-    branches = repo.get_branches()
-    BRANCH_NAME = BRANCH_NAME.replace(" ","_")
-    DIR_PATH = DIR_PATH.replace(" ","_")
-    is_present = any(branch.name == BRANCH_NAME for branch in branches)
+
+    try:
+        repo.get_branch(BRANCH_NAME)
+        is_present = True
+    except github.GithubException:
+        print(f"No Branch is available with the name {BRANCH_NAME}")
+        is_present = False
 except Exception as e:
     print("Authentication failed", end="")
-    exit(0)
+    exit(1)
 
 
 try:
-    # If creating PR First Time
-    # Create New Branch for that exmaple
     if not is_present:
-        repo.create_git_ref(f'refs/heads/{BRANCH_NAME}', base_ref.commit.sha)
-    # Get current branch
-    branch = repo.get_branch(branch=BRANCH_NAME)
-except Exception as e:
-    print("Not able to create study for you. Please try again after some time", end="")
-    exit(0)
+        repo.create_git_ref(f"refs/heads/{BRANCH_NAME}", base_ref.commit.sha)
+    branch = repo.get_branch(BRANCH_NAME)
+except Exception:
+    print("Unable to create study. Try again later.")
+    exit(1)
 
 
 tree_content = []
@@ -170,4 +160,4 @@ try:
 except Exception as e:
     print(e)
     print("Some error Occured.Please try again after some time.",end="")
-    exit(0)
+    exit(1)

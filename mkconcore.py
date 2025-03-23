@@ -15,7 +15,6 @@ CPPWIN    = "g++"        #Windows C++  6/22/21
 CPPEXE    = "g++"        #Ubuntu/macOS C++  6/22/21
 VWIN      = "iverilog"   #Windows verilog  6/25/21
 VEXE      = "iverilog"   #Ubuntu/macOS verilog  6/25/21
-CPPEXE    = "g++"        #Ubuntu/macOS C++  6/22/21
 PYTHONEXE = "python3"    #Ubuntu/macOS python 3
 PYTHONWIN = "python"         #Windows python 3
 MATLABEXE = "matlab"     #Ubuntu/macOS matlab 
@@ -29,6 +28,11 @@ DOCKEREPO = "markgarnold"#where pulls come from 3/28/21
 INDIRNAME = ":/in"
 OUTDIRNAME = ":/out"
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s' if TRIMMED_LOGS else '%(asctime)s %(levelname)-8s %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 if os.path.exists(CONCOREPATH+"/concore.octave"):
     M_IS_OCTAVE = True       #treat .m as octave 9/27/21
@@ -47,12 +51,12 @@ prefixedgenode = ""
 sourcedir = sys.argv[2]
 outdir = sys.argv[3]
 if not os.path.isdir(sourcedir):
-    print(sourcedir+" does not exist")
+    logging.error(f"{sourcedir} does not exist")
     quit()
 
 if len(sys.argv) < 4:
-    print("usage: py mkconcore.py file.graphml sourcedir outdir [type]")
-    print(" type must be posix (macos or ubuntu), windows, or docker")
+    logging.error("usage: py mkconcore.py file.graphml sourcedir outdir [type]")
+    logging.error(" type must be posix (macos or ubuntu), windows, or docker")
     quit()
 elif len(sys.argv) == 4:
     prefixedgenode = outdir+"_" #nodes and edges prefixed with outdir_ only in case no type specified 3/24/21
@@ -60,7 +64,7 @@ elif len(sys.argv) == 4:
 else:
     concoretype = sys.argv[4]
     if not (concoretype in ["posix","windows","docker","macos","ubuntu"]):
-        print(" type must be posix (macos or ubuntu), windows, or docker")
+        logging.error(" type must be posix (macos or ubuntu), windows, or docker")
         quit()
 ubuntu = False #6/24/21
 if concoretype == "ubuntu":
@@ -70,11 +74,10 @@ if concoretype == "macos":
     concoretype = "posix"
 
 if os.path.exists(outdir):
-    print(outdir+" already exists")
-    print("if intended, remove or rename "+outdir+" first")
+    logging.error(f"{outdir} already exists")
+    logging.error(f"if intended, Remove/Rename {outdir} first")
     quit()
 
-currentdir = os.getcwd()
 os.mkdir(outdir)
 os.chdir(outdir)
 if concoretype == "windows":
@@ -99,22 +102,16 @@ else:
 
 os.mkdir("src")
 os.chdir("..")
-        
-print("mkconcore "+MKCONCORE_VER)
-print("concore path:      "+CONCOREPATH)
-print("graphml input:     "+GRAPHML_FILE)
-print("source directory:  "+sourcedir)
-print("output directory:  "+outdir)
-print("control core type: "+concoretype)
-print("treat .m as octave:"+str(M_IS_OCTAVE))
-print("MCR path:          "+MCRPATH)
-print("Docker repository: "+DOCKEREPO)
 
-# Output in a preferred format.
-if TRIMMED_LOGS:
-    logging.basicConfig(level=logging.INFO, format='%(message)s')
-else:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logging.info(f"mkconcore {MKCONCORE_VER}")
+logging.info(f"Concore path: {CONCOREPATH}")
+logging.info(f"graphml input: {GRAPHML_FILE}")
+logging.info(f"source directory: {sourcedir}")
+logging.info(f"output directory: {outdir}")
+logging.info(f"control core type: {concoretype}")
+logging.info(f"treat .m as octave: {str(M_IS_OCTAVE)}")
+logging.info(f"MCR path: {MCRPATH}")
+logging.info(f"Docker repository: {DOCKEREPO}")
 
 f = open(GRAPHML_FILE, "r")
 text_str = f.read()
@@ -183,7 +180,7 @@ for i in range(0,len(nodes_dict)):
   ms += mp
 
 if (ms == 0).any():
-  print("not all nodes reachable")
+  logging.warning("Unreachable nodes detected")
 
 #not right for PM2_1_1 and PM2_1_2
 volswr = len(nodes_dict)*['']
@@ -213,7 +210,7 @@ for node in nodes_dict:
         try:
             fsource = open(sourcedir+"/"+sourcecode)
         except:
-            print(sourcecode+" does not exist in "+sourcedir)
+            logging.error(f"{sourcecode} not found in {sourcedir}")
             quit()
         with open(outdir+"/src/"+sourcecode,"w") as fcopy:
             fcopy.write(fsource.read())
@@ -223,9 +220,9 @@ for node in nodes_dict:
                 fsource = open(sourcedir+"/Dockerfile."+dockername)
                 with open(outdir+"/src/Dockerfile."+dockername,"w") as fcopy:
                     fcopy.write(fsource.read())
-                print(" Using custom Dockerfile for "+dockername)
+                logging.info(f"Using custom Dockerfile for {dockername}")
             except:
-                print(" Using default Dockerfile for "+dockername)
+                logging.info(f"Using default Dockerfile for {dockername}")
             fsource.close()
         if os.path.isdir(sourcedir+"/"+dockername+".dir"):
             shutil.copytree(sourcedir+"/"+dockername+".dir",outdir+"/src/"+dockername+".dir")
@@ -237,7 +234,7 @@ try:
     else:
         fsource = open(CONCOREPATH+"/concore.py")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/concore.py","w") as fcopy:
     fcopy.write(fsource.read())
@@ -250,7 +247,7 @@ try:
     else:
         fsource = open(CONCOREPATH+"/concore.hpp")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/concore.hpp","w") as fcopy:
     fcopy.write(fsource.read())
@@ -263,7 +260,7 @@ try:
     else:
         fsource = open(CONCOREPATH+"/concore.v")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/concore.v","w") as fcopy:
     fcopy.write(fsource.read())
@@ -273,7 +270,7 @@ fsource.close()
 try:
     fsource = open(CONCOREPATH+"/mkcompile")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/mkcompile","w") as fcopy:
     fcopy.write(fsource.read())
@@ -284,7 +281,7 @@ os.chmod(outdir+"/src/mkcompile",stat.S_IRWXU)
 try: #maxtime in matlab 11/22/21
     fsource = open(CONCOREPATH+"/concore_default_maxtime.m")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/concore_default_maxtime.m","w") as fcopy:
     fcopy.write(fsource.read())
@@ -292,7 +289,7 @@ fsource.close()
 try:
     fsource = open(CONCOREPATH+"/concore_unchanged.m")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/concore_unchanged.m","w") as fcopy:
     fcopy.write(fsource.read())
@@ -300,7 +297,7 @@ fsource.close()
 try:
     fsource = open(CONCOREPATH+"/concore_read.m")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/concore_read.m","w") as fcopy:
     fcopy.write(fsource.read())
@@ -308,7 +305,7 @@ fsource.close()
 try:
     fsource = open(CONCOREPATH+"/concore_write.m")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/concore_write.m","w") as fcopy:
     fcopy.write(fsource.read())
@@ -316,7 +313,7 @@ fsource.close()
 try: #4/9/21
     fsource = open(CONCOREPATH+"/concore_initval.m")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/concore_initval.m","w") as fcopy:
     fcopy.write(fsource.read())
@@ -324,7 +321,7 @@ fsource.close()
 try: #11/19/21
     fsource = open(CONCOREPATH+"/concore_iport.m")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/concore_iport.m","w") as fcopy:
     fcopy.write(fsource.read())
@@ -332,7 +329,7 @@ fsource.close()
 try: #11/19/21
     fsource = open(CONCOREPATH+"/concore_oport.m")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/concore_oport.m","w") as fcopy:
     fcopy.write(fsource.read())
@@ -343,7 +340,7 @@ try: # 4/4/21
     else:
         fsource = open(CONCOREPATH+"/import_concore.m")
 except:
-    print(CONCOREPATH+" is not correct path to concore")
+    logging.error(f"{CONCOREPATH} is not correct path to concore")
     quit()
 with open(outdir+"/src/import_concore.m","w") as fcopy:
     fcopy.write(fsource.read())
@@ -361,7 +358,7 @@ for node in nodes_dict:
     if len(sourcecode)!=0 and sourcecode.find(".")!=-1: #3/28/21
         dockername,langext = sourcecode.split(".")
         if os.path.exists(outdir+"/src/"+dockername+".iport"):
-            print("warning: "+dockername+" has multiple instantiations; iport/oport may be invalid")
+            logging.warning(f"{dockername} has multiple instantiations ; iport/oport may be invalid")
         with open(outdir+"/src/"+dockername+".iport", "w") as fport:
           if prefixedgenode == "": # 5/18/21
             fport.write(str(iportmap_dict)) 
@@ -402,21 +399,21 @@ if (concoretype=="docker"):
                 try:
                     if langext=="py":
                         fsource = open(CONCOREPATH+"/Dockerfile.py")
-                        print("assuming .py extension for Dockerfile")
+                        logging.info("assuming .py extension for Dockerfile")
                     elif langext == "cpp":  # 6/22/21
                         fsource = open(CONCOREPATH+"/Dockerfile.cpp")
-                        print("assuming .cpp extension for Dockerfile")
+                        logging.info("assuming .cpp extension for Dockerfile")
                     elif langext == "v":  # 6/26/21
                         fsource = open(CONCOREPATH+"/Dockerfile.v")
-                        print("assuming .v extension for Dockerfile")
+                        logging.info("assuming .v extension for Dockerfile")
                     elif langext == "sh":  # 5/19/21
                         fsource = open(CONCOREPATH+"/Dockerfile.sh")
-                        print("assuming .sh extension for Dockerfile")
+                        logging.info("assuming .sh extension for Dockerfile")
                     else:
-                        print("assuming .m extension for Dockerfile")
                         fsource = open(CONCOREPATH+"/Dockerfile.m")
+                        logging.info("assuming .m extension for Dockerfile")
                 except:
-                    print(CONCOREPATH+" is not correct path to concore")
+                    logging.error(f"{CONCOREPATH} is not correct path to concore")
                     quit()
                 with open(outdir+"/src/Dockerfile."+dockername,"w") as fcopy:
                     fcopy.write(fsource.read())
@@ -469,11 +466,11 @@ if (concoretype=="docker"):
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0:
             if sourcecode.find(".")==-1:
-                print(DOCKEREXE+' run --name='+containername+volswr[i]+volsro[i]+" "+DOCKEREPO+"/docker-"+sourcecode)
+                logging.debug(f"Generating Docker run command: {DOCKEREXE} run --name={containername+volswr[i]+volsro[i]} {DOCKEREPO}/docker- {sourcecode}")
                 frun.write(DOCKEREXE+' run --name='+containername+volswr[i]+volsro[i]+" "+DOCKEREPO+"/docker-"+sourcecode+"&\n")
             else:    
                 dockername,langext = sourcecode.split(".")
-                print(DOCKEREXE+' run --name='+containername+volswr[i]+volsro[i]+" docker-"+dockername)
+                logging.debug(f"Generating Docker run command for {dockername}: {DOCKEREXE} run --name={containername+volswr[i]+volsro[i]} docker-{dockername}")
                 frun.write(DOCKEREXE+' run --name='+containername+volswr[i]+volsro[i]+" docker-"+dockername+"&\n")
                 #if langext != "m": #3/27/21
                 #    print(DOCKEREXE+' run --name='+containername+volswr[i]+volsro[i]+" docker-"+dockername)
@@ -653,7 +650,7 @@ for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
         if sourcecode.find(".")==-1:
-            print("cannot pull container "+sourcecode+" with control core type "+concoretype) #3/28/21
+            logging.error("cannot pull container "+sourcecode+" with control core type "+concoretype) #3/28/21
             quit()
         dockername,langext = sourcecode.split(".")
         fbuild.write('mkdir '+containername+"\n")
@@ -698,7 +695,6 @@ for node in nodes_dict:
  
 #make directories equivalent to volumes
 for edges in edges_dict:
-  #print("mkdir "+edges)
   fbuild.write("mkdir "+edges+"\n")
 
 #make links for out directories
@@ -743,7 +739,7 @@ for node in nodes_dict:
   if len(sourcecode)!=0:
       dockername,langext = sourcecode.split(".")
       if not (langext in ["py","m","sh","cpp","v"]): # 6/22/21
-          print("."+langext+" not supported (Yet)")
+          logging.error(f"Extension .{langext} is unsupported")
           quit()
       if concoretype=="windows":
           if langext=="py":
@@ -778,57 +774,59 @@ for node in nodes_dict:
                   frun.write('start /B /D '+containername+" "+MATLABWIN+' -batch "run('+"'"+sourcecode+"'"+')"'+" >"+containername+"\\concoreout.txt\n")
                   fdebug.write('start /D '+containername+" cmd /K " +MATLABWIN+' -batch "run('+"'"+sourcecode+"'"+')"'+"\n")
       else:
-          if langext=="py":
-              frun.write('(cd '+containername+";"+PYTHONEXE+" "+sourcecode+" >concoreout.txt&echo $!>concorepid)&\n")
-              if ubuntu:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('xterm -e bash -c "cd $concorewd/'+containername+";"+PYTHONEXE+" "+sourcecode+';bash"&\n')
-              else:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";"+PYTHONEXE+" "+sourcecode+'\\""\n')
-          elif langext=="cpp": # 6/22/21
-              frun.write('(cd '+containername+";"+CPPEXE+" "+sourcecode+";./a.out >concoreout.txt&echo $!>concorepid)&\n")
-              if ubuntu:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('xterm -e bash -c "cd $concorewd/'+containername+";"+CPPEXE+" "+sourcecode+';./a.out;bash"&\n')
-              else:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";"+CPPEXE+" "+sourcecode+';./a.out\\""\n')
-          elif langext=="v": # 6/25/21
-              frun.write('(cd '+containername+";"+VEXE+" "+sourcecode+";./a.out >concoreout.txt&echo $!>concorepid)&\n")
-              if ubuntu:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('xterm -e bash -c "cd $concorewd/'+containername+";"+VEXE+" "+sourcecode+';./a.out;bash"&\n')
-              else:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";"+VEXE+" "+sourcecode+';vvp a.out\\""\n')
-          elif langext=="sh": # 5/19/21
-              frun.write('(cd '+containername+";./"+sourcecode+" "+ MCRPATH + " >concoreout.txt&echo $!>concorepid)&\n")
-              if ubuntu:
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('xterm -e bash -c "cd $concorewd/'+containername+";./"+sourcecode+' '+MCRPATH+';bash"&\n')
-              else: # 11/23/21 MCRPATH
-                  fdebug.write('concorewd=`pwd`\n')
-                  fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";./"+sourcecode+' '+MCRPATH+'\\""\n')
-          elif langext=="m":  #3/23/21
-              if M_IS_OCTAVE:
-                  frun.write('(cd '+containername+";"+ OCTAVEEXE+' -qf --eval run\\(\\'+"'"+sourcecode+"\\'"+'\\)'+" >concoreout.txt&echo $!>concorepid)&\n")
-                  if ubuntu:
-                      fdebug.write('concorewd=`pwd`\n')
-                      fdebug.write('xterm -e bash -c "cd $concorewd/'+containername+";"+OCTAVEEXE+' -qf --eval run\\(\\'+"'"+sourcecode+"\\'"+'\\);bash"&'+"\n")
-                  else:
-                      fdebug.write('concorewd=`pwd`\n')
-                      fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";"+OCTAVEEXE+' -qf --eval run\\\\\\(\\\\\\'+"'"+sourcecode+"\\\\\\'"+'\\\\\\)\\""'+"\n")
-              else:  #  4/2/21
-                  frun.write('(cd '
-+containername+";"+ MATLABEXE+' -batch run\\(\\'+"'"+sourcecode+"\\'"+'\\)'+" >concoreout.txt&echo $!>concorepid)&\n")
-                  if ubuntu:
-                      fdebug.write('concorewd=`pwd`\n')
-                      fdebug.write('xterm -e bash -c "cd $concorewd/' +containername+";"+ MATLABEXE+' -batch run\\(\\'+"'"+sourcecode+"\\'"+'\\);bash"&\n' )
-                  else:
-                      fdebug.write('concorewd=`pwd`\n')
-                      fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/' +containername+";"+ MATLABEXE+' -batch run\\\\\\(\\\\\\'+"'"+sourcecode+"\\\\\\'"+'\\\\\\)\\""\n' )
+            if langext == "py":
+                frun.write('(cd "' + containername + '"; ' + PYTHONEXE + ' ' + sourcecode + ' >concoreout.txt & echo $! >concorepid) &\n')
+                if ubuntu:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ' + PYTHONEXE + ' ' + sourcecode + '; bash" &\n')
+                else:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ' + PYTHONEXE + ' ' + sourcecode + '\\"" \n')
 
+            elif langext == "cpp":  # 6/22/21
+                frun.write('(cd "' + containername + '"; ' + CPPEXE + ' ' + sourcecode + '; ./a.out >concoreout.txt & echo $! >concorepid) &\n')
+                if ubuntu:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ' + CPPEXE + ' ' + sourcecode + '; ./a.out; bash" &\n')
+                else:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ' + CPPEXE + ' ' + sourcecode + '; ./a.out\\"" \n')
+
+            elif langext == "v":    # 6/25/21
+                frun.write('(cd "' + containername + '"; ' + VEXE + ' ' + sourcecode + '; ./a.out >concoreout.txt & echo $! >concorepid) &\n')
+                if ubuntu:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ' + VEXE + ' ' + sourcecode + '; ./a.out; bash" &\n')
+                else:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ' + VEXE + ' ' + sourcecode + '; vvp a.out\\"" \n')
+
+            elif langext == "sh":   # 5/19/21
+                frun.write('(cd "' + containername + '"; ./' + sourcecode + ' ' + MCRPATH + ' >concoreout.txt & echo $! >concorepid) &\n')
+                if ubuntu:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ./' + sourcecode + ' ' + MCRPATH + '; bash" &\n')
+                else:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ./' + sourcecode + ' ' + MCRPATH + '\\"" \n')
+
+            elif langext == "m":    #3/23/21
+                if M_IS_OCTAVE:
+                    frun.write('(cd "' + containername + '"; ' + OCTAVEEXE + ' -qf --eval run(\\\'' + sourcecode + '\\\') >concoreout.txt & echo $! >concorepid) &\n')
+                    if ubuntu:
+                        fdebug.write('concorewd="$(pwd)"\n')
+                        fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ' + OCTAVEEXE + ' -qf --eval run(\\\'' + sourcecode + '\\\'); bash" &\n')
+                    else:
+                        fdebug.write('concorewd="$(pwd)"\n')
+                        fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ' + OCTAVEEXE + ' -qf --eval run(\\\\\\\'' + sourcecode + '\\\\\\\')\\"" \n')
+                else:
+                    frun.write('(cd "' + containername + '"; ' + MATLABEXE + ' -batch run(\\\'' + sourcecode + '\\\') >concoreout.txt & echo $! >concorepid) &\n')
+                    if ubuntu:
+                        fdebug.write('concorewd="$(pwd)"\n')
+                        fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + containername + '\\"; ' + MATLABEXE + ' -batch run(\\\'' + sourcecode + '\\\'); bash" &\n')
+                    else:
+                        fdebug.write('concorewd="$(pwd)"\n')
+                        fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + containername + '\\\\\\"; ' + MATLABEXE + ' -batch run(\\\\\\\'' + sourcecode + '\\\\\\\')\\"" \n')
 if concoretype=="posix":
     fstop.write('#!/bin/bash' + "\n")
 i=0 #  3/30/21
@@ -906,7 +904,7 @@ for node in nodes_dict:
         writeedges = volswr[i]
         while writeedges.find(":") != -1: 
             if concoretype=="windows":
-                funlock.write('copy %HOMEDRIVE%%HOMEPATH%\concore.apikey' + writeedges.split(":")[0].split("-v")[1]+ "\\concore.apikey\n")
+                funlock.write('copy %HOMEDRIVE%%HOMEPATH%\\concore.apikey' + writeedges.split(":")[0].split("-v")[1]+ "\\concore.apikey\n")
             else:
                 funlock.write('cp ~/concore.apikey ' + writeedges.split(":")[0].split("-v")[1]+ "/concore.apikey\n")
             writeedges = writeedges[writeedges.find(":")+1:]
