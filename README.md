@@ -28,6 +28,35 @@ Please follow the [ReadTheDocs](https://control-core.readthedocs.io/en/latest/in
 
 Installation instructions for concore can be found [here](https://control-core.readthedocs.io/en/latest/installation.html). Usage instructions can be found [here](https://control-core.readthedocs.io/en/latest/usage.html).
 
+## Command-Line Interface (CLI)
+
+_concore_ now includes a command-line interface for easier workflow management. Install it with:
+
+```bash
+pip install -e .
+```
+
+Quick start with the CLI:
+
+```bash
+# Create a new project
+concore init my-project
+
+# Validate your workflow
+concore validate workflow.graphml
+
+# Run your workflow
+concore run workflow.graphml --auto-build
+
+# Monitor running processes
+concore status
+
+# Stop all processes
+concore stop
+```
+
+For detailed CLI documentation, see [concore_cli/README.md](concore_cli/README.md).
+
 For a detailed and more scientific documentation, please read our extensive [open-access research paper on CONTROL-CORE](https://doi.org/10.1109/ACCESS.2022.3161471). This paper has a complete discussion on the CONTROL-CORE architecture and deployment, together with the commands to execute the studies in different programming languages and programming environments (Ubuntu, Windows, MacOS, Docker, and distributed execution).
 
 
