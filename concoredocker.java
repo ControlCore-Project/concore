@@ -175,15 +175,12 @@ public class concoredocker {
         s = s.trim();
         if (s.isEmpty()) return null;
 
-        // dict: {'key': value, ...}
         if (s.startsWith("{") && s.endsWith("}")) {
             return parseDict(s.substring(1, s.length() - 1));
         }
-        // list: [val1, val2, ...]
         if (s.startsWith("[") && s.endsWith("]")) {
             return parseList(s.substring(1, s.length() - 1));
         }
-        // single value
         return parseValue(s);
     }
 
@@ -193,35 +190,29 @@ public class concoredocker {
 
         int i = 0;
         while (i < inner.length()) {
-            // skip whitespace
             while (i < inner.length() && Character.isWhitespace(inner.charAt(i))) i++;
             if (i >= inner.length()) break;
 
-            // parse key (quoted string)
             char quote = inner.charAt(i);
             if (quote != '\'' && quote != '"') break;
             i++;
             int keyStart = i;
             while (i < inner.length() && inner.charAt(i) != quote) i++;
             String key = inner.substring(keyStart, i);
-            i++; // skip closing quote
+            i++;
 
-            // skip to colon
             while (i < inner.length() && inner.charAt(i) != ':') i++;
-            i++; // skip colon
+            i++;
 
-            // skip whitespace
             while (i < inner.length() && Character.isWhitespace(inner.charAt(i))) i++;
 
-            // parse value
             int[] endIdx = new int[]{i};
             Object val = parseValueAt(inner, endIdx);
             i = endIdx[0];
             map.put(key, val);
 
-            // skip to comma or end
             while (i < inner.length() && inner.charAt(i) != ',') i++;
-            i++; // skip comma
+            i++;
         }
         return map;
     }
@@ -254,7 +245,6 @@ public class concoredocker {
         }
 
         char c = s.charAt(i);
-        // nested dict
         if (c == '{') {
             int depth = 1, start = i;
             i++;
@@ -266,7 +256,6 @@ public class concoredocker {
             idx[0] = i;
             return parsePythonLiteral(s.substring(start, i));
         }
-        // nested list
         if (c == '[') {
             int depth = 1, start = i;
             i++;
@@ -278,18 +267,16 @@ public class concoredocker {
             idx[0] = i;
             return parsePythonLiteral(s.substring(start, i));
         }
-        // quoted string
         if (c == '\'' || c == '"') {
             char quote = c;
             i++;
             int start = i;
             while (i < s.length() && s.charAt(i) != quote) i++;
             String val = s.substring(start, i);
-            i++; // skip closing quote
+            i++;
             idx[0] = i;
             return val;
         }
-        // number or other
         int start = i;
         while (i < s.length() && s.charAt(i) != ',' && s.charAt(i) != '}' && s.charAt(i) != ']' && !Character.isWhitespace(s.charAt(i))) {
             i++;
