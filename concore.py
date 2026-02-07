@@ -1,9 +1,15 @@
 import time
+import logging
 import os
 from ast import literal_eval
 import sys
 import re
-import zmq # Added for ZeroMQ
+import zmq
+import numpy as np
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s - %(message)s'
+) # Added for ZeroMQ
 
 # if windows, create script to kill this process 
 # because batch files don't provide easy way to know pid of last command
@@ -36,10 +42,10 @@ class ZeroMQPort:
         # Bind or connect
         if self.port_type == "bind":
             self.socket.bind(address)
-            print(f"ZMQ Port bound to {address}")
+            logging.info(f"ZMQ Port bound to {address}")
         else:
             self.socket.connect(address)
-            print(f"ZMQ Port connected to {address}")
+            logging.info(f"ZMQ Port connected to {address}")
             
     def send_json_with_retry(self, message):
         """Send JSON message with retries if timeout occurs."""
@@ -48,9 +54,9 @@ class ZeroMQPort:
                 self.socket.send_json(message)
                 return
             except zmq.Again:
-                print(f"Send timeout (attempt {attempt + 1}/5)")
+                logging.warning(f"Send timeout (attempt {attempt + 1}/5)")
                 time.sleep(0.5)
-        print("Failed to send after retries.")
+        logging.error("Failed to send after retries.")
         return
 
     def recv_json_with_retry(self):
@@ -59,9 +65,9 @@ class ZeroMQPort:
             try:
                 return self.socket.recv_json()
             except zmq.Again:
-                print(f"Receive timeout (attempt {attempt + 1}/5)")
+                logging.warning(f"Receive timeout (attempt {attempt + 1}/5)")
                 time.sleep(0.5)
-        print("Failed to receive after retries.")
+        logging.error("Failed to receive after retries.")
         return None
 
 # Global ZeroMQ ports registry
@@ -76,20 +82,20 @@ def init_zmq_port(port_name, port_type, address, socket_type_str):
     socket_type_str (str): String representation of ZMQ socket type (e.g., "REQ", "REP", "PUB", "SUB").
     """
     if port_name in zmq_ports:
-        print(f"ZMQ Port {port_name} already initialized.")
+        logging.info(f"ZMQ Port {port_name} already initialized.")
         return # Avoid reinitialization
     
     try:
         # Map socket type string to actual ZMQ constant (e.g., zmq.REQ, zmq.REP)
         zmq_socket_type = getattr(zmq, socket_type_str.upper())
         zmq_ports[port_name] = ZeroMQPort(port_type, address, zmq_socket_type)
-        print(f"Initialized ZMQ port: {port_name} ({socket_type_str}) on {address}")
+        logging.info(f"Initialized ZMQ port: {port_name} ({socket_type_str}) on {address}")
     except AttributeError:
-        print(f"Error: Invalid ZMQ socket type string '{socket_type_str}'.")
+        logging.error(f"Error: Invalid ZMQ socket type string '{socket_type_str}'.")
     except zmq.error.ZMQError as e:
-        print(f"Error initializing ZMQ port {port_name} on {address}: {e}")
+        logging.error(f"Error initializing ZMQ port {port_name} on {address}: {e}")
     except Exception as e:
-        print(f"An unexpected error occurred during ZMQ port initialization for {port_name}: {e}")
+        logging.error(f"An unexpected error occurred during ZMQ port initialization for {port_name}: {e}")
 
 def terminate_zmq():
     for port in zmq_ports.values():
@@ -97,8 +103,26 @@ def terminate_zmq():
             port.socket.close()
             port.context.term()
         except Exception as e:
-            print(f"Error while terminating ZMQ port {port.address}: {e}")
+            logging.error(f"Error while terminating ZMQ port {port.address}: {e}")
 # --- ZeroMQ Integration End ---
+
+
+# NumPy Type Conversion Helper
+def convert_numpy_to_python(obj):
+    #Recursively convert numpy types to native Python types.
+    #This is necessary because literal_eval cannot parse numpy representations
+    #like np.float64(1.0), but can parse native Python types like 1.0.
+    if isinstance(obj, np.generic):
+        # Convert numpy scalar types to Python native types
+        return obj.item()
+    elif isinstance(obj, list):
+        return [convert_numpy_to_python(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(convert_numpy_to_python(item) for item in obj)
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_to_python(value) for key, value in obj.items()}
+    else:
+        return obj
 
 # ===================================================================
 # File & Parameter Handling
@@ -125,13 +149,15 @@ retrycount = 0
 inpath = "./in" #must be rel path for local
 outpath = "./out"
 simtime = 0
+concore_params_file = os.path.join(inpath + "1", "concore.params")
+concore_maxtime_file = os.path.join(inpath + "1", "concore.maxtime")
 
 #9/21/22
 # ===================================================================
 # Parameter Parsing
 # ===================================================================
 try:
-    sparams_path = os.path.join(inpath + "1", "concore.params")
+    sparams_path = concore_params_file
     if os.path.exists(sparams_path):
         with open(sparams_path, "r") as f:
             sparams = f.read()
@@ -142,13 +168,13 @@ try:
 
             # Convert key=value;key2=value2 to Python dict format
             if sparams != '{' and not (sparams.startswith('{') and sparams.endswith('}')): # Check if it needs conversion
-                print("converting sparams: "+sparams)
+                logging.debug("converting sparams: "+sparams)
                 sparams = "{'"+re.sub(';',",'",re.sub('=',"':",re.sub(' ','',sparams)))+"}"
-                print("converted sparams: " + sparams)
+                logging.debug("converted sparams: " + sparams)
             try:
                 params = literal_eval(sparams)
             except Exception as e:
-                print(f"bad params content: {sparams}, error: {e}")
+                logging.warning(f"bad params content: {sparams}, error: {e}")
                 params = dict()
         else:
             params = dict()
@@ -171,8 +197,7 @@ def tryparam(n, i):
 def default_maxtime(default):
     """Read maximum simulation time from file or use default."""
     global maxtime
-    maxtime_path = os.path.join(inpath + "1", "concore.maxtime")
-    maxtime = safe_literal_eval(maxtime_path, default)
+    maxtime = safe_literal_eval(concore_maxtime_file, default)
 
 default_maxtime(100)
 
@@ -206,21 +231,21 @@ def read(port_identifier, name, initstr_val):
             message = zmq_p.recv_json_with_retry()
             return message
         except zmq.error.ZMQError as e:
-            print(f"ZMQ read error on port {port_identifier} (name: {name}): {e}. Returning default.")
+            logging.error(f"ZMQ read error on port {port_identifier} (name: {name}): {e}. Returning default.")
             return default_return_val
         except Exception as e:
-            print(f"Unexpected error during ZMQ read on port {port_identifier} (name: {name}): {e}. Returning default.")
+            logging.error(f"Unexpected error during ZMQ read on port {port_identifier} (name: {name}): {e}. Returning default.")
             return default_return_val
 
     # Case 2: File-based port
     try:
         file_port_num = int(port_identifier)
     except ValueError:
-        print(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
+        logging.error(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
         return default_return_val
 
     time.sleep(delay) 
-    file_path = os.path.join(inpath+str(file_port_num), name)
+    file_path = os.path.join(inpath + str(file_port_num), name)
     ins = ""
 
     try:
@@ -228,8 +253,9 @@ def read(port_identifier, name, initstr_val):
             ins = infile.read()
     except FileNotFoundError:
         ins = str(initstr_val) 
+        s += ins  # Update s to break unchanged() loop
     except Exception as e:
-        print(f"Error reading {file_path}: {e}. Using default value.")
+        logging.error(f"Error reading {file_path}: {e}. Using default value.")
         return default_return_val 
 
     # Retry logic if file is empty
@@ -241,12 +267,12 @@ def read(port_identifier, name, initstr_val):
             with open(file_path, "r") as infile:
                 ins = infile.read()
         except Exception as e:
-            print(f"Retry {attempts + 1}: Error reading {file_path} - {e}")
+            logging.warning(f"Retry {attempts + 1}: Error reading {file_path} - {e}")
         attempts += 1
         retrycount += 1
 
     if len(ins) == 0:
-        print(f"Max retries reached for {file_path}, using default value.")
+        logging.error(f"Max retries reached for {file_path}, using default value.")
         return default_return_val
 
     s += ins 
@@ -260,10 +286,10 @@ def read(port_identifier, name, initstr_val):
                  simtime = max(simtime, current_simtime_from_file)
             return inval[1:] 
         else: 
-            print(f"Warning: Unexpected data format in {file_path}: {ins}. Returning raw content or default.")
+            logging.warning(f"Warning: Unexpected data format in {file_path}: {ins}. Returning raw content or default.")
             return inval 
     except Exception as e:
-        print(f"Error parsing content from {file_path} ('{ins}'): {e}. Returning default.")
+        logging.error(f"Error parsing content from {file_path} ('{ins}'): {e}. Returning default.")
         return default_return_val
 
 
@@ -280,38 +306,37 @@ def write(port_identifier, name, val, delta=0):
         try:
             zmq_p.send_json_with_retry(val)
         except zmq.error.ZMQError as e:
-            print(f"ZMQ write error on port {port_identifier} (name: {name}): {e}")
+            logging.error(f"ZMQ write error on port {port_identifier} (name: {name}): {e}")
         except Exception as e:
-            print(f"Unexpected error during ZMQ write on port {port_identifier} (name: {name}): {e}")
+            logging.error(f"Unexpected error during ZMQ write on port {port_identifier} (name: {name}): {e}")
     
     # Case 2: File-based port
     try:
-        if isinstance(port_identifier, str) and port_identifier in zmq_ports:
-            file_path = os.path.join("../"+port_identifier, name)
-        else:
-            file_port_num = int(port_identifier)
-            file_path = os.path.join(outpath+str(file_port_num), name) 
+        file_port_num = int(port_identifier)
+        file_path = os.path.join(outpath + str(file_port_num), name) 
     except ValueError:
-        print(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
+        logging.error(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
         return
 
     # File writing rules
     if isinstance(val, str):
         time.sleep(2 * delay) # string writes wait longer
     elif not isinstance(val, list):
-        print(f"File write to {file_path} must have list or str value, got {type(val)}")
+        logging.error(f"File write to {file_path} must have list or str value, got {type(val)}")
         return
 
     try:
         with open(file_path, "w") as outfile:
             if isinstance(val, list):
-                data_to_write = [simtime + delta] + val
+                # Convert numpy types to native Python types
+                val_converted = convert_numpy_to_python(val)
+                data_to_write = [simtime + delta] + val_converted
                 outfile.write(str(data_to_write))
                 simtime += delta 
             else: 
                 outfile.write(val)
     except Exception as e:
-        print(f"Error writing to {file_path}: {e}")
+        logging.error(f"Error writing to {file_path}: {e}")
 
 def initval(simtime_val_str): 
     """
@@ -327,12 +352,12 @@ def initval(simtime_val_str):
                 simtime = first_element
                 return val[1:] 
             else:
-                print(f"Error: First element in initval string '{simtime_val_str}' is not a number. Using data part as is or empty.")
+                logging.error(f"Error: First element in initval string '{simtime_val_str}' is not a number. Using data part as is or empty.")
                 return val[1:] if len(val) > 1 else [] 
         else: 
-            print(f"Error: initval string '{simtime_val_str}' is not a list or is empty. Returning empty list.")
+            logging.error(f"Error: initval string '{simtime_val_str}' is not a list or is empty. Returning empty list.")
             return []
 
     except Exception as e:
-        print(f"Error parsing simtime_val_str '{simtime_val_str}': {e}. Returning empty list.")
+        logging.error(f"Error parsing simtime_val_str '{simtime_val_str}': {e}. Returning empty list.")
         return []

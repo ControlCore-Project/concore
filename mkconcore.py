@@ -413,8 +413,8 @@ try:
         fsource = open(CONCOREPATH+"/concoredocker.py")
     else:
         fsource = open(CONCOREPATH+"/concore.py")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/concore.py","w") as fcopy:
     fcopy.write(fsource.read())
@@ -426,8 +426,8 @@ try:
         fsource = open(CONCOREPATH+"/concoredocker.hpp")
     else:
         fsource = open(CONCOREPATH+"/concore.hpp")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/concore.hpp","w") as fcopy:
     fcopy.write(fsource.read())
@@ -439,8 +439,8 @@ try:
         fsource = open(CONCOREPATH+"/concoredocker.v")
     else:
         fsource = open(CONCOREPATH+"/concore.v")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/concore.v","w") as fcopy:
     fcopy.write(fsource.read())
@@ -449,8 +449,8 @@ fsource.close()
 #copy mkcompile into /src  5/27/21
 try:
     fsource = open(CONCOREPATH+"/mkcompile")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/mkcompile","w") as fcopy:
     fcopy.write(fsource.read())
@@ -460,56 +460,56 @@ os.chmod(outdir+"/src/mkcompile",stat.S_IRWXU)
 #copy concore*.m into /src  4/2/21
 try: #maxtime in matlab 11/22/21
     fsource = open(CONCOREPATH+"/concore_default_maxtime.m")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/concore_default_maxtime.m","w") as fcopy:
     fcopy.write(fsource.read())
 fsource.close()
 try:
     fsource = open(CONCOREPATH+"/concore_unchanged.m")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/concore_unchanged.m","w") as fcopy:
     fcopy.write(fsource.read())
 fsource.close()
 try:
     fsource = open(CONCOREPATH+"/concore_read.m")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/concore_read.m","w") as fcopy:
     fcopy.write(fsource.read())
 fsource.close()
 try:
     fsource = open(CONCOREPATH+"/concore_write.m")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/concore_write.m","w") as fcopy:
     fcopy.write(fsource.read())
 fsource.close()
 try: #4/9/21
     fsource = open(CONCOREPATH+"/concore_initval.m")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/concore_initval.m","w") as fcopy:
     fcopy.write(fsource.read())
 fsource.close()
 try: #11/19/21
     fsource = open(CONCOREPATH+"/concore_iport.m")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/concore_iport.m","w") as fcopy:
     fcopy.write(fsource.read())
 fsource.close()
 try: #11/19/21
     fsource = open(CONCOREPATH+"/concore_oport.m")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/concore_oport.m","w") as fcopy:
     fcopy.write(fsource.read())
@@ -519,8 +519,8 @@ try: # 4/4/21
         fsource = open(CONCOREPATH+"/import_concoredocker.m")
     else:
         fsource = open(CONCOREPATH+"/import_concore.m")
-except:
-    logging.error(f"{CONCOREPATH} is not correct path to concore")
+except (FileNotFoundError, IOError) as e:
+    logging.error(f"{CONCOREPATH} is not correct path to concore: {e}")
     quit()
 with open(outdir+"/src/import_concore.m","w") as fcopy:
     fcopy.write(fsource.read())

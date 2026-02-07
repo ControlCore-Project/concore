@@ -21,10 +21,12 @@ retrycount = 0
 inpath = os.path.abspath("/in")
 outpath = os.path.abspath("/out")
 simtime = 0
+concore_params_file = os.path.join(inpath, "1", "concore.params")
+concore_maxtime_file = os.path.join(inpath, "1", "concore.maxtime")
 
 #9/21/22
 try:
-    sparams = open(inpath+"1/concore.params").read()
+    sparams = open(concore_params_file).read()
     if sparams[0] == '"':  #windows keeps "" need to remove
         sparams = sparams[1:]
         sparams = sparams[0:sparams.find('"')]
@@ -46,7 +48,7 @@ def tryparam(n, i):
 #9/12/21
 def default_maxtime(default):
     global maxtime
-    maxtime = safe_literal_eval(os.path.join(inpath, "1", "concore.maxtime"), default)
+    maxtime = safe_literal_eval(concore_maxtime_file, default)
 
 default_maxtime(100)
 
@@ -62,7 +64,7 @@ def read(port, name, initstr):
     global s, simtime, retrycount
     max_retries=5
     time.sleep(delay)
-    file_path = os.path.join(inpath+str(port), name)
+    file_path = os.path.join(inpath, str(port), name)
 
     try:
         with open(file_path, "r") as infile:
@@ -101,7 +103,7 @@ def read(port, name, initstr):
 
 def write(port, name, val, delta=0):
     global simtime
-    file_path = os.path.join(outpath+str(port), name)
+    file_path = os.path.join(outpath, str(port), name)
 
     if isinstance(val, str):
         time.sleep(2 * delay)

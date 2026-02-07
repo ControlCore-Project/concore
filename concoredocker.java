@@ -3,6 +3,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 public class concoredocker {
     private static Map<String, Object> iport = new HashMap<>();
@@ -40,7 +42,8 @@ public class concoredocker {
                 System.out.println("converted sparams: " + sparams);
             }
             try {
-                params = literalEval(sparams);
+                // literalEval returns a proper Map for "{...}"
+                params = (Map<String, Object>) literalEval(sparams); 
             } catch (Exception e) {
                 System.out.println("bad params: " + sparams);
             }
@@ -51,15 +54,17 @@ public class concoredocker {
         defaultMaxTime(100);
     }
 
+    @SuppressWarnings("unchecked")
     private static Map<String, Object> parseFile(String filename) throws IOException {
         String content = new String(Files.readAllBytes(Paths.get(filename)));
-        return literalEval(content);
+        return (Map<String, Object>) literalEval(content); // Casted to Map
     }
 
     private static void defaultMaxTime(int defaultValue) {
         try {
             String content = new String(Files.readAllBytes(Paths.get(inpath + "1/concore.maxtime")));
-            maxtime = literalEval(content).size();
+            // changed assumption from map to list for maxtime, as it usually represents a list of time steps
+            maxtime = ((List<?>) literalEval(content)).size(); 
         } catch (IOException e) {
             maxtime = defaultValue;
         }
@@ -90,10 +95,10 @@ public class concoredocker {
                 retrycount++;
             }
             s += ins;
-            Object[] inval = new Map[] { literalEval(ins) };
+            Object[] inval = ((List<?>) literalEval(ins)).toArray(); // FIXED: Casted to List, converted to Array
             int simtime = Math.max((int) inval[0], 0); // assuming simtime is an integer
             return inval[1];
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException | InterruptedException | ClassCastException e) {
             return initstr;
         }
     }
@@ -132,7 +137,7 @@ public class concoredocker {
         int simtime = 0;
         Object[] val = new Object[] {};
         try {
-            Object[] arrayVal = new Map[] { literalEval(simtimeVal) };
+            Object[] arrayVal = ((List<?>) literalEval(simtimeVal)).toArray(); // FIXED: Casted to List, converted to Array
             simtime = (int) arrayVal[0]; // assuming simtime is an integer
             val = new Object[arrayVal.length - 1];
             System.arraycopy(arrayVal, 1, val, 0, val.length);
@@ -142,8 +147,38 @@ public class concoredocker {
         return val;
     }
 
-    private static Map<String, Object> literalEval(String s) {
+    // custom parser
+    private static Object literalEval(String s) {
+        s = s.trim();
+        if (s.startsWith("{") && s.endsWith("}")) {
+            Map<String, Object> map = new HashMap<>();
+            String content = s.substring(1, s.length() - 1);
+            if (content.isEmpty()) return map;
+            for (String pair : content.split(",")) {
+                String[] kv = pair.split(":");
+                if (kv.length == 2) map.put((String) parseVal(kv[0]), parseVal(kv[1]));
+            }
+            return map;
+        } else if (s.startsWith("[") && s.endsWith("]")) {
+            List<Object> list = new ArrayList<>();
+            String content = s.substring(1, s.length() - 1);
+            if (content.isEmpty()) return list;
+            for (String val : content.split(",")) {
+                list.add(parseVal(val));
+            }
+            return list;
+        }
+        return parseVal(s);
+    }
 
-        return new HashMap<>();
+    // helper: Converts Python types to Java primitives
+    private static Object parseVal(String s) {
+        s = s.trim().replace("'", "").replace("\"", "");
+        if (s.equalsIgnoreCase("True")) return true;
+        if (s.equalsIgnoreCase("False")) return false;
+        if (s.equalsIgnoreCase("None")) return null;
+        try { return Integer.parseInt(s); } catch (NumberFormatException e1) {
+            try { return Double.parseDouble(s); } catch (NumberFormatException e2) { return s; }
+        }
     }
 }

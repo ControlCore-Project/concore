@@ -1,1 +1,5 @@
 pytest>=7.0.0
+add-concoredocker-tests
+
+pytest-cov>=4.0.0
+ dev
