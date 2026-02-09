@@ -17,13 +17,16 @@ public class concoredocker {
     private static Map<String, Object> oport = new HashMap<>();
     private static String s = "";
     private static String olds = "";
-    private static int delay = 1;
+    // delay in milliseconds (Python uses time.sleep(1) = 1 second)
+    private static int delay = 1000;
     private static int retrycount = 0;
+    private static int maxRetries = 5;
     private static String inpath = "/in";
     private static String outpath = "/out";
     private static Map<String, Object> params = new HashMap<>();
     private static int maxtime;
-    private static int simtime = 0;
+    // simtime as double to preserve fractional values (matches Python behavior)
+    private static double simtime = 0;
 
     public static void main(String[] args) {
         try {
@@ -67,14 +70,25 @@ public class concoredocker {
 
     /**
      * Parses a file containing a Python-style dictionary literal.
+     * Returns empty map if file is empty or malformed (matches Python safe_literal_eval behavior).
      */
     private static Map<String, Object> parseFileAsMap(String filename) throws IOException {
         String content = new String(Files.readAllBytes(Paths.get(filename)));
-        Object result = literalEval(content);
-        if (result instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> map = (Map<String, Object>) result;
-            return map;
+        content = content.trim();
+        if (content.isEmpty()) {
+            // Empty file: treat as empty map
+            return new HashMap<>();
+        }
+        try {
+            Object result = literalEval(content);
+            if (result instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) result;
+                return map;
+            }
+        } catch (IllegalArgumentException e) {
+            // Malformed content: log and fall back to empty map
+            System.err.println("Failed to parse file as map: " + filename + " (" + e.getMessage() + ")");
         }
         return new HashMap<>();
     }
@@ -82,6 +96,8 @@ public class concoredocker {
     /**
      * Sets maxtime from concore.maxtime file, or uses defaultValue if file not found.
      * The file contains a simple integer value.
+     * Catches both IOException (file not found) and RuntimeException (parse errors)
+     * to match Python safe_literal_eval behavior.
      */
     private static void defaultMaxTime(int defaultValue) {
         try {
@@ -92,7 +108,7 @@ public class concoredocker {
             } else {
                 maxtime = defaultValue;
             }
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             maxtime = defaultValue;
         }
     }
@@ -123,71 +139,168 @@ public class concoredocker {
      * Reads data from a port file. Returns the values after extracting simtime.
      * Input format: [simtime, val1, val2, ...]
      * Returns: [val1, val2, ...] as List
+     * Includes max retry limit to avoid infinite blocking (matches Python behavior).
      */
     private static Object read(int port, String name, String initstr) {
+        String filePath = inpath + port + "/" + name;
         try {
-            String ins = new String(Files.readAllBytes(Paths.get(inpath + port + "/" + name)));
-            while (ins.length() == 0) {
+            Thread.sleep(delay);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return initstr;
+        }
+        
+        String ins;
+        try {
+            ins = new String(Files.readAllBytes(Paths.get(filePath)));
+        } catch (IOException e) {
+            System.out.println("File " + filePath + " not found, using default value.");
+            return initstr;
+        }
+        
+        int attempts = 0;
+        while (ins.length() == 0 && attempts < maxRetries) {
+            try {
                 Thread.sleep(delay);
-                ins = new String(Files.readAllBytes(Paths.get(inpath + port + "/" + name)));
-                retrycount++;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return initstr;
             }
-            s += ins;
+            try {
+                ins = new String(Files.readAllBytes(Paths.get(filePath)));
+            } catch (IOException e) {
+                System.out.println("Retry " + (attempts + 1) + ": Error reading " + filePath);
+            }
+            attempts++;
+            retrycount++;
+        }
+        
+        if (ins.length() == 0) {
+            System.out.println("Max retries reached for " + filePath + ", using default value.");
+            return initstr;
+        }
+        
+        s += ins;
+        try {
             Object parsed = literalEval(ins);
             if (parsed instanceof List) {
                 @SuppressWarnings("unchecked")
                 List<Object> inval = (List<Object>) parsed;
                 if (!inval.isEmpty()) {
-                    // First element is simtime
+                    // First element is simtime (preserve as double for fractional values)
                     Object first = inval.get(0);
                     if (first instanceof Number) {
-                        simtime = Math.max(simtime, ((Number) first).intValue());
+                        double firstSimtime = ((Number) first).doubleValue();
+                        simtime = Math.max(simtime, firstSimtime);
                     }
                     // Return remaining elements (values after simtime)
                     return inval.subList(1, inval.size());
                 }
             }
-            return initstr;
-        } catch (IOException | InterruptedException e) {
-            return initstr;
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error parsing " + ins + ": " + e.getMessage());
         }
+        return initstr;
     }
 
     /**
      * Writes data to a port file.
      * Output format: [simtime + delta, val1, val2, ...]
+     * Uses Python-literal-compatible serialization for proper interoperability.
      */
     private static void write(int port, String name, Object val, int delta) {
-        try {
-            String path = outpath + port + "/" + name;
-            StringBuilder content = new StringBuilder();
-            if (val instanceof String) {
+        String path = outpath + port + "/" + name;
+        StringBuilder content = new StringBuilder();
+        
+        if (val instanceof String) {
+            try {
                 Thread.sleep(2 * delay);
-                content.append(val);
-            } else if (val instanceof List) {
-                @SuppressWarnings("unchecked")
-                List<Object> listVal = (List<Object>) val;
-                content.append("[").append(simtime + delta);
-                for (Object item : listVal) {
-                    content.append(",").append(item);
-                }
-                content.append("]");
-                simtime += delta;
-            } else if (val instanceof Object[]) {
-                Object[] arrayVal = (Object[]) val;
-                content.append("[").append(simtime + delta);
-                for (Object item : arrayVal) {
-                    content.append(",").append(item);
-                }
-                content.append("]");
-                simtime += delta;
-            } else {
-                System.out.println("write must have list or str");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 return;
             }
+            content.append(val);
+        } else if (val instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<Object> listVal = (List<Object>) val;
+            content.append("[").append(simtime + delta);
+            for (Object item : listVal) {
+                content.append(",").append(toPythonLiteral(item));
+            }
+            content.append("]");
+            simtime += delta;
+        } else if (val instanceof Object[]) {
+            Object[] arrayVal = (Object[]) val;
+            content.append("[").append(simtime + delta);
+            for (Object item : arrayVal) {
+                content.append(",").append(toPythonLiteral(item));
+            }
+            content.append("]");
+            simtime += delta;
+        } else {
+            System.out.println("write must have list or str");
+            return;
+        }
+        
+        try {
             Files.write(Paths.get(path), content.toString().getBytes());
-        } catch (IOException | InterruptedException e) {
-            System.out.println("skipping " + outpath + port + "/" + name);
+        } catch (IOException e) {
+            System.out.println("Error writing to " + path + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Converts a Java object to its Python-literal-compatible string representation.
+     * This ensures proper interoperability when the receiving side parses the output.
+     */
+    private static String toPythonLiteral(Object obj) {
+        if (obj == null) {
+            return "None";
+        } else if (obj instanceof Boolean) {
+            return ((Boolean) obj) ? "True" : "False";
+        } else if (obj instanceof String) {
+            // Quote strings and escape special characters
+            String s = (String) obj;
+            StringBuilder sb = new StringBuilder("'");
+            for (char c : s.toCharArray()) {
+                switch (c) {
+                    case '\'': sb.append("\\'"); break;
+                    case '\\': sb.append("\\\\"); break;
+                    case '\n': sb.append("\\n"); break;
+                    case '\r': sb.append("\\r"); break;
+                    case '\t': sb.append("\\t"); break;
+                    default: sb.append(c); break;
+                }
+            }
+            sb.append("'");
+            return sb.toString();
+        } else if (obj instanceof Number) {
+            return obj.toString();
+        } else if (obj instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<Object> list = (List<Object>) obj;
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < list.size(); i++) {
+                if (i > 0) sb.append(", ");
+                sb.append(toPythonLiteral(list.get(i)));
+            }
+            sb.append("]");
+            return sb.toString();
+        } else if (obj instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) obj;
+            StringBuilder sb = new StringBuilder("{");
+            boolean first = true;
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                if (!first) sb.append(", ");
+                first = false;
+                sb.append(toPythonLiteral(entry.getKey())).append(": ").append(toPythonLiteral(entry.getValue()));
+            }
+            sb.append("}");
+            return sb.toString();
+        } else {
+            // Fallback: use toString()
+            return obj.toString();
         }
     }
 
@@ -205,13 +318,14 @@ public class concoredocker {
                 if (!val.isEmpty()) {
                     Object first = val.get(0);
                     if (first instanceof Number) {
-                        simtime = ((Number) first).intValue();
+                        // Preserve fractional simtime values
+                        simtime = ((Number) first).doubleValue();
                     }
                     return val.subList(1, val.size());
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Error parsing simtime_val: " + e.getMessage());
         }
         return new ArrayList<>();
     }
@@ -438,12 +552,20 @@ public class concoredocker {
             }
             String numStr = input.substring(start, pos);
             if (isFloat) {
-                return Double.parseDouble(numStr);
+                try {
+                    return Double.parseDouble(numStr);
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid numeric value: " + numStr, e);
+                }
             } else {
                 try {
                     return Integer.parseInt(numStr);
                 } catch (NumberFormatException e) {
-                    return Long.parseLong(numStr);
+                    try {
+                        return Long.parseLong(numStr);
+                    } catch (NumberFormatException e2) {
+                        throw new IllegalArgumentException("Invalid numeric value: " + numStr, e2);
+                    }
                 }
             }
         }

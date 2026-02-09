@@ -1,6 +1,7 @@
 import java.util.List;
 import java.util.Map;
 import java.lang.reflect.Method;
+import java.lang.reflect.Field;
 
 /**
  * Test cases for the literalEval implementation in concoredocker.
@@ -16,6 +17,10 @@ public class TestLiteralEval {
         // Get the private literalEval method via reflection
         Method literalEval = concoredocker.class.getDeclaredMethod("literalEval", String.class);
         literalEval.setAccessible(true);
+
+        // Get toPythonLiteral method for serialization tests
+        Method toPythonLiteral = concoredocker.class.getDeclaredMethod("toPythonLiteral", Object.class);
+        toPythonLiteral.setAccessible(true);
 
         // Test 1: Simple dictionary (port file format)
         testDict(literalEval, "{'PYM': 1}", "PYM", 1);
@@ -61,6 +66,21 @@ public class TestLiteralEval {
         
         // Test 15: Scientific notation
         testNumber(literalEval, "1.5e-3", 0.0015);
+
+        // Test 16: Python literal serialization - Boolean
+        testSerialization(toPythonLiteral, Boolean.TRUE, "True");
+        
+        // Test 17: Python literal serialization - Boolean False
+        testSerialization(toPythonLiteral, Boolean.FALSE, "False");
+        
+        // Test 18: Python literal serialization - null
+        testSerialization(toPythonLiteral, null, "None");
+        
+        // Test 19: Python literal serialization - String with quotes
+        testSerialization(toPythonLiteral, "hello", "'hello'");
+        
+        // Test 20: Fractional simtime preserved (double)
+        testFractionalSimtime(literalEval);
 
         System.out.println("\n========================================");
         System.out.println("Results: " + passed + " passed, " + failed + " failed");
@@ -203,6 +223,39 @@ public class TestLiteralEval {
             fail("Nested dict/list parse: " + input, "Got: " + result);
         } catch (Exception e) {
             fail("Nested dict/list parse: " + input, e.getMessage());
+        }
+    }
+
+    private static void testSerialization(Method toPythonLiteral, Object input, String expected) {
+        try {
+            Object result = toPythonLiteral.invoke(null, input);
+            if (expected.equals(result)) {
+                pass("Serialization: " + input + " -> " + result);
+            } else {
+                fail("Serialization: " + input, "Expected '" + expected + "', got '" + result + "'");
+            }
+        } catch (Exception e) {
+            fail("Serialization: " + input, e.getMessage());
+        }
+    }
+
+    private static void testFractionalSimtime(Method literalEval) {
+        try {
+            // Test that parsing a list with fractional simtime works
+            Object result = literalEval.invoke(null, "[0.5, 1.2, 3.4]");
+            if (result instanceof List) {
+                List<?> list = (List<?>) result;
+                if (list.size() == 3) {
+                    Object first = list.get(0);
+                    if (first instanceof Number && ((Number) first).doubleValue() == 0.5) {
+                        pass("Fractional simtime: [0.5, 1.2, 3.4] preserves 0.5");
+                        return;
+                    }
+                }
+            }
+            fail("Fractional simtime", "Could not verify fractional value preservation");
+        } catch (Exception e) {
+            fail("Fractional simtime", e.getMessage());
         }
     }
 
