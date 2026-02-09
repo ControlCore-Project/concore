@@ -6,3 +6,4 @@ scipy
 matplotlib
 cvxopt
 PyGithub
+pyzmq
