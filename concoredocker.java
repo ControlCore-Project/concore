@@ -132,13 +132,25 @@ public class concoredocker {
      * Returns: list of values after simtime
      * Includes max retry limit to avoid infinite blocking (matches Python behavior).
      */
-    private static Object read(int port, String name, String initstr) {
+    private static List<Object> read(int port, String name, String initstr) {
+        // Parse default value upfront for consistent return type
+        List<Object> defaultVal = new ArrayList<>();
+        try {
+            List<?> parsed = (List<?>) literalEval(initstr);
+            if (parsed.size() > 1) {
+                defaultVal = new ArrayList<>(parsed.subList(1, parsed.size()));
+            }
+        } catch (Exception e) {
+            // initstr not parseable as list; defaultVal stays empty
+        }
+
         String filePath = inpath + port + "/" + name;
         try {
             Thread.sleep(delay);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return initstr;
+            s += initstr;
+            return defaultVal;
         }
 
         String ins;
@@ -146,7 +158,8 @@ public class concoredocker {
             ins = new String(Files.readAllBytes(Paths.get(filePath)));
         } catch (IOException e) {
             System.out.println("File " + filePath + " not found, using default value.");
-            return initstr;
+            s += initstr;
+            return defaultVal;
         }
 
         int attempts = 0;
@@ -155,7 +168,8 @@ public class concoredocker {
                 Thread.sleep(delay);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return initstr;
+                s += initstr;
+                return defaultVal;
             }
             try {
                 ins = new String(Files.readAllBytes(Paths.get(filePath)));
@@ -168,23 +182,43 @@ public class concoredocker {
 
         if (ins.length() == 0) {
             System.out.println("Max retries reached for " + filePath + ", using default value.");
-            return initstr;
+            s += initstr;
+            return defaultVal;
         }
 
         s += ins;
         try {
             List<?> inval = (List<?>) literalEval(ins);
             if (!inval.isEmpty()) {
-                // First element is simtime (preserve as double for fractional values)
                 double firstSimtime = ((Number) inval.get(0)).doubleValue();
                 simtime = Math.max(simtime, firstSimtime);
-                // Return remaining elements (values after simtime)
-                return inval.subList(1, inval.size());
+                return new ArrayList<>(inval.subList(1, inval.size()));
             }
         } catch (Exception e) {
             System.out.println("Error parsing " + ins + ": " + e.getMessage());
         }
-        return initstr;
+        s += initstr;
+        return defaultVal;
+    }
+
+    /**
+     * Escapes a Java string so it can be safely used as a single-quoted Python string literal.
+     * At minimum, escapes backslash, single quote, newline, carriage return, and tab.
+     */
+    private static String escapePythonString(String s) {
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '\\': sb.append("\\\\"); break;
+                case '\'': sb.append("\\'"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                default: sb.append(c); break;
+            }
+        }
+        return sb.toString();
     }
 
     /**
@@ -194,7 +228,7 @@ public class concoredocker {
     private static String toPythonLiteral(Object obj) {
         if (obj == null) return "None";
         if (obj instanceof Boolean) return ((Boolean) obj) ? "True" : "False";
-        if (obj instanceof String) return "'" + obj + "'";
+        if (obj instanceof String) return "'" + escapePythonString((String) obj) + "'";
         if (obj instanceof Number) return obj.toString();
         if (obj instanceof List) {
             List<?> list = (List<?>) obj;
@@ -259,8 +293,10 @@ public class concoredocker {
                 return;
             }
             Files.write(Paths.get(path), content.toString().getBytes());
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            System.out.println("skipping " + outpath + port + "/" + name);
+        } catch (IOException e) {
             System.out.println("skipping " + outpath + port + "/" + name);
         }
     }
@@ -370,7 +406,9 @@ public class concoredocker {
                 Object value = parseExpression();
                 map.put(key.toString(), value);
                 skipWhitespace();
-                if (pos >= input.length()) break;
+                if (pos >= input.length()) {
+                    throw new IllegalArgumentException("Unterminated dict: missing '}'");
+                }
                 if (input.charAt(pos) == '}') {
                     pos++;
                     break;
@@ -402,7 +440,9 @@ public class concoredocker {
                 skipWhitespace();
                 list.add(parseExpression());
                 skipWhitespace();
-                if (pos >= input.length()) break;
+                if (pos >= input.length()) {
+                    throw new IllegalArgumentException("Unterminated list: missing ']'");
+                }
                 if (input.charAt(pos) == ']') {
                     pos++;
                     break;
@@ -434,7 +474,9 @@ public class concoredocker {
                 skipWhitespace();
                 list.add(parseExpression());
                 skipWhitespace();
-                if (pos >= input.length()) break;
+                if (pos >= input.length()) {
+                    throw new IllegalArgumentException("Unterminated tuple: missing ')'");
+                }
                 if (input.charAt(pos) == ')') {
                     pos++;
                     break;

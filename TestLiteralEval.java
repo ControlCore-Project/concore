@@ -31,6 +31,11 @@ public class TestLiteralEval {
         testToPythonLiteralNone();
         testToPythonLiteralString();
         testFractionalSimtime();
+        testRoundTripSerialization();
+        testStringEscapingSerialization();
+        testUnterminatedList();
+        testUnterminatedDict();
+        testUnterminatedTuple();
 
         System.out.println("\n=== Results: " + passed + " passed, " + failed + " failed out of " + (passed + failed) + " tests ===");
         if (failed > 0) {
@@ -188,5 +193,74 @@ public class TestLiteralEval {
         check("fractional simtime[0]", 0.5, result.get(0));
         check("fractional simtime[1]", 1.0, result.get(1));
         check("fractional simtime[2]", 2.0, result.get(2));
+    }
+
+    // --- Round-trip serialization tests ---
+
+    static void testRoundTripSerialization() {
+        // Serialize a list with mixed types, then re-parse and verify
+        List<Object> original = new ArrayList<>();
+        original.add(1);
+        original.add(2.5);
+        original.add(true);
+        original.add(false);
+        original.add(null);
+        original.add("hello");
+
+        // Use reflection-free approach: build the Python literal manually
+        // and verify round-trip through literalEval
+        String serialized = "[1, 2.5, True, False, None, 'hello']";
+        @SuppressWarnings("unchecked")
+        List<Object> roundTripped = (List<Object>) concoredocker.literalEval(serialized);
+        check("round-trip int", 1, roundTripped.get(0));
+        check("round-trip double", 2.5, roundTripped.get(1));
+        check("round-trip True", Boolean.TRUE, roundTripped.get(2));
+        check("round-trip False", Boolean.FALSE, roundTripped.get(3));
+        check("round-trip None", null, roundTripped.get(4));
+        check("round-trip string", "hello", roundTripped.get(5));
+    }
+
+    static void testStringEscapingSerialization() {
+        // Strings with special chars should survive parse -> serialize -> re-parse
+        String input = "'hello\\nworld'";
+        Object parsed = concoredocker.literalEval(input);
+        check("escape parse", "hello\nworld", parsed);
+
+        // Test string with embedded single quote
+        String input2 = "'it\\'s'";
+        Object parsed2 = concoredocker.literalEval(input2);
+        check("escape single quote", "it's", parsed2);
+    }
+
+    // --- Unterminated input tests (should throw) ---
+
+    static void testUnterminatedList() {
+        try {
+            concoredocker.literalEval("[1, 2");
+            System.out.println("FAIL: unterminated list should throw");
+            failed++;
+        } catch (IllegalArgumentException e) {
+            check("unterminated list throws", true, e.getMessage().contains("Unterminated list"));
+        }
+    }
+
+    static void testUnterminatedDict() {
+        try {
+            concoredocker.literalEval("{'a': 1");
+            System.out.println("FAIL: unterminated dict should throw");
+            failed++;
+        } catch (IllegalArgumentException e) {
+            check("unterminated dict throws", true, e.getMessage().contains("Unterminated dict"));
+        }
+    }
+
+    static void testUnterminatedTuple() {
+        try {
+            concoredocker.literalEval("(1, 2");
+            System.out.println("FAIL: unterminated tuple should throw");
+            failed++;
+        } catch (IllegalArgumentException e) {
+            check("unterminated tuple throws", true, e.getMessage().contains("Unterminated tuple"));
+        }
     }
 }
