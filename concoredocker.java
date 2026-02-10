@@ -6,17 +6,26 @@ import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Java implementation of concore Docker communication.
+ *
+ * This class provides file-based inter-process communication for control systems,
+ * mirroring the functionality of concoredocker.py.
+ */
 public class concoredocker {
     private static Map<String, Object> iport = new HashMap<>();
     private static Map<String, Object> oport = new HashMap<>();
     private static String s = "";
     private static String olds = "";
-    private static int delay = 1;
+    // delay in milliseconds (Python uses time.sleep(1) = 1 second)
+    private static int delay = 1000;
     private static int retrycount = 0;
+    private static int maxRetries = 5;
     private static String inpath = "/in";
     private static String outpath = "/out";
     private static Map<String, Object> params = new HashMap<>();
-    private static int simtime = 0;
+    // simtime as double to preserve fractional values (e.g. "[0.0, ...]")
+    private static double simtime = 0;
     private static int maxtime;
 
     public static void main(String[] args) {
@@ -33,7 +42,7 @@ public class concoredocker {
 
         try {
             String sparams = new String(Files.readAllBytes(Paths.get(inpath + "1/concore.params")));
-            if (sparams.charAt(0) == '"') { // windows keeps "" need to remove
+            if (sparams.length() > 0 && sparams.charAt(0) == '"') { // windows keeps "" need to remove
                 sparams = sparams.substring(1);
                 sparams = sparams.substring(0, sparams.indexOf('"'));
             }
@@ -43,8 +52,12 @@ public class concoredocker {
                 System.out.println("converted sparams: " + sparams);
             }
             try {
-                // literalEval returns a proper Map for "{...}"
-                params = (Map<String, Object>) literalEval(sparams); 
+                Object parsed = literalEval(sparams);
+                if (parsed instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> parsedMap = (Map<String, Object>) parsed;
+                    params = parsedMap;
+                }
             } catch (Exception e) {
                 System.out.println("bad params: " + sparams);
             }
@@ -55,17 +68,43 @@ public class concoredocker {
         defaultMaxTime(100);
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Parses a file containing a Python-style dictionary literal.
+     * Returns empty map if file is empty or malformed (matches Python safe_literal_eval).
+     */
     private static Map<String, Object> parseFile(String filename) throws IOException {
         String content = new String(Files.readAllBytes(Paths.get(filename)));
-        return (Map<String, Object>) literalEval(content); // Casted to Map
+        content = content.trim();
+        if (content.isEmpty()) {
+            return new HashMap<>();
+        }
+        try {
+            Object result = literalEval(content);
+            if (result instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) result;
+                return map;
+            }
+        } catch (IllegalArgumentException e) {
+            System.err.println("Failed to parse file as map: " + filename + " (" + e.getMessage() + ")");
+        }
+        return new HashMap<>();
     }
 
+    /**
+     * Sets maxtime from concore.maxtime file, or uses defaultValue if file not found.
+     * Catches both IOException and RuntimeException to match Python safe_literal_eval.
+     */
     private static void defaultMaxTime(int defaultValue) {
         try {
             String content = new String(Files.readAllBytes(Paths.get(inpath + "1/concore.maxtime")));
-            maxtime = ((Number) literalEval(content)).intValue();
-        } catch (IOException | ClassCastException | NumberFormatException e) {
+            Object parsed = literalEval(content.trim());
+            if (parsed instanceof Number) {
+                maxtime = ((Number) parsed).intValue();
+            } else {
+                maxtime = defaultValue;
+            }
+        } catch (IOException | RuntimeException e) {
             maxtime = defaultValue;
         }
     }
@@ -87,105 +126,415 @@ public class concoredocker {
         }
     }
 
+    /**
+     * Reads data from a port file. Returns the values after extracting simtime.
+     * Input format: [simtime, val1, val2, ...]
+     * Returns: list of values after simtime
+     * Includes max retry limit to avoid infinite blocking (matches Python behavior).
+     */
     private static Object read(int port, String name, String initstr) {
+        String filePath = inpath + port + "/" + name;
         try {
-            String ins = new String(Files.readAllBytes(Paths.get(inpath + port + "/" + name)));
-            while (ins.length() == 0) {
-                Thread.sleep(delay);
-                ins = new String(Files.readAllBytes(Paths.get(inpath + port + "/" + name)));
-                retrycount++;
-            }
-            s += ins;
-            List<?> inval = (List<?>) literalEval(ins);
-            simtime = Math.max(simtime, ((Number) inval.get(0)).intValue());
-            Object[] val = new Object[inval.size() - 1];
-            for (int i = 1; i < inval.size(); i++) {
-                val[i - 1] = inval.get(i);
-            }
-            return val;
-        } catch (IOException | InterruptedException | ClassCastException e) {
+            Thread.sleep(delay);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             return initstr;
         }
+
+        String ins;
+        try {
+            ins = new String(Files.readAllBytes(Paths.get(filePath)));
+        } catch (IOException e) {
+            System.out.println("File " + filePath + " not found, using default value.");
+            return initstr;
+        }
+
+        int attempts = 0;
+        while (ins.length() == 0 && attempts < maxRetries) {
+            try {
+                Thread.sleep(delay);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return initstr;
+            }
+            try {
+                ins = new String(Files.readAllBytes(Paths.get(filePath)));
+            } catch (IOException e) {
+                System.out.println("Retry " + (attempts + 1) + ": Error reading " + filePath);
+            }
+            attempts++;
+            retrycount++;
+        }
+
+        if (ins.length() == 0) {
+            System.out.println("Max retries reached for " + filePath + ", using default value.");
+            return initstr;
+        }
+
+        s += ins;
+        try {
+            List<?> inval = (List<?>) literalEval(ins);
+            if (!inval.isEmpty()) {
+                // First element is simtime (preserve as double for fractional values)
+                double firstSimtime = ((Number) inval.get(0)).doubleValue();
+                simtime = Math.max(simtime, firstSimtime);
+                // Return remaining elements (values after simtime)
+                return inval.subList(1, inval.size());
+            }
+        } catch (Exception e) {
+            System.out.println("Error parsing " + ins + ": " + e.getMessage());
+        }
+        return initstr;
     }
 
+    /**
+     * Converts a Java object to its Python-literal string representation.
+     * True/False/None instead of true/false/null; strings single-quoted.
+     */
+    private static String toPythonLiteral(Object obj) {
+        if (obj == null) return "None";
+        if (obj instanceof Boolean) return ((Boolean) obj) ? "True" : "False";
+        if (obj instanceof String) return "'" + obj + "'";
+        if (obj instanceof Number) return obj.toString();
+        if (obj instanceof List) {
+            List<?> list = (List<?>) obj;
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < list.size(); i++) {
+                if (i > 0) sb.append(", ");
+                sb.append(toPythonLiteral(list.get(i)));
+            }
+            sb.append("]");
+            return sb.toString();
+        }
+        if (obj instanceof Map) {
+            Map<?, ?> map = (Map<?, ?>) obj;
+            StringBuilder sb = new StringBuilder("{");
+            boolean first = true;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (!first) sb.append(", ");
+                sb.append(toPythonLiteral(entry.getKey())).append(": ").append(toPythonLiteral(entry.getValue()));
+                first = false;
+            }
+            sb.append("}");
+            return sb.toString();
+        }
+        return obj.toString();
+    }
+
+    /**
+     * Writes data to a port file.
+     * Prepends simtime+delta to the value list, then serializes to Python-literal format.
+     * Accepts List or String values (matching Python implementation).
+     */
     private static void write(int port, String name, Object val, int delta) {
         try {
             String path = outpath + port + "/" + name;
             StringBuilder content = new StringBuilder();
             if (val instanceof String) {
                 Thread.sleep(2 * delay);
-            } else if (!(val instanceof Object[])) {
-                System.out.println("write must have list or str");
-                return;
-            }
-            if (val instanceof Object[]) {
+                content.append(val);
+            } else if (val instanceof List) {
+                List<?> listVal = (List<?>) val;
+                content.append("[");
+                content.append(toPythonLiteral(simtime + delta));
+                for (int i = 0; i < listVal.size(); i++) {
+                    content.append(", ");
+                    content.append(toPythonLiteral(listVal.get(i)));
+                }
+                content.append("]");
+                simtime += delta;
+            } else if (val instanceof Object[]) {
+                // Legacy support for Object[] arguments
                 Object[] arrayVal = (Object[]) val;
-                content.append("[")
-                        .append(simtime + delta)
-                        .append(",")
-                        .append(arrayVal[0]);
-                for (int i = 1; i < arrayVal.length; i++) {
-                    content.append(",")
-                            .append(arrayVal[i]);
+                content.append("[");
+                content.append(toPythonLiteral(simtime + delta));
+                for (Object o : arrayVal) {
+                    content.append(", ");
+                    content.append(toPythonLiteral(o));
                 }
                 content.append("]");
                 simtime += delta;
             } else {
-                content.append(val);
+                System.out.println("write must have list or str");
+                return;
             }
             Files.write(Paths.get(path), content.toString().getBytes());
         } catch (IOException | InterruptedException e) {
-            System.out.println("skipping" + outpath + port + "/" + name);
+            Thread.currentThread().interrupt();
+            System.out.println("skipping " + outpath + port + "/" + name);
         }
     }
 
-    private static Object[] initVal(String simtimeVal) {
-        Object[] val = new Object[] {};
+    /**
+     * Parses an initial value string like "[0.0, 1.0, 2.0]".
+     * Extracts simtime from position 0 and returns the remaining values as a List.
+     */
+    private static List<Object> initVal(String simtimeVal) {
+        List<Object> val = new ArrayList<>();
         try {
             List<?> inval = (List<?>) literalEval(simtimeVal);
-            simtime = ((Number) inval.get(0)).intValue();
-            val = new Object[inval.size() - 1];
-            for (int i = 1; i < inval.size(); i++) {
-                val[i - 1] = inval.get(i);
+            if (!inval.isEmpty()) {
+                simtime = ((Number) inval.get(0)).doubleValue();
+                val = new ArrayList<>(inval.subList(1, inval.size()));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Error parsing initVal: " + e.getMessage());
         }
         return val;
     }
 
-    // custom parser
-    private static Object literalEval(String s) {
+    /**
+     * Parses a Python-literal string into Java objects using a recursive descent parser.
+     * Supports: dict, list, int, float, string (single/double quoted), bool, None, nested structures.
+     * This replaces the broken split-based parser that could not handle quoted commas or nesting.
+     */
+    static Object literalEval(String s) {
+        if (s == null) throw new IllegalArgumentException("Input cannot be null");
         s = s.trim();
-        if (s.startsWith("{") && s.endsWith("}")) {
+        if (s.isEmpty()) throw new IllegalArgumentException("Input cannot be empty");
+        Parser parser = new Parser(s);
+        Object result = parser.parseExpression();
+        parser.skipWhitespace();
+        if (parser.pos < parser.input.length()) {
+            throw new IllegalArgumentException("Unexpected trailing content at position " + parser.pos);
+        }
+        return result;
+    }
+
+    /**
+     * Recursive descent parser for Python literal expressions.
+     * Handles: dicts, lists, tuples, strings, numbers, booleans, None.
+     */
+    private static class Parser {
+        final String input;
+        int pos;
+
+        Parser(String input) {
+            this.input = input;
+            this.pos = 0;
+        }
+
+        void skipWhitespace() {
+            while (pos < input.length() && Character.isWhitespace(input.charAt(pos))) {
+                pos++;
+            }
+        }
+
+        char peek() {
+            skipWhitespace();
+            if (pos >= input.length()) throw new IllegalArgumentException("Unexpected end of input");
+            return input.charAt(pos);
+        }
+
+        char advance() {
+            char c = input.charAt(pos);
+            pos++;
+            return c;
+        }
+
+        boolean hasMore() {
+            skipWhitespace();
+            return pos < input.length();
+        }
+
+        Object parseExpression() {
+            skipWhitespace();
+            if (pos >= input.length()) throw new IllegalArgumentException("Unexpected end of input");
+            char c = input.charAt(pos);
+
+            if (c == '{') return parseDict();
+            if (c == '[') return parseList();
+            if (c == '(') return parseTuple();
+            if (c == '\'' || c == '"') return parseString();
+            if (c == '-' || c == '+' || Character.isDigit(c)) return parseNumber();
+            return parseKeyword();
+        }
+
+        Map<String, Object> parseDict() {
             Map<String, Object> map = new HashMap<>();
-            String content = s.substring(1, s.length() - 1);
-            if (content.isEmpty()) return map;
-            for (String pair : content.split(",")) {
-                String[] kv = pair.split(":");
-                if (kv.length == 2) map.put((String) parseVal(kv[0]), parseVal(kv[1]));
+            pos++; // skip '{'
+            skipWhitespace();
+            if (hasMore() && input.charAt(pos) == '}') {
+                pos++;
+                return map;
+            }
+            while (true) {
+                skipWhitespace();
+                Object key = parseExpression();
+                skipWhitespace();
+                if (pos >= input.length() || input.charAt(pos) != ':') {
+                    throw new IllegalArgumentException("Expected ':' in dict at position " + pos);
+                }
+                pos++; // skip ':'
+                skipWhitespace();
+                Object value = parseExpression();
+                map.put(key.toString(), value);
+                skipWhitespace();
+                if (pos >= input.length()) break;
+                if (input.charAt(pos) == '}') {
+                    pos++;
+                    break;
+                }
+                if (input.charAt(pos) == ',') {
+                    pos++;
+                    skipWhitespace();
+                    // trailing comma before close
+                    if (hasMore() && input.charAt(pos) == '}') {
+                        pos++;
+                        break;
+                    }
+                } else {
+                    throw new IllegalArgumentException("Expected ',' or '}' in dict at position " + pos);
+                }
             }
             return map;
-        } else if (s.startsWith("[") && s.endsWith("]")) {
+        }
+
+        List<Object> parseList() {
             List<Object> list = new ArrayList<>();
-            String content = s.substring(1, s.length() - 1);
-            if (content.isEmpty()) return list;
-            for (String val : content.split(",")) {
-                list.add(parseVal(val));
+            pos++; // skip '['
+            skipWhitespace();
+            if (hasMore() && input.charAt(pos) == ']') {
+                pos++;
+                return list;
+            }
+            while (true) {
+                skipWhitespace();
+                list.add(parseExpression());
+                skipWhitespace();
+                if (pos >= input.length()) break;
+                if (input.charAt(pos) == ']') {
+                    pos++;
+                    break;
+                }
+                if (input.charAt(pos) == ',') {
+                    pos++;
+                    skipWhitespace();
+                    // trailing comma before close
+                    if (hasMore() && input.charAt(pos) == ']') {
+                        pos++;
+                        break;
+                    }
+                } else {
+                    throw new IllegalArgumentException("Expected ',' or ']' in list at position " + pos);
+                }
             }
             return list;
         }
-        return parseVal(s);
-    }
 
-    // helper: Converts Python types to Java primitives
-    private static Object parseVal(String s) {
-        s = s.trim().replace("'", "").replace("\"", "");
-        if (s.equalsIgnoreCase("True")) return true;
-        if (s.equalsIgnoreCase("False")) return false;
-        if (s.equalsIgnoreCase("None")) return null;
-        try { return Integer.parseInt(s); } catch (NumberFormatException e1) {
-            try { return Double.parseDouble(s); } catch (NumberFormatException e2) { return s; }
+        List<Object> parseTuple() {
+            List<Object> list = new ArrayList<>();
+            pos++; // skip '('
+            skipWhitespace();
+            if (hasMore() && input.charAt(pos) == ')') {
+                pos++;
+                return list;
+            }
+            while (true) {
+                skipWhitespace();
+                list.add(parseExpression());
+                skipWhitespace();
+                if (pos >= input.length()) break;
+                if (input.charAt(pos) == ')') {
+                    pos++;
+                    break;
+                }
+                if (input.charAt(pos) == ',') {
+                    pos++;
+                    skipWhitespace();
+                    // trailing comma before close
+                    if (hasMore() && input.charAt(pos) == ')') {
+                        pos++;
+                        break;
+                    }
+                } else {
+                    throw new IllegalArgumentException("Expected ',' or ')' in tuple at position " + pos);
+                }
+            }
+            return list;
+        }
+
+        String parseString() {
+            char quote = advance(); // opening quote
+            StringBuilder sb = new StringBuilder();
+            while (pos < input.length()) {
+                char c = input.charAt(pos);
+                if (c == '\\' && pos + 1 < input.length()) {
+                    pos++;
+                    char escaped = input.charAt(pos);
+                    switch (escaped) {
+                        case 'n': sb.append('\n'); break;
+                        case 't': sb.append('\t'); break;
+                        case 'r': sb.append('\r'); break;
+                        case '\\': sb.append('\\'); break;
+                        case '\'': sb.append('\''); break;
+                        case '"': sb.append('"'); break;
+                        default: sb.append('\\').append(escaped); break;
+                    }
+                    pos++;
+                } else if (c == quote) {
+                    pos++;
+                    return sb.toString();
+                } else {
+                    sb.append(c);
+                    pos++;
+                }
+            }
+            throw new IllegalArgumentException("Unterminated string starting at position " + (pos - sb.length() - 1));
+        }
+
+        Number parseNumber() {
+            int start = pos;
+            if (pos < input.length() && (input.charAt(pos) == '-' || input.charAt(pos) == '+')) {
+                pos++;
+            }
+            boolean hasDecimal = false;
+            boolean hasExponent = false;
+            while (pos < input.length()) {
+                char c = input.charAt(pos);
+                if (Character.isDigit(c)) {
+                    pos++;
+                } else if (c == '.' && !hasDecimal && !hasExponent) {
+                    hasDecimal = true;
+                    pos++;
+                } else if ((c == 'e' || c == 'E') && !hasExponent) {
+                    hasExponent = true;
+                    pos++;
+                    if (pos < input.length() && (input.charAt(pos) == '+' || input.charAt(pos) == '-')) {
+                        pos++;
+                    }
+                } else {
+                    break;
+                }
+            }
+            String numStr = input.substring(start, pos);
+            try {
+                if (hasDecimal || hasExponent) {
+                    return Double.parseDouble(numStr);
+                } else {
+                    try {
+                        return Integer.parseInt(numStr);
+                    } catch (NumberFormatException e) {
+                        return Long.parseLong(numStr);
+                    }
+                }
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid number: '" + numStr + "' at position " + start);
+            }
+        }
+
+        Object parseKeyword() {
+            int start = pos;
+            while (pos < input.length() && Character.isLetterOrDigit(input.charAt(pos)) || (pos < input.length() && input.charAt(pos) == '_')) {
+                pos++;
+            }
+            String word = input.substring(start, pos);
+            switch (word) {
+                case "True": return Boolean.TRUE;
+                case "False": return Boolean.FALSE;
+                case "None": return null;
+                default: throw new IllegalArgumentException("Unknown keyword: '" + word + "' at position " + start);
+            }
         }
     }
 }
