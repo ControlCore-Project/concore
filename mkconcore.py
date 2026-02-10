@@ -143,7 +143,7 @@ sourcedir = sys.argv[2]
 outdir = sys.argv[3]
 
 # Validate outdir argument
-safe_name(outdir, "Output directory argument")
+safe_name(os.path.basename(outdir), "Output directory argument")
 
 if not os.path.isdir(sourcedir):
     logging.error(f"{sourcedir} does not exist")
