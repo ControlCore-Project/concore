@@ -10,51 +10,63 @@ timeout_max = 20
 concore.delay = 0.02
 
 try:
-    apikey=open(concore.inpath+'1/concore.apikey',newline=None).readline().rstrip()
+    with open(concore.inpath+'1/concore.apikey',newline=None) as f:
+        apikey=f.readline().rstrip()
 except:
     try: 
         #perhaps this should be removed for security
-        apikey=open('./concore.apikey',newline=None).readline().rstrip()
+        with open('./concore.apikey',newline=None) as f:
+            apikey=f.readline().rstrip()
     except:
         apikey = ''
 
 try:
-    yuyu=open(concore.inpath+'1/concore.yuyu',newline=None).readline().rstrip()
+    with open(concore.inpath+'1/concore.yuyu',newline=None) as f:
+        yuyu=f.readline().rstrip()
 except:
     try: 
-        yuyu=open('./concore.yuyu',newline=None).readline().rstrip()
+        with open('./concore.yuyu',newline=None) as f:
+            yuyu=f.readline().rstrip()
     except:
         yuyu = 'yuyu'
 
 try:
-    name1=open(concore.inpath+'1/concore.name1',newline=None).readline().rstrip()
+    with open(concore.inpath+'1/concore.name1',newline=None) as f:
+        name1=f.readline().rstrip()
 except:
     try:
-        name1=open('./concore.name1',newline=None).readline().rstrip()
+        with open('./concore.name1',newline=None) as f:
+            name1=f.readline().rstrip()
     except:
         name1 = 'u'
 
 try:
-    name2=open(concore.inpath+'1/concore.name2',newline=None).readline().rstrip()
+    with open(concore.inpath+'1/concore.name2',newline=None) as f:
+        name2=f.readline().rstrip()
 except:
     try:
-        name2=open('./concore.name2',newline=None).readline().rstrip()
+        with open('./concore.name2',newline=None) as f:
+            name2=f.readline().rstrip()
     except:
         name2 = 'ym'
 
 try:
-    init_simtime_u = open(concore.inpath+'1/concore.init1',newline=None).readline().rstrip()
+    with open(concore.inpath+'1/concore.init1',newline=None) as f:
+        init_simtime_u = f.readline().rstrip()
 except:
     try:
-        init_simtime_u = open('./concore.init1',newline=None).readline().rstrip()
+        with open('./concore.init1',newline=None) as f:
+            init_simtime_u = f.readline().rstrip()
     except:
         init_simtime_u = "[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
 
 try:
-    init_simtime_ym = open(concore.inpath+'1/concore.init2',newline=None).readline().rstrip()
+    with open(concore.inpath+'1/concore.init2',newline=None) as f:
+        init_simtime_ym = f.readline().rstrip()
 except:
     try:
-        init_simtime_ym = open('./concore.init2',newline=None).readline().rstrip()
+        with open('./concore.init2',newline=None) as f:
+            init_simtime_ym = f.readline().rstrip()
     except:
         init_simtime_ym = "[0.0, 0.0, 0.0]"
 
@@ -81,10 +93,11 @@ while(concore.simtime<concore.maxtime):
     print("CW outer loop")
     while concore.unchanged():
         u = concore.read(1,name1,init_simtime_u)
-    f = {'file1': open(concore.inpath+'1/'+name1, 'rb')}
-    print("CW: before post u="+str(u))
-    print('http://www.controlcore.org/pm/'+yuyu+apikey+'&fetch='+name2)
-    r = requests.post('http://www.controlcore.org/pm/'+yuyu+apikey+'&fetch='+name2, files=f,timeout=timeout_max)
+    with open(concore.inpath+'1/'+name1, 'rb') as f1:
+        f = {'file1': f1}
+        print("CW: before post u="+str(u))
+        print('http://www.controlcore.org/pm/'+yuyu+apikey+'&fetch='+name2)
+        r = requests.post('http://www.controlcore.org/pm/'+yuyu+apikey+'&fetch='+name2, files=f,timeout=timeout_max)
     if r.status_code!=200:
         print("bad POST request "+str(r.status_code))
         quit()
@@ -100,11 +113,12 @@ while(concore.simtime<concore.maxtime):
     while oldt==t or len(r.content)==0:
         time.sleep(concore.delay)
         print("CW waiting status="+str(r.status_code)+" content="+ r.content.decode('utf-8')+" t="+str(t))
-        f = {'file1': open(concore.inpath+'1/'+name1, 'rb')}
-        try:
-            r = requests.post('http://www.controlcore.org/pm/'+yuyu+apikey+'&fetch='+name2, files=f,timeout=timeout_max)
-        except:
-            print("CW: bad request")
+        with open(concore.inpath+'1/'+name1, 'rb') as f1:
+            f = {'file1': f1}
+            try:
+                r = requests.post('http://www.controlcore.org/pm/'+yuyu+apikey+'&fetch='+name2, files=f,timeout=timeout_max)
+            except:
+                print("CW: bad request")
         timeout_count += 1
         if r.status_code!=200 or time.perf_counter()-t1 > 1.1*timeout_max: #timeout_count>100:
             print("timeout or bad POST request "+str(r.status_code))

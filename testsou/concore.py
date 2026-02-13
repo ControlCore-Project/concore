@@ -12,11 +12,13 @@ if hasattr(sys, 'getwindowsversion'):
         fpid.write("taskkill /F /PID "+str(os.getpid())+"\n")
 
 try:
-    iport = literal_eval(open("concore.iport").read())
+    with open("concore.iport") as f:
+        iport = literal_eval(f.read())
 except:
     iport = dict()
 try:
-    oport = literal_eval(open("concore.oport").read())
+    with open("concore.oport") as f:
+        oport = literal_eval(f.read())
 except:
     oport = dict()
 
@@ -42,14 +44,14 @@ def read(port, name, initstr):
     global s,simtime,retrycount
     time.sleep(delay)
     try:
-        infile = open(inpath+str(port)+"/"+name);
-        ins = infile.read()
+        with open(inpath+str(port)+"/"+name) as infile:
+            ins = infile.read()
+            while len(ins)==0:
+                time.sleep(delay)
+                ins = infile.read()
+                retrycount += 1
     except:
         ins = initstr
-    while len(ins)==0:
-        time.sleep(delay)
-        ins = infile.read()
-        retrycount += 1
     s += ins
     inval = literal_eval(ins)
     simtime = max(simtime,inval[0])
