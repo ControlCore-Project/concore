@@ -82,7 +82,7 @@ oldt = 0
 #initfiles = {'file1': open('./u', 'rb'), 'file2': open(concore.inpath+'1/ym', 'rb')}
 initfiles = {'file1': open('./'+name1, 'rb'), 'file2': open(concore.inpath+'1/'+name2, 'rb')}
 # POST Request to /init with u as file1 and ym as file2
-r = requests.post('http://www.controlcore.org/init/'+yuyu+apikey, files=initfiles)
+r = requests.post('https://www.controlcore.org/init/'+yuyu+apikey, files=initfiles)
 
 
 while(concore.simtime<concore.maxtime):
@@ -91,7 +91,7 @@ while(concore.simtime<concore.maxtime):
         ym = concore.read(1,name2,init_simtime_ym)
     f = {'file1': open(concore.inpath+'1/'+name2, 'rb')}
     print("PW: before post ym="+str(ym))
-    r = requests.post('http://www.controlcore.org/ctl/'+yuyu+apikey+'&fetch='+name1, files=f,timeout=timeout_max)
+    r = requests.post('https://www.controlcore.org/ctl/'+yuyu+apikey+'&fetch='+name1, files=f,timeout=timeout_max)
     if r.status_code!=200:
         print("bad POST request "+str(r.status_code))
         quit()
@@ -109,7 +109,7 @@ while(concore.simtime<concore.maxtime):
         print("PW waiting status="+str(r.status_code)+" content="+ r.content.decode('utf-8')+" t="+str(t))
         f = {'file1': open(concore.inpath+'1/'+name2, 'rb')}
         try:
-            r = requests.post('http://www.controlcore.org/ctl/'+yuyu+apikey+'&fetch='+name1, files=f,timeout=timeout_max)
+            r = requests.post('https://www.controlcore.org/ctl/'+yuyu+apikey+'&fetch='+name1, files=f,timeout=timeout_max)
         except:
             print("PW: bad requests")
         timeout_count += 1
