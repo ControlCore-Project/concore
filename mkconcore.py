@@ -107,11 +107,11 @@ def _resolve_concore_path():
     return SCRIPT_DIR
 
 if len(sys.argv) < 4:
-    print("Usage: python mkconcore.py <GRAPHML_FILE> <sourcedir> <outdir> [type]")
-    print(" type must be posix (macos or ubuntu), windows, or docker")
-    sys.exit(1)
+    logging.error("Usage: python mkconcore.py <GRAPHML_FILE> <sourcedir> <outdir> [type]")
+    logging.error(" type must be posix (macos or ubuntu), windows, or docker")
+    quit()
 
-GRAPHML_FILE = sys.argv[1]
+GRAPHML_FILE = safe_name(sys.argv[1], "GRAPHML file argument", allow_path=True)
 TRIMMED_LOGS = True
 CONCOREPATH = _resolve_concore_path()
 CPPWIN    = "g++"        #Windows C++  6/22/21
