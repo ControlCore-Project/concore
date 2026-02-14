@@ -109,7 +109,7 @@ while(concore.simtime<concore.maxtime):
         print("PW waiting status="+str(r.status_code)+" content="+ r.content.decode('utf-8')+" t="+str(t))
         f = {'file1': open(concore.inpath+'1/'+name2, 'rb')}
         try:
-            r = requests.post('http://www.controlcore.org/ctl/'+yuyu+apikey+'&fetch='+name1, files=f,timeout=timeout_max)
+            r = requests.post('https://www.controlcore.org/ctl/'+yuyu+apikey+'&fetch='+name1, files=f,timeout=timeout_max)
         except:
             print("PW: bad requests")
         timeout_count += 1
