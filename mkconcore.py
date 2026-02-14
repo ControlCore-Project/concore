@@ -73,6 +73,7 @@ import stat
 import copy_with_port_portname
 import numpy as np
 import shlex  # Added for POSIX shell escaping
+import posixpath
 
 # input validation helper
 def safe_name(value, context, allow_path=False):
@@ -92,6 +93,36 @@ def safe_name(value, context, allow_path=False):
     if re.search(pattern, value):
         raise ValueError(f"Unsafe {context}: '{value}' contains illegal characters.")
     return value
+
+def _normalize_relpath(value):
+    return value.replace("\\", "/")
+
+def safe_relpath(value, context):
+    """
+    Validates a relative path for node source files.
+    Allows subdirectories, but blocks traversal, absolute paths, and drive roots.
+    """
+    if not value:
+        raise ValueError(f"{context} cannot be empty")
+    normalized = _normalize_relpath(value)
+    safe_name(normalized, context, allow_path=True)
+    if normalized.startswith("/") or normalized.startswith("~"):
+        raise ValueError(f"Unsafe {context}: absolute paths are not allowed.")
+    if re.match(r"^[A-Za-z]:", normalized):
+        raise ValueError(f"Unsafe {context}: drive paths are not allowed.")
+    if ":" in normalized:
+        raise ValueError(f"Unsafe {context}: ':' is not allowed in relative paths.")
+    parts = normalized.split("/")
+    if any(part == "" for part in parts):
+        raise ValueError(f"Unsafe {context}: empty path segment is not allowed.")
+    if any(part == ".." for part in parts):
+        raise ValueError(f"Unsafe {context}: path traversal ('..') is not allowed.")
+    return normalized
+
+def ensure_parent_dir(path):
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
 
 MKCONCORE_VER = "22-09-18"
 
@@ -251,7 +282,8 @@ for node in nodes_text:
                 if ':' in node_label:
                     container_part, source_part = node_label.split(':', 1)
                     safe_name(container_part, f"Node container name '{container_part}'")
-                    safe_name(source_part, f"Node source file '{source_part}'")
+                    normalized_source = safe_relpath(source_part, f"Node source file '{source_part}'")
+                    node_label = f"{container_part}:{normalized_source}"
                 else:
                     safe_name(node_label, f"Node label '{node_label}'")
                     # Explicitly reject incorrect format to prevent later crashes and ambiguity
@@ -393,9 +425,15 @@ if node_edge_params:
             logging.error(f"Cannot specialize: Original script '{template_script_full_path}' not found in '{sourcedir}'.")
             continue
 
+        script_subdir = posixpath.dirname(original_script)
+        node_output_dir = specialized_scripts_output_dir
+        if script_subdir:
+            node_output_dir = os.path.join(specialized_scripts_output_dir, script_subdir)
+            os.makedirs(node_output_dir, exist_ok=True)
+
         new_script_basename = copy_with_port_portname.run_specialization_script(
             template_script_full_path,
-            specialized_scripts_output_dir,
+            node_output_dir,
             params_list,
             python_executable,
             copy_script_py_path
@@ -403,8 +441,12 @@ if node_edge_params:
 
         if new_script_basename:
             # Update nodes_dict to point to the new comprehensive specialized script
-            nodes_dict[node_id] = f"{container_name}:{new_script_basename}"
-            logging.info(f"Node ID '{node_id}' ('{container_name}') updated to use specialized script '{new_script_basename}'.")
+            if script_subdir:
+                new_script_relpath = posixpath.join(script_subdir, new_script_basename)
+            else:
+                new_script_relpath = new_script_basename
+            nodes_dict[node_id] = f"{container_name}:{new_script_relpath}"
+            logging.info(f"Node ID '{node_id}' ('{container_name}') updated to use specialized script '{new_script_relpath}'.")
         else:
             logging.error(f"Failed to generate specialized script for node ID '{node_id}'. It will retain its original script.")
 
@@ -447,6 +489,7 @@ for node_id_key in list(nodes_dict.keys()):
         dockername, langext = sourcecode, ""
     
     script_target_path = os.path.join(outdir, "src", sourcecode)
+    ensure_parent_dir(script_target_path)
 
     # If the script was specialized, it's already in outdir/src. If not, copy from sourcedir.
     if node_id_key not in node_edge_params:
@@ -461,7 +504,9 @@ for node_id_key in list(nodes_dict.keys()):
     if concoretype == "docker":
         custom_dockerfile = f"Dockerfile.{dockername}"
         if os.path.exists(os.path.join(sourcedir, custom_dockerfile)):
-            shutil.copy2(os.path.join(sourcedir, custom_dockerfile), os.path.join(outdir, "src", custom_dockerfile))
+            dest_dockerfile = os.path.join(outdir, "src", custom_dockerfile)
+            ensure_parent_dir(dest_dockerfile)
+            shutil.copy2(os.path.join(sourcedir, custom_dockerfile), dest_dockerfile)
     
     dir_for_node = f"{dockername}.dir"
     if os.path.isdir(os.path.join(sourcedir, dir_for_node)):
@@ -641,9 +686,13 @@ for node_label, ports in node_port_mappings.items():
         containername, sourcecode = node_label.split(':', 1)
         if not sourcecode or "." not in sourcecode: continue
         dockername = os.path.splitext(sourcecode)[0]
-        with open(os.path.join(outdir, "src", f"{dockername}.iport"), "w") as fport:
+        iport_path = os.path.join(outdir, "src", f"{dockername}.iport")
+        oport_path = os.path.join(outdir, "src", f"{dockername}.oport")
+        ensure_parent_dir(iport_path)
+        ensure_parent_dir(oport_path)
+        with open(iport_path, "w") as fport:
             fport.write(str(ports['iport']).replace("'" + prefixedgenode, "'"))
-        with open(os.path.join(outdir, "src", f"{dockername}.oport"), "w") as fport:
+        with open(oport_path, "w") as fport:
             fport.write(str(ports['oport']).replace("'" + prefixedgenode, "'"))
     except ValueError:
         continue
@@ -655,7 +704,8 @@ if (concoretype=="docker"):
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0 and sourcecode.find(".")!=-1: #3/28/21
             dockername,langext = sourcecode.split(".")
-            if not os.path.exists(outdir+"/src/Dockerfile."+dockername): # 3/30/21
+            dockerfile_path = os.path.join(outdir, "src", f"Dockerfile.{dockername}")
+            if not os.path.exists(dockerfile_path): # 3/30/21
                 try:
                     if langext=="py":
                         src_path = CONCOREPATH+"/Dockerfile.py"
@@ -677,7 +727,8 @@ if (concoretype=="docker"):
                 except:
                     logging.error(f"{CONCOREPATH} is not correct path to concore")
                     quit()
-                with open(outdir+"/src/Dockerfile."+dockername,"w") as fcopy:
+                ensure_parent_dir(dockerfile_path)
+                with open(dockerfile_path,"w") as fcopy:
                     fcopy.write(source_content)
                     if langext=="py":
                         fcopy.write('CMD ["python", "-i", "'+sourcecode+'"]\n')
@@ -695,7 +746,7 @@ if (concoretype=="docker"):
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0 and sourcecode.find(".")!=-1: #3/28/21
             dockername,langext = sourcecode.split(".")
-            fbuild.write("mkdir docker-"+dockername+"\n")
+            fbuild.write("mkdir -p docker-"+dockername+"\n")
             fbuild.write("cd docker-"+dockername+"\n")
             fbuild.write("cp ../src/Dockerfile."+dockername+" Dockerfile\n")
             #copy sourcefiles from ./src into corresponding directories
@@ -929,9 +980,21 @@ for node in nodes_dict:
             logging.error("cannot pull container "+sourcecode+" with control core type "+concoretype) #3/28/21
             quit()
         dockername,langext = sourcecode.split(".")
-        fbuild.write('mkdir '+containername+"\n")
         if concoretype == "windows":
-            fbuild.write("copy .\\src\\"+sourcecode+" .\\"+containername+"\\"+sourcecode+"\n")
+            fbuild.write('mkdir '+containername+"\n")
+        else:
+            fbuild.write("mkdir -p ./"+containername+"\n")
+        source_subdir = posixpath.dirname(sourcecode)
+        if source_subdir:
+            if concoretype == "windows":
+                source_subdir_win = source_subdir.replace("/", "\\")
+                fbuild.write("mkdir .\\"+containername+"\\"+source_subdir_win+"\n")
+            else:
+                fbuild.write("mkdir -p ./"+containername+"/"+source_subdir+"\n")
+        if concoretype == "windows":
+            sourcecode_win = sourcecode.replace("/", "\\")
+            dockername_win = dockername.replace("/", "\\")
+            fbuild.write("copy .\\src\\"+sourcecode_win+" .\\"+containername+"\\"+sourcecode_win+"\n")
             if langext == "py":
                 fbuild.write("copy .\\src\\concore.py .\\" + containername + "\\concore.py\n")
             elif langext == "cpp":
@@ -943,11 +1006,11 @@ for node in nodes_dict:
             elif langext == "m":   #  4/2/21
                 fbuild.write("copy .\\src\\concore_*.m .\\" + containername + "\\\n")
                 fbuild.write("copy .\\src\\import_concore.m .\\" + containername + "\\\n")
-            fbuild.write("copy .\\src\\"+dockername+".iport .\\"+containername+"\\concore.iport\n")
-            fbuild.write("copy .\\src\\"+dockername+".oport .\\"+containername+"\\concore.oport\n")
+            fbuild.write("copy .\\src\\"+dockername_win+".iport .\\"+containername+"\\concore.iport\n")
+            fbuild.write("copy .\\src\\"+dockername_win+".oport .\\"+containername+"\\concore.oport\n")
             #include data files in here if they exist
             if os.path.isdir(sourcedir+"/"+dockername+".dir"):
-                fbuild.write("copy  .\\src\\"+dockername+".dir\\*.* .\\"+containername+"\n")
+                fbuild.write("copy  .\\src\\"+dockername_win+".dir\\*.* .\\"+containername+"\n")
         else:
             fbuild.write("cp ./src/"+sourcecode+" ./"+containername+"/"+sourcecode+"\n")
             if langext == "py":

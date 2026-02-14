@@ -101,6 +101,30 @@ class TestConcoreCLI(unittest.TestCase):
             else:
                 self.assertTrue(Path('out/build').exists())
 
+    def test_run_command_subdir_source(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ['init', 'test-project'])
+            self.assertEqual(result.exit_code, 0)
+
+            subdir = Path('test-project/src/subdir')
+            subdir.mkdir(parents=True, exist_ok=True)
+            shutil.move('test-project/src/script.py', subdir / 'script.py')
+
+            workflow_path = Path('test-project/workflow.graphml')
+            content = workflow_path.read_text()
+            content = content.replace('N1:script.py', 'N1:subdir/script.py')
+            workflow_path.write_text(content)
+
+            result = self.runner.invoke(cli, [
+                'run',
+                'test-project/workflow.graphml',
+                '--source', 'test-project/src',
+                '--output', 'out',
+                '--type', 'posix'
+            ])
+            self.assertEqual(result.exit_code, 0)
+            self.assertTrue(Path('out/src/subdir/script.py').exists())
+
     def test_run_command_existing_output(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ['init', 'test-project'])
