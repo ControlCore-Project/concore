@@ -157,7 +157,8 @@ prefixedgenode = ""
 sourcedir = sys.argv[2]
 outdir = sys.argv[3]
 
-# Validate outdir argument (allow full paths)
+# Validate arguments (allow full paths)
+safe_name(sourcedir, "Source directory argument", allow_path=True)
 safe_name(outdir, "Output directory argument", allow_path=True)
 
 if not os.path.isdir(sourcedir):
