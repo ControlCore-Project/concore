@@ -706,7 +706,7 @@ if (concoretype=="docker"):
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0 and sourcecode.find(".")!=-1: #3/28/21
-            dockername,langext = sourcecode.split(".")
+            dockername,langext = sourcecode.rsplit(".", 1)
             dockerfile_path = os.path.join(outdir, "src", f"Dockerfile.{dockername}")
             if not os.path.exists(dockerfile_path): # 3/30/21
                 try:
@@ -750,7 +750,7 @@ if (concoretype=="docker"):
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0 and sourcecode.find(".")!=-1: #3/28/21
-            dockername,langext = sourcecode.split(".")
+            dockername,langext = sourcecode.rsplit(".", 1)
             fbuild.write("mkdir docker-"+dockername+"\n")
             fbuild.write("cd docker-"+dockername+"\n")
             fbuild.write("cp ../src/Dockerfile."+dockername+" Dockerfile\n")
@@ -788,7 +788,7 @@ if (concoretype=="docker"):
                 # Use safe_container
                 frun.write(DOCKEREXE+' run --name='+safe_container+volswr[i]+volsro[i]+" "+DOCKEREPO+"/docker-"+shlex.quote(sourcecode)+"&\n")
             else:    
-                dockername,langext = sourcecode.split(".")
+                dockername,langext = sourcecode.rsplit(".", 1)
                 logging.debug(f"Generating Docker run command for {dockername}: {DOCKEREXE} run --name={containername+volswr[i]+volsro[i]} docker-{dockername}")
                 # Use safe_container
                 frun.write(DOCKEREXE+' run --name='+safe_container+volswr[i]+volsro[i]+" docker-"+shlex.quote(dockername)+"&\n")
@@ -800,8 +800,8 @@ if (concoretype=="docker"):
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0:
-            #dockername,langext = sourcecode.split(".")
-            dockername = sourcecode.split(".")[0] # 3/28/21
+            #dockername,langext = sourcecode.rsplit(".", 1)
+            dockername = sourcecode.rsplit(".", 1)[0] # 3/28/21
             safe_container = shlex.quote(containername)
             fstop.write(DOCKEREXE+' stop '+safe_container+"\n")
             fstop.write(DOCKEREXE+' rm '+safe_container+"\n")
@@ -813,7 +813,7 @@ if (concoretype=="docker"):
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0:
-            dockername = sourcecode.split(".")[0] #3/28/21
+            dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
             writeedges = volswr[i]
             while writeedges.find(":") != -1: 
                 #scape volume path using shlex.quote for Docker commands (defense-in-depth)
@@ -833,7 +833,7 @@ if (concoretype=="docker"):
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0:
-            dockername = sourcecode.split(".")[0] #3/28/21
+            dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
             writeedges = volswr[i]
             while writeedges.find(":") != -1: 
                 fmaxtime.write(' -v ')
@@ -850,7 +850,7 @@ if (concoretype=="docker"):
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0:
-            dockername = sourcecode.split(".")[0] #3/28/21
+            dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
             writeedges = volswr[i]
             while writeedges.find(":") != -1: 
                 fmaxtime.write('sudo docker cp concore.maxtime concore:/')
@@ -876,7 +876,7 @@ if (concoretype=="docker"):
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0:
-            dockername = sourcecode.split(".")[0] #3/28/21
+            dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
             writeedges = volswr[i]
             while writeedges.find(":") != -1: 
                 fparams.write(' -v ')
@@ -893,7 +893,7 @@ if (concoretype=="docker"):
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0:
-            dockername = sourcecode.split(".")[0] #3/28/21
+            dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
             writeedges = volswr[i]
             while writeedges.find(":") != -1: 
                 fparams.write('sudo docker cp concore.params concore:/')
@@ -918,7 +918,7 @@ if (concoretype=="docker"):
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0:
-            dockername = sourcecode.split(".")[0] #3/28/21
+            dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
             writeedges = volswr[i]
             while writeedges.find(":") != -1: 
                 funlock.write(' -v ')
@@ -935,7 +935,7 @@ if (concoretype=="docker"):
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0:
-            dockername = sourcecode.split(".")[0] #3/28/21
+            dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
             writeedges = volswr[i]
             while writeedges.find(":") != -1: 
                 funlock.write('sudo docker cp ~/concore.apikey concore:/')
@@ -955,7 +955,7 @@ if (concoretype=="docker"):
     for node in nodes_dict:
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0 and sourcecode.find(".")!=-1: #3/28/21
-            dockername,langext = sourcecode.split(".")
+            dockername,langext = sourcecode.rsplit(".", 1)
             # safe_container added to debug line (POSIX)
             safe_container = shlex.quote(containername) 
             safe_image = shlex.quote("docker-" + dockername) # escape docker image name
@@ -984,7 +984,7 @@ for node in nodes_dict:
         if sourcecode.find(".")==-1:
             logging.error("cannot pull container "+sourcecode+" with control core type "+concoretype) #3/28/21
             quit()
-        dockername,langext = sourcecode.split(".")
+        dockername,langext = sourcecode.rsplit(".", 1)
         fbuild.write('mkdir '+containername+"\n")
         source_subdir = os.path.dirname(sourcecode).replace("\\", "/")
         if source_subdir:
@@ -1041,7 +1041,7 @@ for edges in edges_dict:
     containername,sourcecode = edges_dict[edges][0].split(':')
     outcount[nodes_num[edges_dict[edges][0]]] += 1
     if len(sourcecode)!=0:
-        dockername,langext = sourcecode.split(".")
+        dockername,langext = sourcecode.rsplit(".", 1)
         fbuild.write('cd '+containername+"\n")
         if concoretype=="windows":
             fbuild.write("mklink /J out"+str(outcount[nodes_num[edges_dict[edges][0]]])+" ..\\"+str(edges)+"\n")
@@ -1054,7 +1054,7 @@ i=0
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
-        dockername,langext = sourcecode.split(".")
+        dockername,langext = sourcecode.rsplit(".", 1)
         fbuild.write('cd '+containername+"\n")
         for pair in indir[i]:
             volname,dirname = pair.split(':/')
@@ -1075,7 +1075,7 @@ i=0
 for node in nodes_dict:
   containername,sourcecode = nodes_dict[node].split(':')
   if len(sourcecode)!=0:
-      dockername,langext = sourcecode.split(".")
+      dockername,langext = sourcecode.rsplit(".", 1)
       if not (langext in ["py","m","sh","cpp","v"]): # 6/22/21
           logging.error(f"Extension .{langext} is unsupported")
           quit()
@@ -1191,7 +1191,7 @@ i=0 #  3/30/21
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
-        dockername = sourcecode.split(".")[0] # 3/28/21
+        dockername = sourcecode.rsplit(".", 1)[0] # 3/28/21
         if concoretype=="windows":
             q_container = f'"{containername}"'
             fstop.write('cmd /C '+q_container+"\\concorekill\n")
@@ -1209,7 +1209,7 @@ i=0 #  9/13/21
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
-        dockername = sourcecode.split(".")[0] #3/28/21
+        dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
         writeedges = volswr[i]
         while writeedges.find(":") != -1: 
             path_part = writeedges.split(":")[0].split("-v")[1].strip()
@@ -1229,7 +1229,7 @@ i=0 #  9/12/21
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
-        dockername = sourcecode.split(".")[0] #3/28/21
+        dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
         writeedges = volswr[i]
         while writeedges.find(":") != -1: 
             path_part = writeedges.split(":")[0].split("-v")[1].strip()
@@ -1247,7 +1247,7 @@ i=0 #  9/18/22
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
-        dockername = sourcecode.split(".")[0] #3/28/21
+        dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
         writeedges = volswr[i]
         while writeedges.find(":") != -1: 
             path_part = writeedges.split(":")[0].split("-v")[1].strip()
@@ -1265,7 +1265,7 @@ i=0 #  9/12/21
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
-        dockername = sourcecode.split(".")[0] #3/28/21
+        dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
         writeedges = volswr[i]
         while writeedges.find(":") != -1: 
             path_part = writeedges.split(":")[0].split("-v")[1].strip()
