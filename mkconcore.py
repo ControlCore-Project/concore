@@ -138,9 +138,9 @@ def _resolve_concore_path():
     return SCRIPT_DIR
 
 if len(sys.argv) < 4:
-    logging.error("usage: py mkconcore.py file.graphml sourcedir outdir [type]")
-    logging.error(" type must be posix (macos or ubuntu), windows, or docker")
-    quit()
+    print("usage: py mkconcore.py file.graphml sourcedir outdir [type]")
+    print(" type must be posix (macos or ubuntu), windows, or docker")
+    sys.exit(1)
 
 GRAPHML_FILE = sys.argv[1]
 TRIMMED_LOGS = True
