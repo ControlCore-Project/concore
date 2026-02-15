@@ -494,6 +494,7 @@ private:
                     outfile<<val[i]<<',';
                 outfile<<val[val.size()-1]<<']';
                 outfile.close();
+                simtime += delta;
                 }
             else{
                 throw 505;
@@ -549,6 +550,7 @@ private:
                 outfile<<val[val.size()-1]<<']';
                 std::string result = outfile.str();
                 std::strncpy(sharedData_create, result.c_str(), 256 - 1);
+                simtime += delta;
                 }
             else{
                 throw 505;
