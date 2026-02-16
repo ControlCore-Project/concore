@@ -36,7 +36,7 @@ public class concoredocker {
             }
             if (!sparams.equals("{")) {
                 System.out.println("converting sparams: " + sparams);
-                sparams = "{'" + sparams.replaceAll(",", ",'").replaceAll("=", "':").replaceAll(" ", "") + "}";
+                sparams = "{'" + sparams.replaceAll(";", ",'").replaceAll("=", "':").replaceAll(" ", "") + "}";
                 System.out.println("converted sparams: " + sparams);
             }
             try {
