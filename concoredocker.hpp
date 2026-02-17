@@ -11,7 +11,7 @@
 #include <thread>
 #include <filesystem>
 #include <stdexcept>
-#include <regex>
+#include <algorithm>
 
 class Concore {
 public:
@@ -26,6 +26,93 @@ public:
     int maxtime = 100;
     std::unordered_map<std::string, std::string> params;
 
+    std::string stripstr(const std::string& str) {
+        size_t start = str.find_first_not_of(" \t\n\r");
+        if (start == std::string::npos) return "";
+        size_t end = str.find_last_not_of(" \t\n\r");
+        return str.substr(start, end - start + 1);
+    }
+
+    std::string stripquotes(const std::string& str) {
+        if (str.size() >= 2 && ((str.front() == '\'' && str.back() == '\'') || (str.front() == '"' && str.back() == '"')))
+            return str.substr(1, str.size() - 2);
+        return str;
+    }
+
+    std::vector<std::string> split_toplevel(const std::string& s) {
+        std::vector<std::string> tokens;
+        int depth = 0;
+        bool in_sq = false, in_dq = false;
+        std::string cur;
+        for (size_t i = 0; i < s.size(); i++) {
+            char c = s[i];
+            if (in_sq) {
+                cur += c;
+                if (c == '\\' && i + 1 < s.size()) { cur += s[++i]; continue; }
+                if (c == '\'') in_sq = false;
+                continue;
+            }
+            if (in_dq) {
+                cur += c;
+                if (c == '\\' && i + 1 < s.size()) { cur += s[++i]; continue; }
+                if (c == '"') in_dq = false;
+                continue;
+            }
+            if (c == '\'') { in_sq = true; cur += c; continue; }
+            if (c == '"')  { in_dq = true; cur += c; continue; }
+            if (c == '[' || c == '{' || c == '(') { depth++; cur += c; continue; }
+            if (c == ']' || c == '}' || c == ')') { depth--; cur += c; continue; }
+            if (c == ',' && depth == 0) {
+                tokens.push_back(cur);
+                cur.clear();
+                continue;
+            }
+            cur += c;
+        }
+        if (!cur.empty() || !tokens.empty()) tokens.push_back(cur);
+        return tokens;
+    }
+
+    std::unordered_map<std::string, std::string> parsedict(const std::string& str) {
+        std::unordered_map<std::string, std::string> result;
+        std::string trimmed = stripstr(str);
+        if (trimmed.size() < 2 || trimmed.front() != '{' || trimmed.back() != '}')
+            return result;
+        std::string inner = trimmed.substr(1, trimmed.size() - 2);
+        if (stripstr(inner).empty()) return result;
+        for (auto& item : split_toplevel(inner)) {
+            // find first colon not inside quotes
+            size_t colon = std::string::npos;
+            bool sq = false, dq = false;
+            for (size_t i = 0; i < item.size(); i++) {
+                char c = item[i];
+                if (sq) { if (c == '\\' && i+1 < item.size()) i++; else if (c == '\'') sq = false; continue; }
+                if (dq) { if (c == '\\' && i+1 < item.size()) i++; else if (c == '"') dq = false; continue; }
+                if (c == '\'') { sq = true; continue; }
+                if (c == '"') { dq = true; continue; }
+                if (c == ':') { colon = i; break; }
+            }
+            if (colon == std::string::npos) continue;
+            std::string key = stripquotes(stripstr(item.substr(0, colon)));
+            std::string val = stripquotes(stripstr(item.substr(colon + 1)));
+            if (!key.empty()) result[key] = val;
+        }
+        return result;
+    }
+
+    std::vector<std::string> parselist(const std::string& str) {
+        std::vector<std::string> result;
+        std::string trimmed = stripstr(str);
+        if (trimmed.size() < 2 || trimmed.front() != '[' || trimmed.back() != ']')
+            return result;
+        std::string inner = trimmed.substr(1, trimmed.size() - 2);
+        for (auto& item : split_toplevel(inner)) {
+            std::string val = stripstr(item);
+            if (!val.empty()) result.push_back(val);
+        }
+        return result;
+    }
+
     Concore() {
         iport = safe_literal_eval("concore.iport", {});
         oport = safe_literal_eval("concore.oport", {});
@@ -39,7 +126,14 @@ public:
             std::cerr << "Error reading " << filename << "\n";
             return defaultValue;
         }
-        return defaultValue;
+        std::stringstream buf;
+        buf << file.rdbuf();
+        std::string content = buf.str();
+        try {
+            return parsedict(content);
+        } catch (...) {
+            return defaultValue;
+        }
     }
 
     void load_params() {
@@ -47,14 +141,26 @@ public:
         if (!file) return;
         std::stringstream buffer;
         buffer << file.rdbuf();
-        std::string sparams = buffer.str();
+        std::string sparams = stripstr(buffer.str());
 
-        if (!sparams.empty() && sparams[0] == '"') {
-            sparams = sparams.substr(1, sparams.find('"') - 1);
+        if (sparams.size() >= 2 && sparams.front() == '"' && sparams.back() == '"')
+            sparams = sparams.substr(1, sparams.size() - 2);
+
+        if (sparams.empty()) return;
+
+        if (sparams.front() == '{' && sparams.back() == '}') {
+            params = parsedict(sparams);
+            return;
         }
 
-        if (!sparams.empty() && sparams[0] != '{') {
-            sparams = "{'" + std::regex_replace(std::regex_replace(std::regex_replace(sparams, std::regex(","), ", '"), std::regex("="), "':"), std::regex(" "), "") + "}";
+        std::stringstream ss(sparams);
+        std::string item;
+        while (std::getline(ss, item, ';')) {
+            size_t eq = item.find('=');
+            if (eq == std::string::npos) continue;
+            std::string key = stripstr(item.substr(0, eq));
+            std::string val = stripstr(item.substr(eq + 1));
+            if (!key.empty()) params[key] = val;
         }
     }
 
@@ -106,6 +212,14 @@ public:
         }
         
         s += ins;
+        try {
+            std::vector<std::string> inval = parselist(ins);
+            if (!inval.empty()) {
+                int file_simtime = (int)std::stod(inval[0]);
+                simtime = std::max(simtime, file_simtime);
+                return std::vector<std::string>(inval.begin() + 1, inval.end());
+            }
+        } catch (...) {}
         return {ins};
     }
 
@@ -124,6 +238,17 @@ public:
             outfile << "]";
             simtime += delta;
         }
+    }
+
+    std::vector<std::string> initval(const std::string& simtime_val) {
+        try {
+            std::vector<std::string> val = parselist(simtime_val);
+            if (!val.empty()) {
+                simtime = (int)std::stod(val[0]);
+                return std::vector<std::string>(val.begin() + 1, val.end());
+            }
+        } catch (...) {}
+        return {};
     }
 };
 
