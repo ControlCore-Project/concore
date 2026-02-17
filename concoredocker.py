@@ -211,6 +211,11 @@ def read(port_identifier, name, initstr_val):
         zmq_p = zmq_ports[port_identifier]
         try:
             message = zmq_p.recv_json_with_retry()
+            if isinstance(message, list) and len(message) > 0:
+                first_element = message[0]
+                if isinstance(first_element, (int, float)):
+                    simtime = max(simtime, first_element)
+                    return message[1:]
             return message
         except zmq.error.ZMQError as e:
             logging.error(f"ZMQ read error on port {port_identifier} (name: {name}): {e}. Returning default.")
@@ -276,7 +281,13 @@ def write(port_identifier, name, val, delta=0):
     if isinstance(port_identifier, str) and port_identifier in zmq_ports:
         zmq_p = zmq_ports[port_identifier]
         try:
-            zmq_p.send_json_with_retry(val)
+            zmq_val = convert_numpy_to_python(val)
+            if isinstance(zmq_val, list):
+                payload = [simtime + delta] + zmq_val
+                zmq_p.send_json_with_retry(payload)
+                simtime += delta
+            else:
+                zmq_p.send_json_with_retry(zmq_val)
         except zmq.error.ZMQError as e:
             logging.error(f"ZMQ write error on port {port_identifier} (name: {name}): {e}")
         except Exception as e:
