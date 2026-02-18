@@ -396,16 +396,18 @@ def contribute():
         validate_text_field(PR_TITLE, 'title', max_length=512)
         validate_text_field(PR_BODY, 'desc', max_length=8192)
         
+        # Build base command depending on platform
         if(platform.uname()[0]=='Windows'):
-            # Use cmd.exe /c to invoke contribute.bat on Windows
-            proc = subprocess.run(["cmd.exe", "/c", "contribute.bat", STUDY_NAME, STUDY_NAME_PATH, AUTHOR_NAME, BRANCH_NAME, PR_TITLE, PR_BODY], cwd=concore_path, check=True, capture_output=True, text=True)
-            output_string = proc.stdout
+            cmd = ["cmd.exe", "/c", "contribute.bat", STUDY_NAME, STUDY_NAME_PATH, AUTHOR_NAME]
         else:
-            if len(BRANCH_NAME)==0:
-                proc = check_output([r"./contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME],cwd=concore_path)
-            else:
-                proc = check_output([r"./contribute",STUDY_NAME,STUDY_NAME_PATH,AUTHOR_NAME,BRANCH_NAME,PR_TITLE,PR_BODY],cwd=concore_path)
-            output_string = proc.decode()
+            cmd = [r"./contribute", STUDY_NAME, STUDY_NAME_PATH, AUTHOR_NAME]
+
+        # Append optional branch/PR args only when BRANCH_NAME is provided
+        if len(BRANCH_NAME) > 0:
+            cmd.extend([BRANCH_NAME, PR_TITLE, PR_BODY])
+
+        proc = subprocess.run(cmd, cwd=concore_path, check=True, capture_output=True, text=True)
+        output_string = proc.stdout
         status=200
         if output_string.find("/pulls/")!=-1:
             status=200
