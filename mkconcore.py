@@ -157,7 +157,7 @@ OCTAVEEXE = os.environ.get("CONCORE_OCTAVEEXE", "octave")    #Ubuntu/macOS octav
 OCTAVEWIN = os.environ.get("CONCORE_OCTAVEWIN", "octave")    #Windows octave
 M_IS_OCTAVE = False      #treat .m as octave
 MCRPATH  = "~/MATLAB/R2021a" #path to local Ubunta Matlab Compiler Runtime
-DOCKEREXE = "sudo docker"#assume simple docker install
+DOCKEREXE = os.environ.get("DOCKEREXE", "docker")#default to docker, allow env override
 DOCKEREPO = "markgarnold"#where pulls come from 3/28/21
 INDIRNAME = ":/in"
 OUTDIRNAME = ":/out"
@@ -827,8 +827,8 @@ if (concoretype=="docker"):
     fmaxtime.write('#!/bin/bash' + "\n")
     fmaxtime.write('echo "$1" >concore.maxtime\n')
     fmaxtime.write('echo "FROM alpine:3.8" > Dockerfile\n')
-    fmaxtime.write('sudo docker build -t docker-concore .\n')
-    fmaxtime.write('sudo docker run --name=concore')
+    fmaxtime.write(f'{DOCKEREXE} build -t docker-concore .\n')
+    fmaxtime.write(f'{DOCKEREXE} run --name=concore')
     # -v VCZ:/VCZ -v VPZ:/VPZ 
     i=0 #  9/12/21
     for node in nodes_dict:
@@ -854,15 +854,15 @@ if (concoretype=="docker"):
             dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
             writeedges = volswr[i]
             while writeedges.find(":") != -1: 
-                fmaxtime.write('sudo docker cp concore.maxtime concore:/')
+                fmaxtime.write(f'{DOCKEREXE} cp concore.maxtime concore:/')
                 # escape destination path in docker cp
                 vol_path = writeedges.split(":")[0].split("-v ")[1].strip()
                 fmaxtime.write(shlex.quote(vol_path+"/concore.maxtime")+"\n")
                 writeedges = writeedges[writeedges.find(":")+1:]
         i=i+1
-    fmaxtime.write('sudo docker stop concore \n')
-    fmaxtime.write('sudo docker rm concore\n')
-    fmaxtime.write('sudo docker rmi docker-concore\n')
+    fmaxtime.write(f'{DOCKEREXE} stop concore \n')
+    fmaxtime.write(f'{DOCKEREXE} rm concore\n')
+    fmaxtime.write(f'{DOCKEREXE} rmi docker-concore\n')
     fmaxtime.write('rm Dockerfile\n')
     fmaxtime.write('rm concore.maxtime\n')
     fmaxtime.close()
@@ -870,8 +870,8 @@ if (concoretype=="docker"):
     fparams.write('#!/bin/bash' + "\n")
     fparams.write('echo "$1" >concore.params\n')
     fparams.write('echo "FROM alpine:3.8" > Dockerfile\n')
-    fparams.write('sudo docker build -t docker-concore .\n')
-    fparams.write('sudo docker run --name=concore')
+    fparams.write(f'{DOCKEREXE} build -t docker-concore .\n')
+    fparams.write(f'{DOCKEREXE} run --name=concore')
     # -v VCZ:/VCZ -v VPZ:/VPZ 
     i=0 #  9/12/21
     for node in nodes_dict:
@@ -897,23 +897,23 @@ if (concoretype=="docker"):
             dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
             writeedges = volswr[i]
             while writeedges.find(":") != -1: 
-                fparams.write('sudo docker cp concore.params concore:/')
+                fparams.write(f'{DOCKEREXE} cp concore.params concore:/')
                 # escape destination path
                 vol_path = writeedges.split(":")[0].split("-v ")[1].strip()
                 fparams.write(shlex.quote(vol_path+"/concore.params")+"\n")
                 writeedges = writeedges[writeedges.find(":")+1:]
         i=i+1
-    fparams.write('sudo docker stop concore \n')
-    fparams.write('sudo docker rm concore\n')
-    fparams.write('sudo docker rmi docker-concore\n')
+    fparams.write(f'{DOCKEREXE} stop concore \n')
+    fparams.write(f'{DOCKEREXE} rm concore\n')
+    fparams.write(f'{DOCKEREXE} rmi docker-concore\n')
     fparams.write('rm Dockerfile\n')
     fparams.write('rm concore.params\n')
     fparams.close()
 
     funlock.write('#!/bin/bash' + "\n")
     funlock.write('echo "FROM alpine:3.8" > Dockerfile\n')
-    funlock.write('sudo docker build -t docker-concore .\n')
-    funlock.write('sudo docker run --name=concore')
+    funlock.write(f'{DOCKEREXE} build -t docker-concore .\n')
+    funlock.write(f'{DOCKEREXE} run --name=concore')
     # -v VCZ:/VCZ -v VPZ:/VPZ 
     i=0 #  9/12/21
     for node in nodes_dict:
@@ -939,15 +939,15 @@ if (concoretype=="docker"):
             dockername = sourcecode.rsplit(".", 1)[0] #3/28/21
             writeedges = volswr[i]
             while writeedges.find(":") != -1: 
-                funlock.write('sudo docker cp ~/concore.apikey concore:/')
+                funlock.write(f'{DOCKEREXE} cp ~/concore.apikey concore:/')
                 # escape destination path
                 vol_path = writeedges.split(":")[0].split("-v ")[1].strip()
                 funlock.write(shlex.quote(vol_path+"/concore.apikey")+"\n")
                 writeedges = writeedges[writeedges.find(":")+1:]
         i=i+1
-    funlock.write('sudo docker stop concore \n')
-    funlock.write('sudo docker rm concore\n')
-    funlock.write('sudo docker rmi docker-concore\n')
+    funlock.write(f'{DOCKEREXE} stop concore \n')
+    funlock.write(f'{DOCKEREXE} rm concore\n')
+    funlock.write(f'{DOCKEREXE} rmi docker-concore\n')
     funlock.write('rm Dockerfile\n')
     funlock.close()
 
