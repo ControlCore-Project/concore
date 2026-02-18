@@ -142,7 +142,8 @@ if len(sys.argv) < 4:
     print(" type must be posix (macos or ubuntu), windows, or docker")
     sys.exit(1)
 
-GRAPHML_FILE = sys.argv[1]
+ORIGINAL_CWD = os.getcwd()
+GRAPHML_FILE = os.path.abspath(sys.argv[1])
 TRIMMED_LOGS = True
 CONCOREPATH = _resolve_concore_path()
 CPPWIN    = os.environ.get("CONCORE_CPPWIN", "g++")          #Windows C++  6/22/21
@@ -197,8 +198,8 @@ if os.path.exists(CONCOREPATH+"/concore.tools"):
     OCTAVEWIN = _tools.get("OCTAVEWIN", OCTAVEWIN)
 
 prefixedgenode = ""
-sourcedir = sys.argv[2]
-outdir = sys.argv[3]
+sourcedir = os.path.abspath(sys.argv[2])
+outdir = os.path.abspath(sys.argv[3])
 
 # Validate outdir argument (allow full paths)
 safe_name(outdir, "Output directory argument", allow_path=True)
@@ -208,7 +209,8 @@ if not os.path.isdir(sourcedir):
     quit()
 
 if len(sys.argv) == 4:
-    prefixedgenode = outdir+"_" #nodes and edges prefixed with outdir_ only in case no type specified 3/24/21
+    # Use only the output directory name in generated prefixes.
+    prefixedgenode = os.path.basename(os.path.normpath(outdir)) + "_"
     concoretype = "docker"
 else:
     concoretype = sys.argv[4]
@@ -227,7 +229,7 @@ if os.path.exists(outdir):
     logging.error(f"if intended, Remove/Rename {outdir} first")
     quit()
 
-os.mkdir(outdir)
+os.makedirs(outdir)
 os.chdir(outdir)
 if concoretype == "windows":
     fbuild = open("build.bat","w")
@@ -256,7 +258,7 @@ def cleanup_script_files():
 atexit.register(cleanup_script_files)
 
 os.mkdir("src")
-os.chdir("..")
+os.chdir(ORIGINAL_CWD)
 
 logging.info(f"mkconcore {MKCONCORE_VER}")
 logging.info(f"Concore path: {CONCOREPATH}")

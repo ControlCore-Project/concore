@@ -114,6 +114,21 @@ class TestConcoreCLI(unittest.TestCase):
             else:
                 self.assertTrue(Path('out/build').exists())
 
+    def test_run_command_nested_output_path(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ['init', 'test-project'])
+            self.assertEqual(result.exit_code, 0)
+
+            result = self.runner.invoke(cli, [
+                'run',
+                'test-project/workflow.graphml',
+                '--source', 'test-project/src',
+                '--output', 'build/out',
+                '--type', 'posix'
+            ])
+            self.assertEqual(result.exit_code, 0)
+            self.assertTrue(Path('build/out/src/concore.py').exists())
+
     def test_run_command_subdir_source(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ['init', 'test-project'])
