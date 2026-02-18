@@ -1,4 +1,5 @@
 import os
+import pytest
 
 
 class TestSafeLiteralEval:
@@ -151,3 +152,84 @@ class TestRead:
         assert result == [5, 5]
         concoredocker.inpath = old_inpath
         concoredocker.delay = old_delay
+
+
+class TestZMQ:
+    @pytest.fixture(autouse=True)
+    def reset_zmq_ports(self):
+        import concoredocker
+        original_ports = concoredocker.zmq_ports.copy()
+        yield
+        concoredocker.zmq_ports.clear()
+        concoredocker.zmq_ports.update(original_ports)
+
+    def test_write_prepends_simtime(self):
+        import concoredocker
+
+        class DummyPort:
+            def __init__(self):
+                self.sent = None
+
+            def send_json_with_retry(self, message):
+                self.sent = message
+
+        dummy = DummyPort()
+        concoredocker.zmq_ports["test_zmq"] = dummy
+        concoredocker.simtime = 3.0
+
+        concoredocker.write("test_zmq", "data", [1.0, 2.0], delta=2)
+
+        assert dummy.sent == [5.0, 1.0, 2.0]
+        assert concoredocker.simtime == 5.0
+
+    def test_read_strips_simtime(self):
+        import concoredocker
+
+        class DummyPort:
+            def recv_json_with_retry(self):
+                return [10.0, 4.0, 5.0]
+
+        concoredocker.zmq_ports["test_zmq"] = DummyPort()
+        concoredocker.simtime = 0
+
+        result = concoredocker.read("test_zmq", "data", "[]")
+
+        assert result == [4.0, 5.0]
+        assert concoredocker.simtime == 10.0
+
+    def test_read_updates_simtime_monotonically(self):
+        import concoredocker
+
+        class DummyPort:
+            def recv_json_with_retry(self):
+                return [2.0, 99.0]
+
+        concoredocker.zmq_ports["test_zmq"] = DummyPort()
+        concoredocker.simtime = 5.0
+
+        concoredocker.read("test_zmq", "data", "[]")
+
+        assert concoredocker.simtime == 5.0
+
+    def test_write_read_roundtrip(self):
+        import concoredocker
+
+        class DummyPort:
+            def __init__(self):
+                self.buffer = None
+
+            def send_json_with_retry(self, message):
+                self.buffer = message
+
+            def recv_json_with_retry(self):
+                return self.buffer
+
+        dummy = DummyPort()
+        concoredocker.zmq_ports["roundtrip"] = dummy
+        concoredocker.simtime = 0
+
+        original = [1.5, 2.5, 3.5]
+        concoredocker.write("roundtrip", "data", original)
+        result = concoredocker.read("roundtrip", "data", "[]")
+
+        assert result == original
