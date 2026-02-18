@@ -279,6 +279,7 @@ private:
      */
     vector<double> parser(string f){
         vector<double> temp;
+        if(f.empty()) return temp;
         string value = "";
     
         //Changing last bracket to comma to use comma as a delimiter
@@ -370,6 +371,10 @@ private:
         s += ins;
 
         vector<double> inval = parser(ins);
+        if(inval.empty())
+            inval = parser(initstr);
+        if(inval.empty())
+            return inval;
         simtime = simtime > inval[0] ? simtime : inval[0];
 
         //returning a string with data excluding simtime
@@ -432,6 +437,10 @@ private:
         s += ins;
 
         vector<double> inval = parser(ins);
+        if(inval.empty())
+            inval = parser(initstr);
+        if(inval.empty())
+            return inval;
         simtime = simtime > inval[0] ? simtime : inval[0];
 
         //returning a string with data excluding simtime
@@ -494,6 +503,7 @@ private:
                     outfile<<val[i]<<',';
                 outfile<<val[val.size()-1]<<']';
                 outfile.close();
+                simtime += delta;
                 }
             else{
                 throw 505;
@@ -549,6 +559,7 @@ private:
                 outfile<<val[val.size()-1]<<']';
                 std::string result = outfile.str();
                 std::strncpy(sharedData_create, result.c_str(), 256 - 1);
+                simtime += delta;
                 }
             else{
                 throw 505;

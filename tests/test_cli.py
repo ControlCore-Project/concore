@@ -150,6 +150,47 @@ class TestConcoreCLI(unittest.TestCase):
                 '--output', 'output'
             ])
             self.assertIn('already exists', result.output.lower())
+    
+    def test_inspect_command_basic(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ['init', 'test-project'])
+            self.assertEqual(result.exit_code, 0)
+            
+            result = self.runner.invoke(cli, ['inspect', 'test-project/workflow.graphml'])
+            self.assertEqual(result.exit_code, 0)
+            self.assertIn('Workflow Overview', result.output)
+            self.assertIn('Nodes:', result.output)
+            self.assertIn('Edges:', result.output)
+    
+    def test_inspect_missing_file(self):
+        result = self.runner.invoke(cli, ['inspect', 'nonexistent.graphml'])
+        self.assertNotEqual(result.exit_code, 0)
+    
+    def test_inspect_json_output(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ['init', 'test-project'])
+            self.assertEqual(result.exit_code, 0)
+            
+            result = self.runner.invoke(cli, ['inspect', 'test-project/workflow.graphml', '--json'])
+            self.assertEqual(result.exit_code, 0)
+            
+            import json
+            output_data = json.loads(result.output)
+            self.assertIn('workflow', output_data)
+            self.assertIn('nodes', output_data)
+            self.assertIn('edges', output_data)
+            self.assertEqual(output_data['workflow'], 'workflow.graphml')
+    
+    def test_inspect_missing_source_file(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ['init', 'test-project'])
+            self.assertEqual(result.exit_code, 0)
+            
+            Path('test-project/src/script.py').unlink()
+            
+            result = self.runner.invoke(cli, ['inspect', 'test-project/workflow.graphml', '--source', 'src'])
+            self.assertEqual(result.exit_code, 0)
+            self.assertIn('Missing files', result.output)
 
 if __name__ == '__main__':
     unittest.main()

@@ -5,6 +5,7 @@ function concore_write(port, name, val, delta)
          outstr = cat(2,"[",num2str(concore.simtime+delta),num2str(val,",%e"),"]");
          fprintf(output1,'%s',outstr);
          fclose(output1);
+         concore.simtime = concore.simtime + delta;
      catch exc
          disp(['skipping ' concore.outpath num2str(port) '/' name]);
      end
