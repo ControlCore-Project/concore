@@ -190,76 +190,32 @@ def build(dir):
                         
 
     if not os.path.exists(dir_path):
-        if(platform.uname()[0]=='Windows'):
-            if(out_dir == None or out_dir == ""):
-                if(docker == 'true'):
-                    try:
-                        output_bytes = subprocess.check_output(["makedocker", makestudy_dir], cwd=concore_path, shell=True)
-                        output_str = output_bytes.decode("utf-8")
-                        proc = 0
-                    except subprocess.CalledProcessError as e:
-                        output_str = f"Docker study creation failed with return code {e.returncode} (check duplicate directory)"
-                        proc = 1
-                else:
-                    try:
-                        output_bytes = subprocess.check_output(["makestudy", makestudy_dir], cwd=concore_path, shell=True)
-                        output_str = output_bytes.decode("utf-8")
-                        proc = 0
-                    except subprocess.CalledProcessError as e:
-                        output_str = f"Study creation failed with return code {e.returncode} (check duplicate directory)"
-                        proc = 1
-            else:
-                if(docker == 'true'):
-                    try:
-                        output_bytes = subprocess.check_output(["makedocker", makestudy_dir, out_dir], cwd=concore_path, shell=True)
-                        output_str = output_bytes.decode("utf-8")
-                        proc = 0
-                    except subprocess.CalledProcessError as e:
-                        output_str = f"Docker study creation failed with return code {e.returncode} (check duplicate directory)"
-                        proc = 1
-                else:
-                    try:
-                        output_bytes = subprocess.check_output(["makestudy", makestudy_dir, out_dir], cwd=concore_path, shell=True)
-                        output_str = output_bytes.decode("utf-8")
-                        proc = 0
-                    except subprocess.CalledProcessError as e:
-                        output_str = f"Study creation failed with return code {e.returncode} (check duplicate directory)"
-                        proc = 1
+        # Determine command name and error label based on docker flag
+        if docker == 'true':
+            cmd_name = "makedocker"
+            error_label = "Docker study"
         else:
-            if(out_dir == None or out_dir == ""):
-                if(docker == 'true'):
-                    try:
-                        output_bytes = subprocess.check_output([r"./makedocker", makestudy_dir], cwd=concore_path)
-                        output_str = output_bytes.decode("utf-8")
-                        proc = 0
-                    except subprocess.CalledProcessError as e:
-                        output_str = f"Docker study creation failed with return code {e.returncode} (check duplicate directory)"
-                        proc = 1
-                else:
-                    try:
-                        output_bytes = subprocess.check_output([r"./makestudy", makestudy_dir], cwd=concore_path)
-                        output_str = output_bytes.decode("utf-8")
-                        proc = 0
-                    except subprocess.CalledProcessError as e:
-                        output_str = f"Study creation failed with return code {e.returncode} (check duplicate directory)"
-                        proc = 1
-            else:
-                if(docker == 'true'):
-                    try:
-                        output_bytes = subprocess.check_output([r"./makedocker", makestudy_dir, out_dir], cwd=concore_path)
-                        output_str = output_bytes.decode("utf-8")
-                        proc = 0
-                    except subprocess.CalledProcessError as e:
-                        output_str = f"Docker study creation failed with return code {e.returncode} (check duplicate directory)"
-                        proc = 1
-                else:
-                    try:
-                        output_bytes = subprocess.check_output([r"./makestudy", makestudy_dir, out_dir], cwd=concore_path)
-                        output_str = output_bytes.decode("utf-8")
-                        proc = 0
-                    except subprocess.CalledProcessError as e:
-                        output_str = f"Study creation failed with return code {e.returncode} (check duplicate directory)"
-                        proc = 1
+            cmd_name = "makestudy"
+            error_label = "Study"
+
+        # Build command list
+        cmd = [cmd_name, makestudy_dir]
+        if out_dir != None and out_dir != "":
+            cmd.append(out_dir)
+
+        # OS-specific adjustments
+        is_windows = platform.uname()[0] == 'Windows'
+        if not is_windows:
+            cmd[0] = f"./{cmd[0]}"
+
+        try:
+            output_bytes = subprocess.check_output(cmd, cwd=concore_path, shell=is_windows)
+            output_str = output_bytes.decode("utf-8")
+            proc = 0
+        except subprocess.CalledProcessError as e:
+            output_str = f"{error_label} creation failed with return code {e.returncode} (check duplicate directory)"
+            proc = 1
+
         if(proc == 0):
             resp = jsonify({'message': 'Directory successfully created'})
             resp.status_code = 201
