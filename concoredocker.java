@@ -62,7 +62,7 @@ public class concoredocker {
             } else if (!sparams.isEmpty()) {
                 // Fallback: convert key=value,key=value format to dict
                 System.out.println("converting sparams: " + sparams);
-                sparams = "{'" + sparams.replaceAll(",", ",'").replaceAll("=", "':").replaceAll(" ", "") + "}";
+                sparams = "{'" + sparams.replaceAll(";", ",'").replaceAll("=", "':").replaceAll(" ", "") + "}";
                 System.out.println("converted sparams: " + sparams);
                 try {
                     Object parsed = literalEval(sparams);
