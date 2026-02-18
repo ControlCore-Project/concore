@@ -26,7 +26,7 @@ public class concoredocker {
     private static Map<String, Object> params = new HashMap<>();
     // simtime as double to preserve fractional values (e.g. "[0.0, ...]")
     private static double simtime = 0;
-    private static int maxtime;
+    private static double maxtime;
 
     public static void main(String[] args) {
         try {
@@ -109,12 +109,12 @@ public class concoredocker {
      * Sets maxtime from concore.maxtime file, or uses defaultValue if file not found.
      * Catches both IOException and RuntimeException to match Python safe_literal_eval.
      */
-    private static void defaultMaxTime(int defaultValue) {
+    private static void defaultMaxTime(double defaultValue) {
         try {
             String content = new String(Files.readAllBytes(Paths.get(inpath + "1/concore.maxtime")));
             Object parsed = literalEval(content.trim());
             if (parsed instanceof Number) {
-                maxtime = ((Number) parsed).intValue();
+                maxtime = ((Number) parsed).doubleValue();
             } else {
                 maxtime = defaultValue;
             }
