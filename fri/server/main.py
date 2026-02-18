@@ -84,6 +84,20 @@ def get_error_output(e):
 cur_path = os.path.dirname(os.path.abspath(__file__))
 concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
 
+# API key authentication for sensitive endpoints
+API_KEY = os.environ.get("CONCORE_API_KEY")
+
+def require_api_key():
+    """Require a valid API key via X-API-KEY header."""
+    if not API_KEY:
+        abort(500, description="Server not configured with API key")
+    provided = request.headers.get("X-API-KEY")
+    if provided != API_KEY:
+        abort(403, description="Unauthorized")
+
+# Track single Jupyter process to prevent multiple concurrent launches
+jupyter_process = None
+
 
 app = Flask(__name__)
 secret_key = os.environ.get("FLASK_SECRET_KEY")
@@ -536,15 +550,39 @@ def getFilesList(dir):
 
 @app.route('/openJupyter/', methods=['POST'])
 def openJupyter():
-    proc = subprocess.Popen(['jupyter', 'lab'], shell=False, stdout=subprocess.PIPE, cwd=concore_path)
-    if  proc.poll() is None:
-        resp = jsonify({'message': 'Successfuly opened Jupyter'})
-        resp.status_code = 308
-        return resp
-    else:
-        resp = jsonify({'message': 'There is an Error'})
-        resp.status_code = 500
-        return resp 
+    global jupyter_process
+
+    require_api_key()
+
+    if jupyter_process and jupyter_process.poll() is None:
+        return jsonify({"message": "Jupyter already running"}), 409
+
+    try:
+        jupyter_process = subprocess.Popen(
+            ['jupyter', 'lab', '--no-browser'],
+            shell=False,
+            cwd=concore_path,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return jsonify({"message": "Jupyter Lab started"}), 200
+    except Exception:
+        return jsonify({"error": "Failed to start Jupyter"}), 500
+
+
+@app.route('/stopJupyter/', methods=['POST'])
+def stopJupyter():
+    global jupyter_process
+
+    require_api_key()
+
+    if not jupyter_process or jupyter_process.poll() is not None:
+        return jsonify({"message": "No running Jupyter instance"}), 404
+
+    jupyter_process.terminate()
+    jupyter_process = None
+
+    return jsonify({"message": "Jupyter stopped"}), 200
 
 
 if __name__ == "__main__":
