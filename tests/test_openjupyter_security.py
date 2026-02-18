@@ -109,7 +109,7 @@ class TestOpenJupyterProcess:
         data = resp2.get_json()
         assert data["message"] == "Jupyter already running"
 
-    @patch("fri.server.main.subprocess.Popen", side_effect=Exception("fail"))
+    @patch("fri.server.main.subprocess.Popen", side_effect=OSError("fail"))
     def test_popen_failure_returns_500(self, mock_popen, client):
         """If Popen raises, return 500."""
         resp = client.post(
@@ -153,3 +153,4 @@ class TestStopJupyter:
         data = resp.get_json()
         assert data["message"] == "Jupyter stopped"
         mock_proc.terminate.assert_called_once()
+        mock_proc.wait.assert_called()
