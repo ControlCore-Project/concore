@@ -23,8 +23,8 @@ public:
     int retrycount = 0;
     std::string inpath = "/in";
     std::string outpath = "/out";
-    int simtime = 0;
-    int maxtime = 100;
+    double simtime = 0;
+    double maxtime = 100;
     std::unordered_map<std::string, std::string> params;
 
     std::string stripstr(const std::string& str) {
@@ -119,7 +119,7 @@ public:
         return params.count(n) ? params[n] : i;
     }
 
-    void default_maxtime(int defaultValue) {
+    void default_maxtime(double defaultValue) {
         maxtime = defaultValue;
         std::ifstream file(inpath + "/1/concore.maxtime");
         if (file) {
@@ -166,7 +166,7 @@ public:
         try {
             std::vector<std::string> inval = parselist(ins);
             if (!inval.empty()) {
-                int file_simtime = (int)std::stod(inval[0]);
+                double file_simtime = std::stod(inval[0]);
                 simtime = std::max(simtime, file_simtime);
                 return std::vector<std::string>(inval.begin() + 1, inval.end());
             }
@@ -195,7 +195,7 @@ public:
         try {
             std::vector<std::string> val = parselist(simtime_val);
             if (!val.empty()) {
-                simtime = (int)std::stod(val[0]);
+                simtime = std::stod(val[0]);
                 return std::vector<std::string>(val.begin() + 1, val.end());
             }
         } catch (...) {}
