@@ -58,7 +58,6 @@ except:
     except:
         init_simtime_ym = "[0.0, 0.0, 0.0]"
 
-print(apikey)
 print(yuyu)
 print(name1+'='+init_simtime_u)
 print(name2+'='+init_simtime_ym)
@@ -83,7 +82,7 @@ while(concore.simtime<concore.maxtime):
         u = concore.read(1,name1,init_simtime_u)
     f = {'file1': open(concore.inpath+'1/'+name1, 'rb')}
     print("CW: before post u="+str(u))
-    print('http://www.controlcore.org/pm/'+yuyu+apikey+'&fetch='+name2)
+    print('http://www.controlcore.org/pm/'+yuyu+'<APIKEY_HIDDEN>'+'&fetch='+name2)
     r = requests.post('http://www.controlcore.org/pm/'+yuyu+apikey+'&fetch='+name2, files=f,timeout=timeout_max)
     if r.status_code!=200:
         print("bad POST request "+str(r.status_code))
