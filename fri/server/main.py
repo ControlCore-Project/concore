@@ -433,6 +433,11 @@ def download(dir):
     if not download_file:
         abort(400, description="Missing file parameter")
 
+    download_file = secure_filename(download_file)
+
+    if download_file == "":
+        abort(400, description="Invalid filename")
+
     # Normalize the requested file path
     safe_path = os.path.normpath(download_file)
 
