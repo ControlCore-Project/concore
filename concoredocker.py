@@ -276,12 +276,20 @@ def write(port_identifier, name, val, delta=0):
     if isinstance(port_identifier, str) and port_identifier in zmq_ports:
         zmq_p = zmq_ports[port_identifier]
         try:
-            zmq_p.send_json_with_retry(val)
+            zmq_val = convert_numpy_to_python(val)
+            if isinstance(zmq_val, list):
+                # Prepend simtime to match file-based write behavior
+                payload = [simtime + delta] + zmq_val
+                zmq_p.send_json_with_retry(payload)
+                simtime += delta
+            else:
+                zmq_p.send_json_with_retry(zmq_val)
         except zmq.error.ZMQError as e:
             logging.error(f"ZMQ write error on port {port_identifier} (name: {name}): {e}")
         except Exception as e:
             logging.error(f"Unexpected error during ZMQ write on port {port_identifier} (name: {name}): {e}")
-    
+        return
+
     try:
         file_port_num = int(port_identifier)
         file_path = os.path.join(outpath, str(file_port_num), name)
