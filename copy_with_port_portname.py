@@ -5,21 +5,40 @@ import subprocess
 import logging
 import json
 
-def run_specialization_script(template_script_path, output_dir, edge_params_list, python_exe, copy_script_path):
+def _normalize_output_relpath(template_script_path, output_relpath=None):
+    if output_relpath:
+        relpath = output_relpath.replace("\\", "/").lstrip("/")
+    else:
+        relpath = os.path.basename(template_script_path)
+    if not relpath:
+        raise ValueError("Output relative path cannot be empty.")
+    return relpath
+
+
+def _join_output_path(output_dir, output_relpath):
+    return os.path.join(output_dir, *output_relpath.split("/"))
+
+
+def run_specialization_script(
+    template_script_path,
+    output_dir,
+    edge_params_list,
+    python_exe,
+    copy_script_path,
+    output_relpath=None
+):
     """
     Calls the copy script to generate a specialized version of a node's script.
     Returns the basename of the generated script on success, None on failure.
     """
-    # The new copy script generates a standardized filename, e.g., "original.py"
     base_template_name = os.path.basename(template_script_path)
-    template_root, template_ext = os.path.splitext(base_template_name)
-    output_filename = f"{template_root}{template_ext}"
-    expected_output_path = os.path.join(output_dir, output_filename)
+    output_relpath = _normalize_output_relpath(template_script_path, output_relpath)
+    expected_output_path = _join_output_path(output_dir, output_relpath)
 
     # If the specialized file already exists, we don't need to regenerate it.
     if os.path.exists(expected_output_path):
         logging.info(f"Specialized script '{expected_output_path}' already exists. Using existing.")
-        return output_filename
+        return output_relpath
 
     # Convert the list of parameters to a JSON string for command line argument
     edge_params_json_str = json.dumps(edge_params_list)
@@ -31,13 +50,15 @@ def run_specialization_script(template_script_path, output_dir, edge_params_list
         output_dir,
         edge_params_json_str # Pass the JSON string as the last argument
     ]
+    if output_relpath:
+        cmd.append(output_relpath)
     logging.info(f"Running specialization for '{base_template_name}': {' '.join(cmd)}")
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=True, encoding='utf-8')
-        logging.info(f"Successfully generated specialized script '{output_filename}'.")
+        logging.info(f"Successfully generated specialized script '{output_relpath}'.")
         if result.stdout: logging.debug(f"copy_with_port_portname.py stdout:\n{result.stdout.strip()}")
         if result.stderr: logging.warning(f"copy_with_port_portname.py stderr:\n{result.stderr.strip()}")
-        return output_filename
+        return output_relpath
     except subprocess.CalledProcessError as e:
         logging.error(f"Error calling specialization script for '{template_script_path}':")
         logging.error(f"Command: {' '.join(e.cmd)}")
@@ -50,7 +71,7 @@ def run_specialization_script(template_script_path, output_dir, edge_params_list
         return None
 
 
-def create_modified_script(template_script_path, output_dir, edge_params_json_str):
+def create_modified_script(template_script_path, output_dir, edge_params_json_str, output_relpath=None):
     """
     Creates a modified Python script by injecting ZMQ port and port name
     definitions from a JSON object.
@@ -121,17 +142,16 @@ def create_modified_script(template_script_path, output_dir, edge_params_json_st
     modified_lines = lines[:insert_index] + definitions + lines[insert_index:]
 
     # --- Determine and create output file ---
-    base_template_name = os.path.basename(template_script_path)
-    template_root, template_ext = os.path.splitext(base_template_name)
-    
-    # Standardized output filename for a node with one or more specializations
-    output_filename = f"{template_root}{template_ext}"
-    output_script_path = os.path.join(output_dir, output_filename)
+    output_relpath = _normalize_output_relpath(template_script_path, output_relpath)
+    output_script_path = _join_output_path(output_dir, output_relpath)
 
     try:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
             print(f"Created output directory: {output_dir}")
+        output_parent = os.path.dirname(output_script_path)
+        if output_parent and not os.path.exists(output_parent):
+            os.makedirs(output_parent, exist_ok=True)
 
         with open(output_script_path, 'w') as f:
             f.writelines(modified_lines)
@@ -149,8 +169,8 @@ if __name__ == "__main__":
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
-    if len(sys.argv) != 4:
-        print("\nUsage: python3 copy_with_port_portname.py <TEMPLATE_SCRIPT_PATH> <OUTPUT_DIRECTORY> '<JSON_PARAMETERS>'\n")
+    if len(sys.argv) not in [4, 5]:
+        print("\nUsage: python3 copy_with_port_portname.py <TEMPLATE_SCRIPT_PATH> <OUTPUT_DIRECTORY> '<JSON_PARAMETERS>' [OUTPUT_RELATIVE_PATH]\n")
         print("Example JSON: '[{\"port\": \"2355\", \"port_name\": \"FUNBODY_REP_1\", \"source_node_label\": \"nodeA\", \"target_node_label\": \"nodeB\"}]'")
         print("Note: The JSON string must be enclosed in single quotes in shell.\n")
         sys.exit(1)
@@ -158,5 +178,6 @@ if __name__ == "__main__":
     template_script_path_arg = sys.argv[1]
     output_directory_arg = sys.argv[2]
     json_params_arg = sys.argv[3]
+    output_relpath_arg = sys.argv[4] if len(sys.argv) == 5 else None
 
-    create_modified_script(template_script_path_arg, output_directory_arg, json_params_arg)
+    create_modified_script(template_script_path_arg, output_directory_arg, json_params_arg, output_relpath_arg)

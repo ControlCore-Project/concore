@@ -423,35 +423,64 @@ if node_edge_params:
     specialized_scripts_output_dir = os.path.abspath(os.path.join(outdir, "src"))
     os.makedirs(specialized_scripts_output_dir, exist_ok=True)
 
+    # Build one specialization plan per source script. This avoids collisions
+    # when multiple nodes reference the same script and need different ZMQ params.
+    script_edge_params = {}
+    script_nodes = {}
     for node_id, params_list in node_edge_params.items():
-        current_node_full_label = nodes_dict[node_id]
+        current_node_full_label = nodes_dict.get(node_id, "")
         try:
             container_name, original_script = current_node_full_label.split(':', 1)
         except ValueError:
-            continue # Skip if label format is wrong
+            continue
 
         if not original_script or "." not in original_script:
-            continue # Skip if not a script file
+            continue
 
+        script_nodes.setdefault(original_script, []).append((node_id, container_name))
+        script_edge_params.setdefault(original_script, [])
+        seen_keys = {
+            (
+                p.get("port"),
+                p.get("port_name"),
+                p.get("source_node_label"),
+                p.get("target_node_label")
+            )
+            for p in script_edge_params[original_script]
+        }
+        for edge_param in params_list:
+            edge_key = (
+                edge_param.get("port"),
+                edge_param.get("port_name"),
+                edge_param.get("source_node_label"),
+                edge_param.get("target_node_label")
+            )
+            if edge_key not in seen_keys:
+                script_edge_params[original_script].append(edge_param)
+                seen_keys.add(edge_key)
+
+    for original_script, merged_params in script_edge_params.items():
         template_script_full_path = os.path.join(sourcedir, original_script)
         if not os.path.exists(template_script_full_path):
             logging.error(f"Cannot specialize: Original script '{template_script_full_path}' not found in '{sourcedir}'.")
             continue
 
-        new_script_basename = copy_with_port_portname.run_specialization_script(
+        new_script_relpath = copy_with_port_portname.run_specialization_script(
             template_script_full_path,
             specialized_scripts_output_dir,
-            params_list,
+            merged_params,
             python_executable,
-            copy_script_py_path
+            copy_script_py_path,
+            output_relpath=original_script
         )
 
-        if new_script_basename:
-            # Update nodes_dict to point to the new comprehensive specialized script
-            nodes_dict[node_id] = f"{container_name}:{new_script_basename}"
-            logging.info(f"Node ID '{node_id}' ('{container_name}') updated to use specialized script '{new_script_basename}'.")
-        else:
-            logging.error(f"Failed to generate specialized script for node ID '{node_id}'. It will retain its original script.")
+        if not new_script_relpath:
+            logging.error(f"Failed to generate specialized script for source '{original_script}'.")
+            continue
+
+        for node_id, container_name in script_nodes.get(original_script, []):
+            nodes_dict[node_id] = f"{container_name}:{new_script_relpath}"
+            logging.info(f"Node ID '{node_id}' ('{container_name}') updated to use specialized script '{new_script_relpath}'.")
 
 #not right for PM2_1_1 and PM2_1_2
 volswr = len(nodes_dict)*['']

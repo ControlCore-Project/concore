@@ -138,6 +138,47 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(Path('out/src/subdir/script.py').exists())
 
+    def test_run_command_shared_source_specialization_merges_edge_params(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path('src').mkdir()
+            Path('src/common.py').write_text(
+                "import concore\n\n"
+                "def step():\n"
+                "    return None\n"
+            )
+
+            workflow = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd" xmlns:y="http://www.yworks.com/xml/graphml">
+  <key for="node" id="d6" yfiles.type="nodegraphics"/>
+  <key for="edge" id="d10" yfiles.type="edgegraphics"/>
+  <graph edgedefault="directed" id="G">
+    <node id="n1"><data key="d6"><y:ShapeNode><y:NodeLabel>A:common.py</y:NodeLabel></y:ShapeNode></data></node>
+    <node id="n2"><data key="d6"><y:ShapeNode><y:NodeLabel>B:common.py</y:NodeLabel></y:ShapeNode></data></node>
+    <node id="n3"><data key="d6"><y:ShapeNode><y:NodeLabel>C:common.py</y:NodeLabel></y:ShapeNode></data></node>
+    <edge source="n1" target="n2"><data key="d10"><y:PolyLineEdge><y:EdgeLabel>0x1000_AB</y:EdgeLabel></y:PolyLineEdge></data></edge>
+    <edge source="n2" target="n3"><data key="d10"><y:PolyLineEdge><y:EdgeLabel>0x1001_BC</y:EdgeLabel></y:PolyLineEdge></data></edge>
+  </graph>
+</graphml>
+"""
+            Path('workflow.graphml').write_text(workflow)
+
+            result = self.runner.invoke(cli, [
+                'run',
+                'workflow.graphml',
+                '--source', 'src',
+                '--output', 'out',
+                '--type', 'posix'
+            ])
+            self.assertEqual(result.exit_code, 0)
+
+            specialized_script = Path('out/src/common.py')
+            self.assertTrue(specialized_script.exists())
+            content = specialized_script.read_text()
+            self.assertIn('PORT_NAME_A_B', content)
+            self.assertIn('PORT_A_B', content)
+            self.assertIn('PORT_NAME_B_C', content)
+            self.assertIn('PORT_B_C', content)
+
     def test_run_command_existing_output(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ['init', 'test-project'])
