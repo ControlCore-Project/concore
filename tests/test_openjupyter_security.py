@@ -7,6 +7,9 @@ from unittest.mock import patch, MagicMock
 # Ensure the project root is on the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Skip entire module if flask is not installed (e.g. in CI with minimal deps)
+pytest.importorskip("flask", reason="flask not installed — skipping server endpoint tests")
+
 # Set a test API key before importing the app module
 TEST_API_KEY = "test-secret-key-12345"
 
