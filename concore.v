@@ -296,6 +296,7 @@ module concore;
       end
      $fdisplay(fout,"]");
      $fclose(fout);
+     simtime = simtime + delta;
     end
   endtask
 
