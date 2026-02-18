@@ -44,7 +44,7 @@ def  pid_controller(ym):
     if freq<10:
        freq = 10
     Prev_ErrorF = ErrorF      
-    ustar = np.array([amp,30])    
+    ustar = np.array([amp,freq])    
     return ustar
 
 
