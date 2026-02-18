@@ -279,6 +279,7 @@ private:
      */
     vector<double> parser(string f){
         vector<double> temp;
+        if(f.empty()) return temp;
         string value = "";
     
         //Changing last bracket to comma to use comma as a delimiter
@@ -370,6 +371,10 @@ private:
         s += ins;
 
         vector<double> inval = parser(ins);
+        if(inval.empty())
+            inval = parser(initstr);
+        if(inval.empty())
+            return inval;
         simtime = simtime > inval[0] ? simtime : inval[0];
 
         //returning a string with data excluding simtime
@@ -432,6 +437,10 @@ private:
         s += ins;
 
         vector<double> inval = parser(ins);
+        if(inval.empty())
+            inval = parser(initstr);
+        if(inval.empty())
+            return inval;
         simtime = simtime > inval[0] ? simtime : inval[0];
 
         //returning a string with data excluding simtime
