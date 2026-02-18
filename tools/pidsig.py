@@ -7,34 +7,13 @@ global Prev_Error, I, freq
 Prev_Error = 0
 I = 0
 
-try:
-    sp = concore.params['sp']
-except:
-    sp = 67.5
-try:
-    Kp = concore.params['Kp']
-except:
-    Kp = 0.1
-try:
-    Ki = concore.params['Ki']
-except:
-    Ki = 0.01
-try:
-    Kd = concore.params['Kd']
-except:
-    Kd = 0.03
-try:
-    freq = concore.params['freq']
-except:
-    freq = 30
-try:
-    sigout = concore.params['sigout']
-except:
-    sigout = True 
-try:
-    cin = concore.params['cin']
-except:
-    cin = 'hr' 
+sp = concore.tryparam('sp', 67.5)
+Kp = concore.tryparam('Kp', 0.1)
+Ki = concore.tryparam('Ki', 0.01)
+Kd = concore.tryparam('Kd', 0.03)
+freq = concore.tryparam('freq', 30)
+sigout = concore.tryparam('sigout', True)
+cin = concore.tryparam('cin', 'hr')
 
 def  pid_controller(ym):
     global Prev_Error, I, freq
