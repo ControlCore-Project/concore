@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, send_file, send_from_directory, abort
 from werkzeug.utils import secure_filename
 import xml.etree.ElementTree as ET
 import os
+import secrets
 import subprocess
 from subprocess import call,check_output
 from pathlib import Path
@@ -86,15 +87,19 @@ concore_path = os.path.abspath(os.path.join(cur_path, '../../'))
 
 
 app = Flask(__name__)
-secret_key = os.environ.get("FLASK_SECRET_KEY")
-if not secret_key:
-    # In production, require an explicit FLASK_SECRET_KEY to be set.
-    # For local development and tests, fall back to a per-process random key
-    # so that importing this module does not fail hard.
-    if os.environ.get("FLASK_ENV") == "production":
-        raise RuntimeError("FLASK_SECRET_KEY environment variable not set in production")
-    secret_key = os.urandom(32)
-app.secret_key = secret_key
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+
+if not app.secret_key:
+    # In production, require an explicit secret key to avoid session issues
+    flask_env = os.getenv("FLASK_ENV", "").lower()
+    if flask_env in ("development", "dev") or app.debug:
+        # Generate temporary key for development environments where a secret key
+        # has not been explicitly configured.
+        app.secret_key = secrets.token_hex(32)
+    else:
+        raise RuntimeError(
+            "FLASK_SECRET_KEY environment variable must be set in production."
+        )
 
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'

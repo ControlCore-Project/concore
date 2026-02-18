@@ -77,6 +77,16 @@ _concore_ supports customization through configuration files in the `CONCOREPATH
 
 Tool paths can also be set via environment variables (e.g., `CONCORE_CPPEXE=/usr/bin/g++`). Priority: config file > env var > defaults.
 
+### Security Configuration
+
+Set a secure secret key for the Flask server before running in production:
+
+```bash
+export FLASK_SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+```
+
+Do **NOT** commit your secret key to version control. If `FLASK_SECRET_KEY` is not set, a temporary random key will be generated automatically (suitable for local development only).
+
 For a detailed and more scientific documentation, please read our extensive [open-access research paper on CONTROL-CORE](https://doi.org/10.1109/ACCESS.2022.3161471). This paper has a complete discussion on the CONTROL-CORE architecture and deployment, together with the commands to execute the studies in different programming languages and programming environments (Ubuntu, Windows, MacOS, Docker, and distributed execution).
 
 
