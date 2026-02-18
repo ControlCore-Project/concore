@@ -137,6 +137,11 @@ def _resolve_concore_path():
         return os.getcwd()
     return SCRIPT_DIR
 
+if len(sys.argv) < 4:
+    print("usage: py mkconcore.py file.graphml sourcedir outdir [type]")
+    print(" type must be posix (macos or ubuntu), windows, or docker")
+    sys.exit(1)
+
 GRAPHML_FILE = sys.argv[1]
 TRIMMED_LOGS = True
 CONCOREPATH = _resolve_concore_path()
@@ -202,11 +207,7 @@ if not os.path.isdir(sourcedir):
     logging.error(f"{sourcedir} does not exist")
     quit()
 
-if len(sys.argv) < 4:
-    logging.error("usage: py mkconcore.py file.graphml sourcedir outdir [type]")
-    logging.error(" type must be posix (macos or ubuntu), windows, or docker")
-    quit()
-elif len(sys.argv) == 4:
+if len(sys.argv) == 4:
     prefixedgenode = outdir+"_" #nodes and edges prefixed with outdir_ only in case no type specified 3/24/21
     concoretype = "docker"
 else:
