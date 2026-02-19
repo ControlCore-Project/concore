@@ -1,5 +1,6 @@
 Flask
 gunicorn==20.1.0
-FLASK_CORS
+flask-cors
+# Optional dependency for /openJupyter endpoint
 jupyterlab
 PyGithub
