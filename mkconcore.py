@@ -789,29 +789,33 @@ if (concoretype=="docker"):
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0 and sourcecode.find(".")!=-1: #3/28/21
             dockername,langext = sourcecode.rsplit(".", 1)
+            # dockername can include subdirectories (e.g. subdir/script).
+            # Compute a stable prefix to reach study root from docker build dir.
+            docker_subpath_depth = dockername.count("/") + dockername.count("\\")
+            docker_rel_prefix = "../" * (docker_subpath_depth + 1)
             fbuild.write("mkdir docker-"+dockername+"\n")
             fbuild.write("cd docker-"+dockername+"\n")
-            fbuild.write("cp ../src/Dockerfile."+dockername+" Dockerfile\n")
+            fbuild.write("cp "+docker_rel_prefix+"src/Dockerfile."+dockername+" Dockerfile\n")
             #copy sourcefiles from ./src into corresponding directories
-            fbuild.write("cp ../src/"+sourcecode+" .\n")
+            fbuild.write("cp "+docker_rel_prefix+"src/"+sourcecode+" .\n")
             if langext == "py": #4/29/21
-                fbuild.write("cp ../src/concore.py .\n")
+                fbuild.write("cp "+docker_rel_prefix+"src/concore.py .\n")
             elif langext == "cpp": #6/22/21
-                fbuild.write("cp ../src/concore.hpp .\n")
+                fbuild.write("cp "+docker_rel_prefix+"src/concore.hpp .\n")
             elif langext == "v": #6/25/21
-                fbuild.write("cp ../src/concore.v .\n")
+                fbuild.write("cp "+docker_rel_prefix+"src/concore.v .\n")
             if langext == "m":
-                fbuild.write("cp ../src/concore_*.m .\n")
-                fbuild.write("cp ../src/import_concore.m .\n")
+                fbuild.write("cp "+docker_rel_prefix+"src/concore_*.m .\n")
+                fbuild.write("cp "+docker_rel_prefix+"src/import_concore.m .\n")
             if langext == "sh": #5/27/21
                 fbuild.write("chmod u+x "+sourcecode+"\n")
-            fbuild.write("cp ../src/"+dockername+".iport concore.iport\n")
-            fbuild.write("cp ../src/"+dockername+".oport concore.oport\n")
+            fbuild.write("cp "+docker_rel_prefix+"src/"+dockername+".iport concore.iport\n")
+            fbuild.write("cp "+docker_rel_prefix+"src/"+dockername+".oport concore.oport\n")
             #include data files in here if they exist
             if os.path.isdir(sourcedir+"/"+dockername+".dir"):
-                fbuild.write("cp -r ../src/"+dockername+".dir/* .\n")
+                fbuild.write("cp -r "+docker_rel_prefix+"src/"+dockername+".dir/* .\n")
             fbuild.write(DOCKEREXE+" build -t docker-"+dockername+" .\n")
-            fbuild.write("cd ..\n")              
+            fbuild.write("cd "+docker_rel_prefix+"\n")
 
     fbuild.close()
 
