@@ -117,7 +117,14 @@ def validate_workflow(workflow_file, source_dir, console):
                     warnings.append(f"Node {node_id} has no label")
             except Exception as e:
                 warnings.append(f"Error parsing node: {str(e)}")
-        
+
+        # duplicate labels cause silent corruption in mkconcore.py (#384)
+        seen = set()
+        for label in node_labels:
+            if label in seen:
+                errors.append(f"Duplicate node label: '{label}'")
+            seen.add(label)
+
         node_ids = {node.get('id') for node in nodes if node.get('id')}
         for edge in edges:
             source = edge.get('source')
