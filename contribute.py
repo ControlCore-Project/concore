@@ -5,12 +5,12 @@ import os,sys,platform,base64,time,re
 # Initializing the Variables
 BOT_TOKEN = os.environ.get('CONCORE_BOT_TOKEN', '')
 
-# Fix 1: Fail fast if token is missing
+# Fail fast if token is missing
 if not BOT_TOKEN:
     print("Error: CONCORE_BOT_TOKEN environment variable is not set.")
     sys.exit(1)
 
-# Fix 2: Token format validation
+# Token format validation
 token_pattern = r"^((ghp_|github_pat_|ghs_)[A-Za-z0-9_]{20,}|[0-9a-fA-F]{40})$"
 if not re.match(token_pattern, BOT_TOKEN):
     print("Error: Invalid GitHub token format.")
@@ -34,7 +34,7 @@ def checkInputValidity():
         print("Directory does not Exists.Invalid Path")
         exit(1)
 
-# Fix 5: Retry + backoff wrapper for PyGithub operations
+# Retry + backoff wrapper for PyGithub operations
 def with_retry(operation, retries=3):
     """Retry wrapper for PyGithub operations with exponential backoff."""
     for attempt in range(retries):
@@ -49,7 +49,7 @@ def with_retry(operation, retries=3):
     print("Error: GitHub API request failed after retries.")
     sys.exit(1)
 
-# Fix 4: Correct PR URL (singular 'pull' not 'pulls')
+# Correct PR URL (singular 'pull' not 'pulls')
 def printPR(pr):
     print(f'Check your example here https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pull/{pr.number}',end="")
 
@@ -131,8 +131,6 @@ def remove_prefix(text, prefix):
         return text[len(prefix):]
     return text
 
-
-# Fix 9: Removed unused decode_token() function
 
 # check if directory path is Valid
 checkInputValidity()
