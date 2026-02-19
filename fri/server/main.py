@@ -512,18 +512,18 @@ def library(dir):
             result = subprocess.run(["cmd.exe", "/c", r"..\library.bat", library_path, filename], cwd=dir_path, check=True, capture_output=True, text=True)
             proc = result.stdout
         else:
-            proc = subprocess.check_output([r"../library", library_path, filename], cwd=dir_path)
+            proc = subprocess.check_output([r"../library", library_path, filename], cwd=dir_path, stderr=subprocess.STDOUT)
             proc = proc.decode("utf-8")
         resp = jsonify({'message': proc})
-        resp.status_code = 201
+        resp.status_code = 200
         return resp
     except subprocess.CalledProcessError as e:
         error_output = get_error_output(e)
         resp = jsonify({'message': f'Command execution failed: {error_output}'})
-        resp.status_code = 500
+        resp.status_code = 400
         return resp
     except Exception as e:
-        resp = jsonify({'message': 'There is an Error'})
+        resp = jsonify({'message': 'Internal server error'})
         resp.status_code = 500
         return resp
 
