@@ -1,28 +1,49 @@
 function import_concore
     global concore;
 
-    try
-      pid = getpid();
-    catch exc
-      pid = feature('getpid');
+    if ispc
+        try
+          pid = getpid();
+        catch exc
+          pid = feature('getpid');
+        end
+        outputpid = fopen('concorekill.bat','w');
+        if outputpid ~= -1
+            fprintf(outputpid,'%s',['taskkill /F /PID ',num2str(pid)]);
+            fclose(outputpid);
+        else
+            warning('import_concore:ConcoreKillFileOpenFailed', ...
+                'Could not create concorekill.bat. Continuing without kill script.');
+        end
     end
-    outputpid = fopen('concorekill.bat','w');
-    fprintf(outputpid,'%s',['taskkill /F /PID ',num2str(pid)]);
-    fclose(outputpid);
    
   
     try
       iportfile = fopen('concore.iport');
       concore.iports = fscanf(iportfile,'%c');
+      if isnumeric(iportfile) && iportfile ~= -1
+          fclose(iportfile);
+      end
+      iportfile = -1;
     catch exc
-      iportfile = '';
+      if exist('iportfile', 'var') && isnumeric(iportfile) && iportfile ~= -1
+          fclose(iportfile);
+      end
+      iportfile = -1;
     end
 
     try
       oportfile = fopen('concore.oport');
       concore.oports = fscanf(oportfile,'%c');
+      if isnumeric(oportfile) && oportfile ~= -1
+          fclose(oportfile);
+      end
+      oportfile = -1;
     catch exc
-      oportfile = '';
+      if exist('oportfile', 'var') && isnumeric(oportfile) && oportfile ~= -1
+          fclose(oportfile);
+      end
+      oportfile = -1;
     end
 
     concore.s = '';
