@@ -177,10 +177,11 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
 
             build_script = Path('out/build').read_text()
-            self.assertIn('cp ../../src/Dockerfile.subdir/script Dockerfile', build_script)
-            self.assertIn('cp ../../src/subdir/script.py .', build_script)
-            self.assertIn('cp ../../src/subdir/script.iport concore.iport', build_script)
-            self.assertIn('cd ../../', build_script)
+            self.assertIn('mkdir docker-subdir__script', build_script)
+            self.assertIn('cp ../src/Dockerfile.subdir/script Dockerfile', build_script)
+            self.assertIn('cp ../src/subdir/script.py .', build_script)
+            self.assertIn('cp ../src/subdir/script.iport concore.iport', build_script)
+            self.assertIn('cd ..', build_script)
 
     def test_run_command_shared_source_specialization_merges_edge_params(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
