@@ -20,7 +20,12 @@ warnings.warn(
 
 # Re-execute the canonical module so run-time behaviour is identical
 # when this file is invoked directly (e.g., via a study graph).
-from pidmayuresh import *  # noqa: F401,F403
+try:
+    # Prefer relative import when part of the tools package
+    from .pidmayuresh import *  # type: ignore[attr-defined]  # noqa: F401,F403
+except ImportError:
+    # Fallback for script-style execution (e.g., `python tools/pidmayuresh3.py`)
+    from pidmayuresh import *  # noqa: F401,F403
 
 
 
