@@ -1,9 +1,20 @@
 import github
 from github import Github
-import os,sys,platform,base64,time
+import os,sys,platform,base64,time,re
 
-# Intializing the Variables
+# Initializing the Variables
 BOT_TOKEN = os.environ.get('CONCORE_BOT_TOKEN', '')
+
+# Fail fast if token is missing
+if not BOT_TOKEN:
+    print("Error: CONCORE_BOT_TOKEN environment variable is not set.")
+    sys.exit(1)
+
+# Token format validation
+token_pattern = r"^((ghp_|github_pat_|ghs_)[A-Za-z0-9_]{20,}|[0-9a-fA-F]{40})$"
+if not re.match(token_pattern, BOT_TOKEN):
+    print("Error: Invalid GitHub token format.")
+    sys.exit(1)
 BOT_ACCOUNT = 'concore-bot'        #bot account name
 REPO_NAME = 'concore-studies'        #study repo name
 UPSTREAM_ACCOUNT = 'ControlCore-Project'  #upstream account name
@@ -20,16 +31,38 @@ def checkInputValidity():
         print("Please Provide necessary Inputs")
         exit(1)
     if not os.path.isdir(STUDY_NAME_PATH):
-        print("Directory doesnot Exists.Invalid Path")
+        print("Directory does not Exists.Invalid Path")
         exit(1)
 
+# Retry + backoff wrapper for PyGithub operations
+def with_retry(operation, retries=3):
+    """Retry wrapper for PyGithub operations with exponential backoff."""
+    for attempt in range(retries):
+        try:
+            return operation()
+        except github.GithubException as e:
+            if (e.status == 429 or e.status >= 500) and attempt < retries - 1:
+                wait_time = 2 ** attempt
+                time.sleep(wait_time)
+                continue
+            raise
+    print("Error: GitHub API request failed after retries.")
+    sys.exit(1)
+
+# Correct PR URL (singular 'pull' not 'pulls')
 def printPR(pr):
-    print(f'Check your example here https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pulls/{pr.number}',end="")
+    print(f'Check your example here https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pull/{pr.number}',end="")
 
 def anyOpenPR(upstream_repo):
     try:
         prs = upstream_repo.get_pulls(state='open', head=f'{BOT_ACCOUNT}:{BRANCH_NAME}')
         return prs[0] if prs.totalCount > 0 else None
+    except github.GithubException as e:
+        if e.status == 429 or e.status >= 500:
+            print("GitHub API rate limit or server error while fetching PR status.")
+        else:
+            print("Unable to fetch PR status. Try again later.")
+        exit(1)
     except Exception:
         print("Unable to fetch PR status. Try again later.")
         exit(1)
@@ -43,8 +76,11 @@ def commitAndUpdateRef(repo,tree_content,commit,branch):
             exit(1)
         ref = repo.get_git_ref("heads/"+branch.name)
         ref.edit(new_commit.sha,True)
-    except Exception as e:
-        print("failed to Upload your example.Please try after some time.",end="")
+    except github.GithubException as e:
+        print(f"GitHub API error: {e.status}")
+        exit(1)
+    except Exception:
+        print("Failed to upload your example. Please try after some time.",end="")
         exit(1)
 
 
@@ -62,8 +98,11 @@ def runWorkflow(repo,upstream_repo):
                 inputs={'title': f"[BOT]: {PR_TITLE}", 'body': PR_BODY, 'upstreamRepo': UPSTREAM_ACCOUNT, 'botRepo': BOT_ACCOUNT, 'repo': REPO_NAME}
             )
             printPRStatus(upstream_repo)
-        except Exception as e:
-            print(f"Error triggering workflow. Try again later.\n ERROR: {e}")
+        except github.GithubException as e:
+            print(f"GitHub API error while triggering workflow: {e.status}")
+            exit(1)
+        except Exception:
+            print("Error triggering workflow. Try again later.")
             exit(1)
     else:
         print(f"Successfully uploaded. Waiting for approval: https://github.com/{UPSTREAM_ACCOUNT}/{REPO_NAME}/pull/{openPR.number}")
@@ -93,14 +132,6 @@ def remove_prefix(text, prefix):
     return text
 
 
-# Decode Github Token
-def decode_token(encoded_token):
-    decoded_bytes = encoded_token.encode("ascii")
-    convertedbytes = base64.b64decode(decoded_bytes)
-    decoded_token = convertedbytes.decode("ascii")
-    return decoded_token
-
-
 # check if directory path is Valid
 checkInputValidity()
 
@@ -123,7 +154,10 @@ try:
     except github.GithubException:
         print(f"No Branch is available with the name {BRANCH_NAME}")
         is_present = False
-except Exception as e:
+except github.GithubException as e:
+    print(f"GitHub API error during authentication: {e.status}")
+    exit(1)
+except Exception:
     print("Authentication failed", end="")
     exit(1)
 
@@ -156,7 +190,9 @@ try:
             appendBlobInTree(repo,content,file_path,tree_content)
     commitAndUpdateRef(repo,tree_content,base_ref.commit,branch)
     runWorkflow(repo,upstream_repo)
-except Exception as e:
-    print(e)
-    print("Some error Occured.Please try again after some time.",end="")
+except github.GithubException as e:
+    print(f"GitHub API error: {e.status}")
+    exit(1)
+except Exception:
+    print("Some error occurred. Please try again after some time.",end="")
     exit(1)

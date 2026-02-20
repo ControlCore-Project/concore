@@ -382,7 +382,8 @@ def write(port_identifier, name, val, delta=0):
                 # Prepend simtime to match file-based write behavior
                 payload = [simtime + delta] + zmq_val
                 zmq_p.send_json_with_retry(payload)
-                simtime += delta
+                # simtime must not be mutated here.
+                # Mutation breaks cross-language determinism (see issue #385).
             else:
                 zmq_p.send_json_with_retry(zmq_val)
         except zmq.error.ZMQError as e:
@@ -413,7 +414,8 @@ def write(port_identifier, name, val, delta=0):
                 val_converted = convert_numpy_to_python(val)
                 data_to_write = [simtime + delta] + val_converted
                 outfile.write(str(data_to_write))
-                simtime += delta 
+                # simtime must not be mutated here.
+                # Mutation breaks cross-language determinism (see issue #385).
             else: 
                 outfile.write(val)
     except Exception as e:

@@ -2,6 +2,31 @@
 import concore
 import time
 
+# --- Fallback Definitions for Direct Execution ---
+# These values are normally injected by copy_with_port_portname.py during study generation.
+# When running this script directly, safe defaults are used instead.
+_STANDALONE_MODE = False
+
+if 'PORT_NAME_F1_F2' not in globals():
+    PORT_NAME_F1_F2 = "F1_F2"
+    _STANDALONE_MODE = True
+
+if 'PORT_F1_F2' not in globals():
+    PORT_F1_F2 = "5555"
+    _STANDALONE_MODE = True
+
+if 'PORT_NAME_F2_F3' not in globals():
+    PORT_NAME_F2_F3 = "F2_F3"
+    _STANDALONE_MODE = True
+
+if 'PORT_F2_F3' not in globals():
+    PORT_F2_F3 = "5556"
+    _STANDALONE_MODE = True
+
+if _STANDALONE_MODE:
+    print("Warning: Port variables not injected. Running in standalone mode with default values.")
+    print("         For full study behavior, run via study generation (makestudy).")
+
 # --- ZMQ Initialization ---
 # This REP socket binds and waits for requests from Node A
 concore.init_zmq_port(

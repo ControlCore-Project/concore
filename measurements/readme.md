@@ -32,4 +32,7 @@ This folder contains studies and source code specifically for measuring communic
 Here you will find studies and source code focused on measuring communication times using ZeroMQ within a single system setup.
 
 # Network Communication Measurements (Two Systems Required)
-For the Latency, Throughput, and CPU Usage measurements, two different systems are required. These systems should be connected over the same network to ensure efficient and accurate communication measurements between them. This setup is crucial for evaluating network-dependent performance metrics effectively.
+For the Latency, Throughput, and CPU Usage measurements, two different systems are required. These systems should be connected to the same network to ensure efficient, accurate communication between them. This setup is crucial for effectively evaluating network-dependent performance metrics.
+
+# Important Note on Port Variables
+The measurement benchmark scripts (A.py, B.py, C.py) expect port variables such as `PORT_NAME_F1_F2`, `PORT_F1_F2`, `PORT_NAME_F2_F3`, and `PORT_F2_F3` to be injected by `copy_with_port_portname.py` during study generation. Running these scripts directly will use safe fallback defaults and may not reflect full study behavior. For accurate results, always run measurements through the study generation workflow (e.g., `makestudy`).

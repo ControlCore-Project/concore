@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import concore
+import sys
 dT = 0.1
 global Prev_Error, I, freq
 Prev_Error = 0
@@ -22,7 +23,7 @@ def  pid_controller(ym):
         Error = sp - ym[0]
     else:
         print('invalid control input '+cin)
-        quit()
+        sys.exit(1)
     P = Error
     I = I + Error*dT 
     D = (Error - Prev_Error )/dT	

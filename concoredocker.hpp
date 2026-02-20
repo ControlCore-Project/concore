@@ -138,7 +138,7 @@ public:
 
     std::vector<std::string> read(int port, const std::string& name, const std::string& initstr) {
         std::this_thread::sleep_for(std::chrono::seconds(delay));
-        std::string file_path = inpath + std::to_string(port) + "/" + name;
+        std::string file_path = inpath + "/" + std::to_string(port) + "/" + name;
         std::ifstream infile(file_path);
         std::string ins;
 
@@ -151,6 +151,7 @@ public:
         int attempts = 0, max_retries = 5;
         while (ins.empty() && attempts < max_retries) {
             std::this_thread::sleep_for(std::chrono::seconds(delay));
+            infile.close();
             infile.open(file_path);
             if (infile) std::getline(infile, ins);
             attempts++;
@@ -175,7 +176,7 @@ public:
     }
 
     void write(int port, const std::string& name, const std::vector<std::string>& val, int delta = 0) {
-        std::string file_path = outpath + std::to_string(port) + "/" + name;
+        std::string file_path = outpath + "/" + std::to_string(port) + "/" + name;
         std::ofstream outfile(file_path);
         if (!outfile) {
             std::cerr << "Error writing to " << file_path << "\n";
