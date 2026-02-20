@@ -118,7 +118,7 @@ def validate_workflow(workflow_file, source_dir, console):
             except Exception as e:
                 warnings.append(f"Error parsing node: {str(e)}")
 
-        # duplicate labels cause silent corruption in mkconcore.py (#384)
+        # duplicate labels cause silent corruption in mkconcore.py
         seen = set()
         for label in node_labels:
             if label in seen:
