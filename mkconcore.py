@@ -309,12 +309,6 @@ for node in nodes_text:
     except (IndexError, AttributeError):
         logging.debug('A node with no valid properties encountered and ignored')
 
-label_values = list(nodes_dict.values())
-duplicates = {label for label in label_values if label_values.count(label) > 1}
-if duplicates:
-    logging.error(f"Duplicate node labels found: {sorted(duplicates)}")
-    quit()
-
 for edge in edges_text:
     try:
         data = edge.find('data', recursive=False)
