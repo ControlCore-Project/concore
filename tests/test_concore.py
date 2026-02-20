@@ -276,3 +276,146 @@ class TestWriteZMQ:
         # Read should return original data (simtime stripped)
         result = concore.read("roundtrip_test", "data", "[]")
         assert result == original_data
+
+
+class TestSimtimeNotMutatedByWrite:
+    """Regression tests for issue #385:
+    write() must NOT mutate global simtime. Simtime advancement happens
+    only in read() via max(simtime, file_simtime). Mutating simtime in
+    write() causes cascading timestamps in multi-output-port nodes and
+    breaks cross-language determinism.
+    """
+
+    @pytest.fixture(autouse=True)
+    def reset_simtime(self):
+        import concore
+        old_simtime = concore.simtime
+        yield
+        concore.simtime = old_simtime
+
+    @pytest.fixture(autouse=True)
+    def reset_outpath(self):
+        import concore
+        old_outpath = concore.outpath
+        yield
+        concore.outpath = old_outpath
+
+    @pytest.fixture(autouse=True)
+    def reset_zmq_ports(self):
+        import concore
+        original_ports = concore.zmq_ports.copy()
+        yield
+        concore.zmq_ports.clear()
+        concore.zmq_ports.update(original_ports)
+
+    # ---- Test Case 1: single-output write keeps simtime unchanged ----
+
+    def test_single_file_write_does_not_mutate_simtime(self, temp_dir):
+        """A single file-based write with delta must not change simtime."""
+        import concore
+
+        concore.simtime = 10
+        out_dir = os.path.join(temp_dir, "out1")
+        os.makedirs(out_dir, exist_ok=True)
+        concore.outpath = os.path.join(temp_dir, "out")
+
+        concore.write(1, "v", [5.0], delta=1)
+
+        assert concore.simtime == 10, (
+            "simtime must not be mutated by write(); "
+            "was %s instead of 10" % concore.simtime
+        )
+
+    def test_single_zmq_write_does_not_mutate_simtime(self):
+        """A single ZMQ-based write with delta must not change simtime."""
+        import concore
+
+        class DummyPort:
+            def send_json_with_retry(self, msg):
+                self.sent = msg
+
+        dummy = DummyPort()
+        concore.zmq_ports["zmq_test"] = dummy
+        concore.simtime = 10
+
+        concore.write("zmq_test", "v", [5.0], delta=1)
+
+        assert concore.simtime == 10, (
+            "simtime must not be mutated by ZMQ write(); "
+            "was %s instead of 10" % concore.simtime
+        )
+
+    # ---- Test Case 2: multi-port write → identical timestamps ----
+
+    def test_multi_port_file_writes_share_same_timestamp(self, temp_dir):
+        """Two consecutive file writes with delta=1 must produce the
+        same timestamp (simtime+delta), proving simtime is not incremented
+        between calls."""
+        import concore
+
+        concore.simtime = 10
+        concore.outpath = os.path.join(temp_dir, "out")
+        for p in (1, 2):
+            os.makedirs(os.path.join(temp_dir, "out" + str(p)), exist_ok=True)
+
+        concore.write(1, "u", [1.0], delta=1)
+        concore.write(2, "v", [2.0], delta=1)
+
+        # Read back the written files and compare timestamps
+        from ast import literal_eval
+        payloads = []
+        for p in (1, 2):
+            with open(os.path.join(temp_dir, "out" + str(p),
+                                    ("u" if p == 1 else "v"))) as f:
+                payloads.append(literal_eval(f.read()))
+
+        ts1, ts2 = payloads[0][0], payloads[1][0]
+        assert ts1 == ts2 == 11, (
+            "Both ports must share timestamp simtime+delta=11; "
+            "got %s and %s" % (ts1, ts2)
+        )
+
+    def test_multi_port_zmq_writes_share_same_timestamp(self):
+        """Two consecutive ZMQ writes with delta=1 must produce the
+        same timestamp."""
+        import concore
+
+        class DummyPort:
+            def __init__(self):
+                self.sent = None
+            def send_json_with_retry(self, msg):
+                self.sent = msg
+
+        d1, d2 = DummyPort(), DummyPort()
+        concore.zmq_ports["p1"] = d1
+        concore.zmq_ports["p2"] = d2
+        concore.simtime = 10
+
+        concore.write("p1", "u", [1.0], delta=1)
+        concore.write("p2", "v", [2.0], delta=1)
+
+        assert d1.sent[0] == d2.sent[0] == 11, (
+            "Both ZMQ ports must share timestamp 11; got %s and %s"
+            % (d1.sent[0], d2.sent[0])
+        )
+
+    # ---- Test Case 3: cross-language parity check ----
+
+    def test_write_timestamp_matches_cpp_semantics(self, temp_dir):
+        """C++ uses `simtime+delta` as a local expression without mutation.
+        After N writes with delta=1, simtime must still be the original
+        value — matching C++ behaviour."""
+        import concore
+
+        concore.simtime = 0
+        concore.outpath = os.path.join(temp_dir, "out")
+        for p in range(1, 4):
+            os.makedirs(os.path.join(temp_dir, "out" + str(p)), exist_ok=True)
+
+        for p in range(1, 4):
+            concore.write(p, "x", [float(p)], delta=1)
+
+        assert concore.simtime == 0, (
+            "After 3 writes with delta=1 simtime must remain 0 "
+            "(matching C++/MATLAB/Verilog); got %s" % concore.simtime
+        )
