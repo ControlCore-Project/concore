@@ -1,4 +1,7 @@
 // concore.hpp -- this C++ include file will be the equivalent of concore.py
+#ifndef CONCORE_HPP
+#define CONCORE_HPP
+
 #include <iostream>
 #include <vector>
 #include <iomanip> //for setprecision
@@ -19,6 +22,7 @@
 #endif
 #include <cstring>
 #include <cctype>
+#include <regex>
 
 using namespace std;
 
@@ -47,8 +51,10 @@ private:
     double delay = 1;
     int retrycount = 0;
     double simtime;
+    int maxtime = 100;
     map <string, int> iport;
     map <string, int> oport;
+    map <string, string> params;
 
     /**
      * @brief Constructor for Concore class.
@@ -57,7 +63,9 @@ private:
      */
     Concore(){
         iport = mapParser("concore.iport");
-        oport = mapParser("concore.oport");   
+        oport = mapParser("concore.oport");
+        default_maxtime(100);
+        load_params();   
         
         int iport_number = -1;
         int oport_number = -1;
@@ -593,6 +601,96 @@ private:
     }
     
     /**
+     * @brief Strips leading and trailing whitespace from a string.
+     * @param str The input string.
+     * @return The stripped string.
+     */
+    string stripstr(string str){
+        size_t start = str.find_first_not_of(" \t\n\r");
+        if (start == string::npos) return "";
+        size_t end = str.find_last_not_of(" \t\n\r");
+        return str.substr(start, end - start + 1);
+    }
+
+    /**
+     * @brief Strips surrounding single or double quotes from a string.
+     * @param str The input string.
+     * @return The unquoted string.
+     */
+    string stripquotes(string str){
+        if (str.size() >= 2 && ((str.front() == '\'' && str.back() == '\'') || (str.front() == '"' && str.back() == '"')))
+            return str.substr(1, str.size() - 2);
+        return str;
+    }
+
+    /**
+     * @brief Parses a dict-formatted string into a string-to-string map.
+     * @param str The input string in {key: val, ...} format.
+     * @return A map of key-value string pairs.
+     */
+    map<string, string> parsedict(string str){
+        map<string, string> result;
+        string trimmed = stripstr(str);
+        if (trimmed.size() < 2 || trimmed.front() != '{' || trimmed.back() != '}')
+            return result;
+        string inner = trimmed.substr(1, trimmed.size() - 2);
+        stringstream ss(inner);
+        string token;
+        while (getline(ss, token, ',')) {
+            size_t colon = token.find(':');
+            if (colon == string::npos) continue;
+            string key = stripquotes(stripstr(token.substr(0, colon)));
+            string val = stripquotes(stripstr(token.substr(colon + 1)));
+            if (!key.empty()) result[key] = val;
+        }
+        return result;
+    }
+
+    /**
+     * @brief Sets maxtime from the concore.maxtime file, falling back to defaultValue.
+     * @param defaultValue The fallback value if the file is missing.
+     */
+    void default_maxtime(int defaultValue){
+        maxtime = defaultValue;
+        ifstream file(inpath + "/1/concore.maxtime");
+        if (file) {
+            file >> maxtime;
+        }
+    }
+
+    /**
+     * @brief Loads simulation parameters from concore.params into the params map.
+     */
+    void load_params(){
+        ifstream file(inpath + "/1/concore.params");
+        if (!file) return;
+        stringstream buffer;
+        buffer << file.rdbuf();
+        string sparams = buffer.str();
+
+        if (!sparams.empty() && sparams[0] == '"') {
+            sparams = sparams.substr(1, sparams.find('"', 1) - 1);
+        }
+
+        if (!sparams.empty() && sparams[0] != '{') {
+            sparams = "{\"" + regex_replace(regex_replace(regex_replace(sparams, regex(","), ",\""), regex("="), "\":"), regex(" "), "") + "}";
+        }
+        try {
+            params = parsedict(sparams);
+        } catch (...) {}
+    }
+
+    /**
+     * @brief Returns the value of a param by name, or a default if not found.
+     * @param n The parameter name.
+     * @param i The default value.
+     * @return The parameter value or the default.
+     */
+    string tryparam(string n, string i){
+        return params.count(n) ? params[n] : i;
+    }
+
+    /**
      * @brief Initializes the system with the given input values.
      * @param f The input string containing the values.
      * @return A vector of double values representing the initialized system state.
@@ -600,6 +698,8 @@ private:
     vector<double> initval(string f){
         //parsing
         vector<double> val = parser(f);
+
+        if (val.empty()) return val;
 
         //determining simtime
         simtime = val[0];
@@ -609,3 +709,5 @@ private:
         return val;
     }    
 };
+
+#endif // CONCORE_HPP
