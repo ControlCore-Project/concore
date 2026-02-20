@@ -812,7 +812,7 @@ if (concoretype=="docker"):
             if os.path.isdir(sourcedir+"/"+dockername+".dir"):
                 fbuild.write("cp -r ../src/"+dockername+".dir/* .\n")
             fbuild.write(DOCKEREXE+" build -t docker-"+dockername+" .\n")
-            fbuild.write("cd ..\n")
+            fbuild.write("cd ..\n")              
 
     fbuild.close()
 
