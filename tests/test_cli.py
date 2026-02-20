@@ -153,6 +153,36 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(Path('out/src/subdir/script.py').exists())
 
+    def test_run_command_docker_subdir_source_build_paths(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ['init', 'test-project'])
+            self.assertEqual(result.exit_code, 0)
+
+            subdir = Path('test-project/src/subdir')
+            subdir.mkdir(parents=True, exist_ok=True)
+            shutil.move('test-project/src/script.py', subdir / 'script.py')
+
+            workflow_path = Path('test-project/workflow.graphml')
+            content = workflow_path.read_text()
+            content = content.replace('N1:script.py', 'N1:subdir/script.py')
+            workflow_path.write_text(content)
+
+            result = self.runner.invoke(cli, [
+                'run',
+                'test-project/workflow.graphml',
+                '--source', 'test-project/src',
+                '--output', 'out',
+                '--type', 'docker'
+            ])
+            self.assertEqual(result.exit_code, 0)
+
+            build_script = Path('out/build').read_text()
+            self.assertIn('mkdir docker-subdir__script', build_script)
+            self.assertIn('cp ../src/Dockerfile.subdir/script Dockerfile', build_script)
+            self.assertIn('cp ../src/subdir/script.py .', build_script)
+            self.assertIn('cp ../src/subdir/script.iport concore.iport', build_script)
+            self.assertIn('cd ..', build_script)
+
     def test_run_command_shared_source_specialization_merges_edge_params(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             Path('src').mkdir()

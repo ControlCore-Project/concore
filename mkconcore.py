@@ -759,8 +759,9 @@ if (concoretype=="docker"):
         containername,sourcecode = nodes_dict[node].split(':')
         if len(sourcecode)!=0 and sourcecode.find(".")!=-1: #3/28/21
             dockername,langext = sourcecode.rsplit(".", 1)
-            fbuild.write("mkdir docker-"+dockername+"\n")
-            fbuild.write("cd docker-"+dockername+"\n")
+            dockerbuilddir = "docker-"+dockername.replace("/", "__").replace("\\", "__")
+            fbuild.write("mkdir "+dockerbuilddir+"\n")
+            fbuild.write("cd "+dockerbuilddir+"\n")
             fbuild.write("cp ../src/Dockerfile."+dockername+" Dockerfile\n")
             #copy sourcefiles from ./src into corresponding directories
             fbuild.write("cp ../src/"+sourcecode+" .\n")
