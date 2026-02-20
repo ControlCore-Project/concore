@@ -9,9 +9,8 @@ def bangbang_controller(ym):
         amp = 3
     elif ym[1]<65:
         amp = 1
-	    
-     
-    ustar = np.array([amp,30])    
+
+    ustar = np.array([amp,30])
     return ustar
 
 
