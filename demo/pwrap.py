@@ -4,6 +4,7 @@ import requests
 import time
 from ast import literal_eval
 import os
+import sys
 
 #time.sleep(7)
 timeout_max=20
@@ -93,7 +94,7 @@ while(concore.simtime<concore.maxtime):
     r = requests.post('http://www.controlcore.org/ctl/'+yuyu+apikey+'&fetch='+name1, files=f,timeout=timeout_max)
     if r.status_code!=200:
         print("bad POST request "+str(r.status_code))
-        quit()
+        sys.exit(1)
     if len(r.text)!=0:
         try:
             t=literal_eval(r.text)[0]
@@ -114,7 +115,7 @@ while(concore.simtime<concore.maxtime):
         timeout_count += 1
         if r.status_code!=200 or time.perf_counter()-t1 > 1.1*timeout_max: #timeout_count>200:
             print("timeout or bad POST request "+str(r.status_code))
-            quit()
+            sys.exit(1)
         if len(r.text)!=0:
             try:
                 t=literal_eval(r.text)[0]

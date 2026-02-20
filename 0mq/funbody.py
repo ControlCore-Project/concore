@@ -1,5 +1,6 @@
 import concore
 import time
+import sys
 from osparc_control import CommandManifest
 from osparc_control import CommandParameter
 from osparc_control import CommandType
@@ -58,7 +59,7 @@ while(concore.simtime<concore.maxtime):
            request_id=command.request_id, payload=ym)
     else:
         print("undefined action"+str(command.action)) 
-        quit()
+        sys.exit(1)
     #concore.write(concore.oport['Y1'],"ym",ym)
     print("funbody u="+str(u)+" ym="+str(ym)+" time="+str(concore.simtime))
 paired_transmitter.stop_background_sync()

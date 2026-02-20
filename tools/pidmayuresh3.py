@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import concore
+import sys
 dT = 0.1
 
 sp = concore.tryparam('sp', 67.5)
@@ -20,7 +21,7 @@ def  pid_controller(state, ym, sp, Kp, Ki, Kd, sigout, cin, low, up):
         Error = sp - ym[0]
     else:
         print('invalid control input '+cin)
-        quit()
+        sys.exit(1)
     P = Error
     I = I + Error*dT 
     D = (Error - Prev_Error )/dT	
