@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Concore Protocol Conformance Fixtures (Phase 1)",
+  "description": "Language-neutral fixture format. Phase 1 executes Python-only baseline checks.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "runtime",
+    "mode",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "runtime": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "report_only"
+      ]
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "target",
+          "input",
+          "expected"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "parse_params",
+              "initval",
+              "write_zmq"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "input": {
+            "type": "object"
+          },
+          "expected": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": false
+}
