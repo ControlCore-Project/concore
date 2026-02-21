@@ -21,7 +21,7 @@ int main()
   auto wallclock1 = chrono::high_resolution_clock::now();
 
   vector<double> ym;
-  while(concore.simtime<Nsim){
+  while(concore.simtime<concore.maxtime){
     while (concore.unchanged()){
       ym = concore.read(1,"ym",init_simtime_ym);
     }
