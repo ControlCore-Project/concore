@@ -574,6 +574,13 @@ if 'py' in required_langs:
     with open(outdir+"/src/concore.py","w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
+    try:
+        with open(CONCOREPATH+"/concore_base.py") as fbase:
+            with open(outdir+"/src/concore_base.py","w") as fcopy:
+                fcopy.write(fbase.read())
+    except (FileNotFoundError, IOError):
+        print(CONCOREPATH+" is not correct path to concore (missing concore_base.py)")
+        quit()
 
 if 'cpp' in required_langs:
     try:
@@ -767,6 +774,7 @@ if (concoretype=="docker"):
             fbuild.write("cp ../src/"+sourcecode+" .\n")
             if langext == "py": #4/29/21
                 fbuild.write("cp ../src/concore.py .\n")
+                fbuild.write("cp ../src/concore_base.py .\n")
             elif langext == "cpp": #6/22/21
                 fbuild.write("cp ../src/concore.hpp .\n")
             elif langext == "v": #6/25/21
@@ -1005,6 +1013,7 @@ for node in nodes_dict:
             fbuild.write("copy .\\src\\"+sourcecode+" .\\"+containername+"\\"+sourcecode+"\n")
             if langext == "py":
                 fbuild.write("copy .\\src\\concore.py .\\" + containername + "\\concore.py\n")
+                fbuild.write("copy .\\src\\concore_base.py .\\" + containername + "\\concore_base.py\n")
             elif langext == "cpp":
  # 6/22/21
                 fbuild.write("copy .\\src\\concore.hpp .\\" + containername + "\\concore.hpp\n")
@@ -1023,6 +1032,7 @@ for node in nodes_dict:
             fbuild.write("cp ./src/"+sourcecode+" ./"+containername+"/"+sourcecode+"\n")
             if langext == "py":
                 fbuild.write("cp ./src/concore.py ./"+containername+"/concore.py\n")
+                fbuild.write("cp ./src/concore_base.py ./"+containername+"/concore_base.py\n")
             elif langext == "cpp":
                 fbuild.write("cp ./src/concore.hpp ./"+containername+"/concore.hpp\n")
             elif langext == "v":
