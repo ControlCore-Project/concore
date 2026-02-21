@@ -244,63 +244,6 @@ class cardiac(constant):
         E_lv = self.E(x_tot[:, 9], x_tot[:, 10], x_tot[:, 6], x_tot[:, 7])       
         return t_tot, x_tot, E_lv, MHR_tot, MAP_tot
     
-    def model_plot(self, t_tot, x_tot, E_lv, MHR_tot, MAP_tot, Nsim, uc):
-        # Input variables
-        fig, ax = plt.subplots(3,2, figsize=(10,10))
-        ax[0,0].plot(uc[:,0])
-        ax[0,0].set(xlabel="Cardiac Cycle", ylabel="P_w (s)")
-        
-        ax[0,1].plot(uc[:,1])
-        ax[0,1].set(xlabel="Cardiac Cycle", ylabel="P_f (Hz)")
-        
-        ax[1,0].plot(uc[:,2])
-        ax[1,0].set(xlabel="Cardiac Cycle", ylabel="P_w (s)")
-        
-        ax[1,1].plot(uc[:,3])
-        ax[1,1].set(xlabel="Cardiac Cycle", ylabel="P_f (Hz)")
-        
-        ax[2,0].plot(uc[:,4])
-        ax[2,0].set(xlabel="Cardiac Cycle", ylabel="P_w (s)")
-    
-        ax[2,1].plot(uc[:,5])
-        ax[2,1].set(xlabel="Cardiac Cycle", ylabel="P_f (Hz)") 
-        plt.show()
-        
-        # Time course of MAP and HR
-        fig, ax = plt.subplots(2,1, figsize=(10, 10))
-        ax[0].plot(MAP_tot, 'o')
-        ax[0].set(xlabel="Cardiac Cycle", ylabel="MAP (mmHg)")
-        ax[1].plot(MHR_tot, 'o')
-        ax[1].set(xlabel="Cardiac cycle", ylabel="HR (bpm)")
-        plt.show()
-        
-        # Time course of left ventricular Elastance
-        fig, ax = plt.subplots(1,2, figsize=(10,10))
-        ax[0].plot(t_tot, E_lv)
-        ax[0].set(xlabel="t (s)", ylabel="E_{LV} (mmHg/mm^3)")
-        # Pressure-volume relationship of LV
-        ax[1].plot(x_tot[:, 0] + 50, E_lv*x_tot[:, 0])
-        ax[1].set(xlabel="Volume (mm^3)", ylabel="Pressure (mmHg)")
-        plt.show()
-        
-        # Time course of LV, Vein and arterial pressure
-        plt.plot(t_tot, E_lv*x_tot[:, 0])
-        plt.plot(t_tot, x_tot[:, 1])
-        plt.plot(t_tot, x_tot[:, 2])
-        plt.legend(['LV','Vein','Artery'])
-        plt.xlabel('t (s)')
-        plt.ylabel('Pressure (mmHg)')
-        plt.show()
-        
-        # Time course of systemic resistance
-        fig, ax = plt.subplots(1,2, figsize=(10,10))
-        ax[0].plot(t_tot, x_tot[:, 8])
-        ax[0].set(xlabel="t (s)", ylabel="R_{sys} (mmHg*s/mm^3)")
-        # Time course of maximum elastance of LV
-        ax[1].plot(t_tot, x_tot[:, 9])
-        ax[1].set(xlabel="t (s)", ylabel="E_{max} (mmHg/mm^3)")
-        plt.show()
-        
     def save_data(self, data):
         np.savetxt("{}.dat".format(data), data)
 
@@ -318,18 +261,75 @@ concore.delay = 0.02
 init_simtime_u = "[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
 init_simtime_ym = "[0.0, 0.0, 0.0]"
 
+# --- LIVE PLOT SETUP ---
+plt.ion() # Enable interactive mode
+
+# Setup hrmap figure (Outputs)
+fig_ym, (ax_map, ax_hr) = plt.subplots(2, 1)
+line_map, = ax_map.plot([], [], label='MAPm')
+ax_map.set_ylabel('MAP (mmHg)')
+ax_map.legend(loc=0)
+
+line_hr, = ax_hr.plot([], [], label='HRm')
+ax_hr.set_xlabel('Cycles')
+ax_hr.set_ylabel('HR (bpm)')
+ax_hr.legend(loc=0)
+
+# Setup stim figure (Inputs)
+fig_u, axs_u = plt.subplots(3, 2)
+lines_u = []
+labels_u = ['Pw1 (s)', 'Pf1 (Hz)', 'Pw2 (s)', 'Pf2 (Hz)', 'Pw3 (s)', 'Pf3 (Hz)']
+for i, ax in enumerate(axs_u.flat):
+    line, = ax.plot([], [])
+    ax.set_ylabel(labels_u[i])
+    if i >= 4: ax.set_xlabel('Cycles')
+    lines_u.append(line)
+fig_u.tight_layout()
+
+# Storage arrays for live plotting
+map_hist = []
+mhr_hist = []
+u_hist = []
+# ------------------------
+
 ym = np.array([concore.initval(init_simtime_ym)]).T
 while(concore.simtime<concore.maxtime):
     while concore.unchanged():
         u = concore.read(1,"u",init_simtime_u)
     u = np.array(u).reshape(1, -1) #needs to be numpy col vect
+    
     ###### Solve odes
     t_tot, x_tot, E_lv, MHR, MAP  = cm.Cardiac_model(u, pl, 1, xm)
     xm = np.array(x_tot[-1])
     ym = [MAP[0],MHR[0]]  #already a python list
     #####
+    
+    # --- LIVE UPDATE ---
+    map_hist.append(MAP[0])
+    mhr_hist.append(MHR[0])
+    u_hist.append(u.flatten())
+    xdata = range(len(map_hist))
+    
+    # Update Outputs
+    line_map.set_data(xdata, map_hist)
+    line_hr.set_data(xdata, mhr_hist)
+    for ax in (ax_map, ax_hr):
+        ax.relim()
+        ax.autoscale_view()
+        
+    # Update Inputs
+    for i, line in enumerate(lines_u):
+        line.set_data(xdata, [x[i] for x in u_hist])
+        line.axes.relim()
+        line.axes.autoscale_view()
+        
+    plt.pause(0.001) # Render updates
+    # -------------------
+
     print("ym="+str(ym)+" u="+str(u));
     concore.write(1,"ym",ym,delta=1)
 print("retry="+str(concore.retrycount))
 
-
+# --- FINAL CLEANUP ---
+plt.ioff()
+plt.show() # Keep plot open at the end

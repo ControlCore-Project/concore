@@ -76,11 +76,10 @@ print(u)
 # initialize controller constant and variables
 #Nsim =  150                          # number of simulation cycles
 concore.default_maxtime(150)
-#xc = np.zeros((X['Nx'], 1))          # initial conditon of state in MPC
-#Pd = X['Pd']                         # variance of initial state
-# set list to record inputs and outputs
-#ut = []
-#ymt = []
+
+# set list to record inputs and outputs for plotting
+ut = []
+ymt = []
 
 X = Get_MPC_Constants()
 print("initial plant")
@@ -93,6 +92,32 @@ concore.delay = 0.02
 init_simtime_u = "[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
 init_simtime_ym = "[0.0, 0.0, 0.0]"
 
+# --- LIVE PLOT SETUP ---
+plt.ion() # Enable interactive mode
+
+# 1. Setup hrmap figure (Outputs)
+fig_ym, (ax_map, ax_hr) = plt.subplots(2, 1)
+line_map_m, = ax_map.plot([], [], label='MAPm')
+ax_map.set_ylabel('MAP (mmHg)')
+ax_map.legend(loc=0)
+
+line_hr_m, = ax_hr.plot([], [], label='HRm')
+ax_hr.set_xlabel('Cycles')
+ax_hr.set_ylabel('HR (bpm)')
+ax_hr.legend(loc=0)
+
+# 2. Setup stim figure (Inputs)
+fig_u, axs_u = plt.subplots(3, 2)
+lines_u = []
+labels_u = ['Pw1 (s)', 'Pf1 (Hz)', 'Pw2 (s)', 'Pf2 (Hz)', 'Pw3 (s)', 'Pf3 (Hz)']
+for i, ax in enumerate(axs_u.flat):
+    line, = ax.plot([], [])
+    ax.set_ylabel(labels_u[i])
+    if i >= 4: ax.set_xlabel('Cycles')
+    lines_u.append((ax, line))
+fig_u.tight_layout()
+# ------------------------
+
 ym = np.array([concore.initval(init_simtime_ym)]).T
 while(concore.simtime<concore.maxtime):
     while concore.unchanged():
@@ -101,8 +126,37 @@ while(concore.simtime<concore.maxtime):
     print(u)
     #####
     xm, ym = Plant(u, xm, X)
+    
+    # Store history for plotting
+    ut.append(list(u.T[0]))
+    ymt.append(list(ym.T[0]))
     #####
+    
+    # --- LIVE UPDATE ---
+    Nsim = len(ymt)
+    xdata = range(Nsim)
+    
+    # Update Outputs (ym)
+    line_map_m.set_data(xdata, [x[0] for x in ymt])
+    line_hr_m.set_data(xdata, [x[1] for x in ymt])
+    for ax in (ax_map, ax_hr):
+        ax.relim()
+        ax.autoscale_view()
+        
+    # Update Inputs (u)
+    for i, (ax, line) in enumerate(lines_u):
+        line.set_data(xdata, [x[i] for x in ut])
+        ax.relim()
+        ax.autoscale_view()
+
+    plt.pause(0.001) # Render updates
+    # -------------------
+    
     print("ym="+str(ym)+" u="+str(u));
     concore.write(1,"ym",list(ym.T[0]),delta=1)
-#concore.write(1,"ym",init_simtime_ym)
+
 print("retry="+str(concore.retrycount))
+
+# --- FINAL CLEANUP ---
+plt.ioff()
+plt.show() # Keep plot open at the end

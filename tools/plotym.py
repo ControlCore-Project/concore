@@ -11,6 +11,18 @@ init_simtime_u = "[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
 init_simtime_ym = "[0.0, 0.0, 0.0]"
 ut = []
 ymt = []
+plt.ion() # Enable interactive mode
+fig, (ax1, ax2) = plt.subplots(2, 1)
+
+line1, = ax1.plot([], [])
+ax1.set_ylabel('MAP (mmHg)')
+ax1.legend(['MAP'], loc=0)
+
+line2, = ax2.plot([], [])
+ax2.set_xlabel('Cycles '+str(concore.params))
+ax2.set_ylabel('HR (bpm)')
+ax2.legend(['HR'], loc=0)
+
 ym = concore.initval(init_simtime_ym)
 while(concore.simtime<concore.maxtime):
     while concore.unchanged():
@@ -18,24 +30,26 @@ while(concore.simtime<concore.maxtime):
     concore.write(1,"ym",ym)
     logging.debug(f" ym={ym}")
     ymt.append(np.array(ym).T)
+
+    #real-time update
+    Nsim = len(ymt)
+    xdata = range(Nsim)
+    
+    # Extract columns and update lines directly
+    line1.set_data(xdata, [x[0].item() for x in ymt])
+    line2.set_data(xdata, [x[1].item() for x in ymt])
+    
+    for ax in (ax1, ax2):
+        ax.relim()
+        ax.autoscale_view()
+
+    plt.pause(0.001) # Render update
+
 logging.info(f"retry={concore.retrycount}")
 
 #################
 
-# plot inputs and outputs
-ym1 = [x[0].item() for x in ymt]
-ym2 = [x[1].item() for x in ymt]
-Nsim = len(ym1)
-
-plt.figure()
-plt.subplot(211)
-plt.plot(range(Nsim), ym1)
-plt.ylabel('MAP (mmHg)')
-plt.legend(['MAP'], loc=0)
-plt.subplot(212)
-plt.plot(range(Nsim), ym2)
-plt.xlabel('Cycles '+str(concore.params))
-plt.ylabel('HR (bpm)')
-plt.legend(['HR'], loc=0)
+# Final Save & cleanup
+plt.ioff()
 plt.savefig("hrmap.pdf")
 plt.show()

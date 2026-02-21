@@ -116,11 +116,11 @@ print(X['A'])
 u = X['us']                          # initial input
 print("initial input")
 print(X['us'])
-# initialize controller constant and variables
-#Nsim =  150                          # number of simulation cycles
+
 concore.default_maxtime(150)
 xc = np.zeros((X['Nx'], 1))          # initial conditon of state in MPC
 Pd = X['Pd']                         # variance of initial state
+
 # set list to record inputs and outputs
 ut = []
 ymt = []
@@ -129,19 +129,76 @@ ymt = []
 concore.delay = 0.02
 init_simtime_u = "[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"
 init_simtime_ym = "[0.0, 0.0, 0.0]"
+
+# --- LIVE PLOT SETUP (Moved from bottom) ---
+if GENERATE_PLOT == 1:
+    plt.ion() # Enable interactive mode
+    
+    # 1. Setup hrmap figure (Outputs & Setpoints)
+    fig_ym, (ax_map, ax_hr) = plt.subplots(2, 1)
+    line_map_m, = ax_map.plot([], [], label='MAPm')
+    line_map_sp, = ax_map.plot([], [], label='MAPsp')
+    ax_map.set_ylabel('MAP (mmHg)')
+    ax_map.legend(loc=0)
+    
+    line_hr_m, = ax_hr.plot([], [], label='HRm')
+    line_hr_sp, = ax_hr.plot([], [], label='HRsp')
+    ax_hr.set_xlabel('Cycles')
+    ax_hr.set_ylabel('HR (bpm)')
+    ax_hr.legend(loc=0)
+
+    # 2. Setup stim figure (Inputs)
+    fig_u, axs_u = plt.subplots(3, 2)
+    lines_u = []
+    labels_u = ['Pw1 (s)', 'Pf1 (Hz)', 'Pw2 (s)', 'Pf2 (Hz)', 'Pw3 (s)', 'Pf3 (Hz)']
+    for i, ax in enumerate(axs_u.flat):
+        line, = ax.plot([], [])
+        ax.set_ylabel(labels_u[i])
+        if i >= 4: ax.set_xlabel('Cycles')
+        lines_u.append((ax, line))
+    fig_u.tight_layout()
+# -------------------------------------------
+
 u = np.array([concore.initval(init_simtime_u)]).T
 wallclock1 = time.perf_counter()
 while(concore.simtime<concore.maxtime):
     while concore.unchanged():
         ym = concore.read(1,"ym",init_simtime_ym)
     ym = np.array([ym]).T
+    
     #################
     ut.append(u)
     ymt.append(ym)
     u, xc, Pd = MPC(xc, u, ym, Pd, X)
     #################
+
+    # --- LIVE UPDATE ---
+    if GENERATE_PLOT == 1:
+        Nsim = len(ymt)
+        xdata = range(Nsim)
+        
+        # Update hrmap figure (Outputs & Setpoints)
+        line_map_m.set_data(xdata, [x[0].item() for x in ymt])
+        line_map_sp.set_data(xdata, np.tile(X['ysp'][0], Nsim))
+        line_hr_m.set_data(xdata, [x[1].item() for x in ymt])
+        line_hr_sp.set_data(xdata, np.tile(X['ysp'][1], Nsim))
+        
+        for ax in (ax_map, ax_hr):
+            ax.relim()
+            ax.autoscale_view()
+            
+        # Update stim figure (Inputs)
+        for i, (ax, line) in enumerate(lines_u):
+            line.set_data(xdata, [x[i].item() for x in ut])
+            ax.relim()
+            ax.autoscale_view()
+
+        plt.pause(0.001) # Render updates
+    # -------------------
+
     print("ym="+str(ym)+" u="+str(u));
     concore.write(1,"u",list(u.T[0]));
+    
 wallclock2 = time.perf_counter()
 #concore.write(1,"u",init_simtime_u)
 print("retry="+str(concore.retrycount))
@@ -150,55 +207,10 @@ print("time/iter="+str((wallclock2-wallclock1)/concore.maxtime))
 if GENERATE_PLOT == 0:
     quit()
 
-# plot inputs and outputs
-ym1 = [x[0].item() for x in ymt]
-ym2 = [x[1].item() for x in ymt]
-u1 = [x[0].item() for x in ut]
-u2 = [x[1].item() for x in ut]
-u3 = [x[2].item() for x in ut]
-u4 = [x[3].item() for x in ut]
-u5 = [x[4].item() for x in ut]
-u6 = [x[5].item() for x in ut]
-
-Nsim = len(ym1)
-plt.figure()
-plt.subplot(211)
-plt.plot(range(Nsim), ym1)
-plt.plot(range(Nsim), np.tile(X['ysp'][0], Nsim))
-plt.ylabel('MAP (mmHg)')
-plt.legend(['MAPm', 'MAPsp'], loc=0)
-plt.subplot(212)
-plt.plot(range(Nsim), ym2)
-plt.plot(range(Nsim), np.tile(X['ysp'][1], Nsim))
-plt.xlabel('Cycles')
-plt.ylabel('HR (bpm)')
-plt.legend(['HRm', 'HRsp'], loc=0)
-plt.savefig("hrmap.pdf")
-#plt.tight_layout()
-
-plt.figure()
-plt.subplot(321)
-plt.plot(range(Nsim), u1)
-plt.ylabel('Pw1 (s)')
-plt.subplot(322)
-plt.plot(range(Nsim), u2)
-plt.ylabel('Pf1 (Hz)')
-plt.subplot(323)
-plt.plot(range(Nsim), u3)
-plt.xlabel('Cycles')
-plt.ylabel('Pw2 (s)')
-plt.subplot(324)
-plt.plot(range(Nsim), u4)
-plt.ylabel('Pf2 (Hz)')
-plt.subplot(325)
-plt.plot(range(Nsim), u5)
-plt.ylabel('Pw3 (s)')
-plt.subplot(326)
-plt.plot(range(Nsim), u6)
-plt.xlabel('Cycles')
-plt.ylabel('Pf3 (Hz)')
-plt.savefig("stim.pdf")
-plt.tight_layout()
+# --- FINAL SAVE & CLEANUP ---
+plt.ioff()
+fig_ym.savefig("hrmap.pdf")
+fig_u.savefig("stim.pdf")
 plt.show()
 
 
