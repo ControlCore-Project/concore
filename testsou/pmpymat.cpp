@@ -10,13 +10,12 @@ int main()
 {
   Concore concore;
   concore.delay = 0.01;
-  int Nsim = 100;
   string init_simtime_u = "[0.0,0.0,0.0]";
   string init_simtime_ym = "[0.0,0.0,0.0]";
 
   vector<double> ym = concore.initval(init_simtime_ym);
   vector<double> u;
-  while(concore.simtime<Nsim){
+  while(concore.simtime<concore.maxtime){
     while (concore.unchanged()){
       u = concore.read(1,"u",init_simtime_u);
     }
