@@ -28,58 +28,61 @@ public class concoredocker {
     private static double simtime = 0;
     private static double maxtime;
 
-    public static void main(String[] args) {
+    // initialize on class load, same as Python module-level init
+    static {
         try {
             iport = parseFile("concore.iport");
         } catch (IOException e) {
-            e.printStackTrace();
         }
         try {
             oport = parseFile("concore.oport");
         } catch (IOException e) {
-            e.printStackTrace();
         }
-
         try {
             String sparams = new String(Files.readAllBytes(Paths.get(inpath + "1/concore.params")), java.nio.charset.StandardCharsets.UTF_8);
             if (sparams.length() > 0 && sparams.charAt(0) == '"') { // windows keeps "" need to remove
                 sparams = sparams.substring(1);
                 sparams = sparams.substring(0, sparams.indexOf('"'));
             }
-            // Try parsing as dict literal first (matches Python parse_params logic)
-            sparams = sparams.trim();
-            if (sparams.startsWith("{") && sparams.endsWith("}")) {
-                try {
-                    Object parsed = literalEval(sparams);
-                    if (parsed instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> parsedMap = (Map<String, Object>) parsed;
-                        params = parsedMap;
-                    }
-                } catch (Exception e) {
-                    System.out.println("bad params: " + sparams);
-                }
-            } else if (!sparams.isEmpty()) {
-                // Fallback: convert key=value,key=value format to dict
-                System.out.println("converting sparams: " + sparams);
-                sparams = "{'" + sparams.replaceAll(";", ",'").replaceAll("=", "':").replaceAll(" ", "") + "}";
-                System.out.println("converted sparams: " + sparams);
-                try {
-                    Object parsed = literalEval(sparams);
-                    if (parsed instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> parsedMap = (Map<String, Object>) parsed;
-                        params = parsedMap;
-                    }
-                } catch (Exception e) {
-                    System.out.println("bad params: " + sparams);
-                }
-            }
+            params = parseParams(sparams);
         } catch (IOException e) {
             params = new HashMap<>();
         }
-
         defaultMaxTime(100);
+    }
+
+    /**
+     * Parses a param string into a map, matching concore_base.parse_params.
+     * Tries dict literal first, then falls back to semicolon-separated key=value pairs.
+     */
+    private static Map<String, Object> parseParams(String sparams) {
+        Map<String, Object> result = new HashMap<>();
+        if (sparams == null || sparams.isEmpty()) return result;
+        String trimmed = sparams.trim();
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            try {
+                Object val = literalEval(trimmed);
+                if (val instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> map = (Map<String, Object>) val;
+                    return map;
+                }
+            } catch (Exception e) {
+            }
+        }
+        for (String item : trimmed.split(";")) {
+            if (item.contains("=")) {
+                String[] parts = item.split("=", 2); // split on first '=' only
+                String key = parts[0].trim();
+                String value = parts[1].trim();
+                try {
+                    result.put(key, literalEval(value));
+                } catch (Exception e) {
+                    result.put(key, value);
+                }
+            }
+        }
+        return result;
     }
 
     /**
