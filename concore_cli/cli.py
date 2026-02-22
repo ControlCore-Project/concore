@@ -9,6 +9,7 @@ from .commands.validate import validate_workflow
 from .commands.status import show_status
 from .commands.stop import stop_all
 from .commands.inspect import inspect_workflow
+from .commands.watch import watch_study
 
 console = Console()
 DEFAULT_EXEC_TYPE = 'windows' if os.name == 'nt' else 'posix'
@@ -83,6 +84,18 @@ def stop():
     """Stop all running concore processes"""
     try:
         stop_all(console)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+@cli.command()
+@click.argument('study_dir', type=click.Path(exists=True))
+@click.option('--interval', '-n', default=2.0, help='Refresh interval in seconds')
+@click.option('--once', is_flag=True, help='Print a single snapshot and exit')
+def watch(study_dir, interval, once):
+    """Watch a running simulation study for live monitoring"""
+    try:
+        watch_study(study_dir, interval, once, console)
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
