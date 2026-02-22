@@ -109,7 +109,8 @@ class TestWrite:
         with open(os.path.join(outdir, "testfile")) as f:
             content = f.read()
         assert content == "[12.0, 3.0]"
-        assert concoredocker.simtime == 12.0
+        # simtime must not be mutated by write()
+        assert concoredocker.simtime == 10.0
         concoredocker.outpath = old_outpath
 
 
@@ -180,7 +181,8 @@ class TestZMQ:
         concoredocker.write("test_zmq", "data", [1.0, 2.0], delta=2)
 
         assert dummy.sent == [5.0, 1.0, 2.0]
-        assert concoredocker.simtime == 5.0
+        # simtime must not be mutated by write()
+        assert concoredocker.simtime == 3.0
 
     def test_read_strips_simtime(self):
         import concoredocker
