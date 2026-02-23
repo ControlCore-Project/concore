@@ -24,6 +24,8 @@
 #include <cctype>
 #include <regex>
 
+#include "concore_base.hpp"
+
 using namespace std;
 
 /**
@@ -219,48 +221,13 @@ private:
      */
     map<string,int> mapParser(string filename){
         map<string,int> ans;
-
-        ifstream portfile;
-        string portstr;
-        portfile.open(filename);
-        if(portfile){
-            ostringstream ss;
-            ss << portfile.rdbuf();
-            portstr = ss.str();
-            portfile.close();
-        }
-
-        if (portstr.empty()) {
-            return ans;
-        }
-
-        portstr[portstr.size()-1]=',';
-        portstr+='}';
-        int i=0;
-        string portname="";
-        string portnum="";
-
-        while(portstr[i]!='}'){
-            if(portstr[i]=='\''){
-                i++;
-                while(portstr[i]!='\''){
-                    portname+=portstr[i];
-                    i++;
-                }
-                ans.insert({portname,0});
+        auto str_map = concore_base::safe_literal_eval_dict(filename, {});
+        for (const auto& kv : str_map) {
+            try {
+                ans[kv.first] = std::stoi(kv.second);
+            } catch (...) {
+                ans[kv.first] = 0;
             }
-
-            if(portstr[i]==':'){
-                i++;
-                while(portstr[i]!=','){
-                    portnum+=portstr[i];
-                    i++;
-                }
-                ans[portname]=stoi(portnum);
-                portnum="";
-                portname="";
-            }  
-            i++;
         }
         return ans;
     }
@@ -286,25 +253,7 @@ private:
      * @return A vector of double values extracted from the input string.
      */
     vector<double> parser(string f){
-        vector<double> temp;
-        if(f.empty()) return temp;
-        string value = "";
-    
-        //Changing last bracket to comma to use comma as a delimiter
-        f[f.length()-1]=',';
-
-        for(int i=1;i<f.length();i++){
-            if(f[i]!=',')
-                value+=f[i];
-            else{
-                if((int)value.size()!=0)
-                    temp.push_back(stod(value));
-                
-                //reset value
-                value = "";
-            }
-        }
-        return temp;
+        return concore_base::parselist_double(f);
     }
 
     /**
@@ -606,10 +555,7 @@ private:
      * @return The stripped string.
      */
     string stripstr(string str){
-        size_t start = str.find_first_not_of(" \t\n\r");
-        if (start == string::npos) return "";
-        size_t end = str.find_last_not_of(" \t\n\r");
-        return str.substr(start, end - start + 1);
+        return concore_base::stripstr(str);
     }
 
     /**
@@ -618,9 +564,7 @@ private:
      * @return The unquoted string.
      */
     string stripquotes(string str){
-        if (str.size() >= 2 && ((str.front() == '\'' && str.back() == '\'') || (str.front() == '"' && str.back() == '"')))
-            return str.substr(1, str.size() - 2);
-        return str;
+        return concore_base::stripquotes(str);
     }
 
     /**
@@ -629,21 +573,7 @@ private:
      * @return A map of key-value string pairs.
      */
     map<string, string> parsedict(string str){
-        map<string, string> result;
-        string trimmed = stripstr(str);
-        if (trimmed.size() < 2 || trimmed.front() != '{' || trimmed.back() != '}')
-            return result;
-        string inner = trimmed.substr(1, trimmed.size() - 2);
-        stringstream ss(inner);
-        string token;
-        while (getline(ss, token, ',')) {
-            size_t colon = token.find(':');
-            if (colon == string::npos) continue;
-            string key = stripquotes(stripstr(token.substr(0, colon)));
-            string val = stripquotes(stripstr(token.substr(colon + 1)));
-            if (!key.empty()) result[key] = val;
-        }
-        return result;
+        return concore_base::parsedict(str);
     }
 
     /**
@@ -651,33 +581,15 @@ private:
      * @param defaultValue The fallback value if the file is missing.
      */
     void default_maxtime(int defaultValue){
-        maxtime = defaultValue;
-        ifstream file(inpath + "/1/concore.maxtime");
-        if (file) {
-            file >> maxtime;
-        }
+        maxtime = (int)concore_base::load_maxtime(
+            inpath + "/1/concore.maxtime", (double)defaultValue);
     }
 
     /**
      * @brief Loads simulation parameters from concore.params into the params map.
      */
     void load_params(){
-        ifstream file(inpath + "/1/concore.params");
-        if (!file) return;
-        stringstream buffer;
-        buffer << file.rdbuf();
-        string sparams = buffer.str();
-
-        if (!sparams.empty() && sparams[0] == '"') {
-            sparams = sparams.substr(1, sparams.find('"', 1) - 1);
-        }
-
-        if (!sparams.empty() && sparams[0] != '{') {
-            sparams = "{\"" + regex_replace(regex_replace(regex_replace(sparams, regex(","), ",\""), regex("="), "\":"), regex(" "), "") + "}";
-        }
-        try {
-            params = parsedict(sparams);
-        } catch (...) {}
+        params = concore_base::load_params(inpath + "/1/concore.params");
     }
 
     /**
@@ -687,7 +599,7 @@ private:
      * @return The parameter value or the default.
      */
     string tryparam(string n, string i){
-        return params.count(n) ? params[n] : i;
+        return concore_base::tryparam(params, n, i);
     }
 
     /**

@@ -39,7 +39,7 @@ public class concoredocker {
         } catch (IOException e) {
         }
         try {
-            String sparams = new String(Files.readAllBytes(Paths.get(inpath + "1/concore.params")), java.nio.charset.StandardCharsets.UTF_8);
+            String sparams = new String(Files.readAllBytes(Paths.get(inpath + "/1/concore.params")), java.nio.charset.StandardCharsets.UTF_8);
             if (sparams.length() > 0 && sparams.charAt(0) == '"') { // windows keeps "" need to remove
                 sparams = sparams.substring(1);
                 sparams = sparams.substring(0, sparams.indexOf('"'));
@@ -114,7 +114,7 @@ public class concoredocker {
      */
     private static void defaultMaxTime(double defaultValue) {
         try {
-            String content = new String(Files.readAllBytes(Paths.get(inpath + "1/concore.maxtime")));
+            String content = new String(Files.readAllBytes(Paths.get(inpath + "/1/concore.maxtime")));
             Object parsed = literalEval(content.trim());
             if (parsed instanceof Number) {
                 maxtime = ((Number) parsed).doubleValue();
@@ -161,7 +161,7 @@ public class concoredocker {
             // initstr not parseable as list; defaultVal stays empty
         }
 
-        String filePath = inpath + port + "/" + name;
+        String filePath = inpath + "/" + port + "/" + name;
         try {
             Thread.sleep(delay);
         } catch (InterruptedException e) {
@@ -277,7 +277,7 @@ public class concoredocker {
      */
     private static void write(int port, String name, Object val, int delta) {
         try {
-            String path = outpath + port + "/" + name;
+            String path = outpath + "/" + port + "/" + name;
             StringBuilder content = new StringBuilder();
             if (val instanceof String) {
                 Thread.sleep(2 * delay);
@@ -291,7 +291,8 @@ public class concoredocker {
                     content.append(toPythonLiteral(listVal.get(i)));
                 }
                 content.append("]");
-                simtime += delta;
+                // simtime must not be mutated here.
+                // Mutation breaks cross-language determinism (see issue #385).
             } else if (val instanceof Object[]) {
                 // Legacy support for Object[] arguments
                 Object[] arrayVal = (Object[]) val;
@@ -302,7 +303,8 @@ public class concoredocker {
                     content.append(toPythonLiteral(o));
                 }
                 content.append("]");
-                simtime += delta;
+                // simtime must not be mutated here.
+                // Mutation breaks cross-language determinism (see issue #385).
             } else {
                 System.out.println("write must have list or str");
                 return;
@@ -310,9 +312,9 @@ public class concoredocker {
             Files.write(Paths.get(path), content.toString().getBytes());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("skipping " + outpath + port + "/" + name);
+            System.out.println("skipping " + outpath + "/" + port + "/" + name);
         } catch (IOException e) {
-            System.out.println("skipping " + outpath + port + "/" + name);
+            System.out.println("skipping " + outpath + "/" + port + "/" + name);
         }
     }
 
