@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "concore"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Concore workflow management CLI"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -17,8 +17,6 @@ dependencies = [
     "psutil>=5.8.0",
     "numpy>=1.19.0",
     "pyzmq>=22.0.0",
-    "scipy>=1.5.0",
-    "matplotlib>=3.3.0",
 ]
 
 [project.optional-dependencies]
@@ -26,10 +24,17 @@ dev = [
     "pytest>=6.0.0",
     "pytest-cov>=2.10.0",
 ]
+demo = [
+    "scipy>=1.5.0",
+    "matplotlib>=3.3.0",
+]
 
 [project.scripts]
 concore = "concore_cli.cli:cli"
 
 [tool.setuptools]
 packages = ["concore_cli", "concore_cli.commands"]
-py-modules = ["mkconcore"]
+py-modules = ["concore", "concoredocker", "concore_base", "mkconcore"]
+
+[tool.setuptools.dynamic]
+version = {attr = "concore_cli.__version__"}
