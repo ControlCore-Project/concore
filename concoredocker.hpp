@@ -1,5 +1,5 @@
-#ifndef CONCORE_HPP
-#define CONCORE_HPP
+#ifndef CONCOREDOCKER_HPP
+#define CONCOREDOCKER_HPP
 
 #include <iostream>
 #include <fstream>
@@ -13,6 +13,8 @@
 #include <stdexcept>
 #include <regex>
 #include <algorithm>
+
+#include "concore_base.hpp"
 
 class Concore {
 public:
@@ -28,49 +30,20 @@ public:
     std::unordered_map<std::string, std::string> params;
 
     std::string stripstr(const std::string& str) {
-        size_t start = str.find_first_not_of(" \t\n\r");
-        if (start == std::string::npos) return "";
-        size_t end = str.find_last_not_of(" \t\n\r");
-        return str.substr(start, end - start + 1);
+        return concore_base::stripstr(str);
     }
 
     std::string stripquotes(const std::string& str) {
-        if (str.size() >= 2 && ((str.front() == '\'' && str.back() == '\'') || (str.front() == '"' && str.back() == '"')))
-            return str.substr(1, str.size() - 2);
-        return str;
+        return concore_base::stripquotes(str);
     }
 
     std::unordered_map<std::string, std::string> parsedict(const std::string& str) {
-        std::unordered_map<std::string, std::string> result;
-        std::string trimmed = stripstr(str);
-        if (trimmed.size() < 2 || trimmed.front() != '{' || trimmed.back() != '}')
-            return result;
-        std::string inner = trimmed.substr(1, trimmed.size() - 2);
-        std::stringstream ss(inner);
-        std::string token;
-        while (std::getline(ss, token, ',')) {
-            size_t colon = token.find(':');
-            if (colon == std::string::npos) continue;
-            std::string key = stripquotes(stripstr(token.substr(0, colon)));
-            std::string val = stripquotes(stripstr(token.substr(colon + 1)));
-            if (!key.empty()) result[key] = val;
-        }
-        return result;
+        auto ordered = concore_base::parsedict(str);
+        return std::unordered_map<std::string, std::string>(ordered.begin(), ordered.end());
     }
 
     std::vector<std::string> parselist(const std::string& str) {
-        std::vector<std::string> result;
-        std::string trimmed = stripstr(str);
-        if (trimmed.size() < 2 || trimmed.front() != '[' || trimmed.back() != ']')
-            return result;
-        std::string inner = trimmed.substr(1, trimmed.size() - 2);
-        std::stringstream ss(inner);
-        std::string token;
-        while (std::getline(ss, token, ',')) {
-            std::string val = stripstr(token);
-            if (!val.empty()) result.push_back(val);
-        }
-        return result;
+        return concore_base::parselist(str);
     }
 
     Concore() {
@@ -82,37 +55,17 @@ public:
 
     std::unordered_map<std::string, std::string> safe_literal_eval(const std::string& filename, std::unordered_map<std::string, std::string> defaultValue) {
         std::ifstream file(filename);
-        if (!file) {
-            std::cerr << "Error reading " << filename << "\n";
-            return defaultValue;
-        }
+        if (!file) return defaultValue;
         std::stringstream buf;
         buf << file.rdbuf();
-        std::string content = buf.str();
-        try {
-            return parsedict(content);
-        } catch (...) {
-            return defaultValue;
-        }
+        auto result = concore_base::parsedict(buf.str());
+        if (result.empty()) return defaultValue;
+        return std::unordered_map<std::string, std::string>(result.begin(), result.end());
     }
 
     void load_params() {
-        std::ifstream file(inpath + "/1/concore.params");
-        if (!file) return;
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        std::string sparams = buffer.str();
-
-        if (!sparams.empty() && sparams[0] == '"') {
-            sparams = sparams.substr(1, sparams.find('"') - 1);
-        }
-
-        if (!sparams.empty() && sparams[0] != '{') {
-            sparams = "{\"" + std::regex_replace(std::regex_replace(std::regex_replace(sparams, std::regex(","), ",\""), std::regex("="), "\":"), std::regex(" "), "") + "}";
-        }
-        try {
-            params = parsedict(sparams);
-        } catch (...) {}
+        auto ordered = concore_base::load_params(inpath + "/1/concore.params");
+        params = std::unordered_map<std::string, std::string>(ordered.begin(), ordered.end());
     }
 
     std::string tryparam(const std::string& n, const std::string& i) {
@@ -120,11 +73,8 @@ public:
     }
 
     void default_maxtime(double defaultValue) {
-        maxtime = defaultValue;
-        std::ifstream file(inpath + "/1/concore.maxtime");
-        if (file) {
-            file >> maxtime;
-        }
+        maxtime = concore_base::load_maxtime(
+            inpath + "/1/concore.maxtime", defaultValue);
     }
 
     bool unchanged() {
@@ -188,7 +138,7 @@ public:
                 outfile << val[i] << (i + 1 < val.size() ? ", " : "");
             }
             outfile << "]";
-            simtime += delta;
+            // simtime must not be mutated here (issue #385).
         }
     }
 
@@ -204,4 +154,4 @@ public:
     }
 };
 
-#endif
+#endif // CONCOREDOCKER_HPP
