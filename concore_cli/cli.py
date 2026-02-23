@@ -10,12 +10,13 @@ from .commands.status import show_status
 from .commands.stop import stop_all
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
+from . import __version__
 
 console = Console()
 DEFAULT_EXEC_TYPE = 'windows' if os.name == 'nt' else 'posix'
 
 @click.group()
-@click.version_option(version='1.0.0', prog_name='concore')
+@click.version_option(version=__version__, prog_name='concore')
 def cli():
     pass
 
