@@ -21,13 +21,98 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('requests').setLevel(logging.WARNING) 
 
 
-# if windows, create script to kill this process 
-# because batch files don't provide easy way to know pid of last command
-# ignored for posix != windows, because "concorepid" is handled by script
-# ignored for docker (linux != windows), because handled by docker stop
+# ===================================================================
+# Windows PID Registry (Issue #391)
+# ===================================================================
+# Previous implementation wrote a single PID to concorekill.bat at
+# import time, causing race conditions when multiple Python nodes
+# started simultaneously (each overwrote the file). Only the last
+# node's PID survived, and stale PIDs could kill unrelated processes.
+#
+# New approach:
+#   - Append each node's PID to concorekill_pids.txt (one per line)
+#   - Generate concorekill.bat that validates each PID before killing
+#   - Use atexit to remove the PID on graceful shutdown
+#   - Backward compatible: users still run concorekill.bat
+# ===================================================================
+
+_PID_REGISTRY_FILE = "concorekill_pids.txt"
+_KILL_SCRIPT_FILE = "concorekill.bat"
+
+
+def _register_pid():
+    """Append the current process PID to the registry file."""
+    pid = os.getpid()
+    try:
+        with open(_PID_REGISTRY_FILE, "a") as f:
+            f.write(str(pid) + "\n")
+    except OSError:
+        pass  # Non-fatal: best-effort registration
+
+
+def _cleanup_pid():
+    """Remove the current process PID from the registry on exit."""
+    pid = str(os.getpid())
+    try:
+        if not os.path.exists(_PID_REGISTRY_FILE):
+            return
+        with open(_PID_REGISTRY_FILE, "r") as f:
+            pids = [line.strip() for line in f if line.strip()]
+        remaining = [p for p in pids if p != pid]
+        if remaining:
+            with open(_PID_REGISTRY_FILE, "w") as f:
+                for p in remaining:
+                    f.write(p + "\n")
+        else:
+            # No PIDs left — clean up both files
+            try:
+                os.remove(_PID_REGISTRY_FILE)
+            except OSError:
+                pass
+            try:
+                os.remove(_KILL_SCRIPT_FILE)
+            except OSError:
+                pass
+    except OSError:
+        pass  # Non-fatal: best-effort cleanup
+
+
+def _write_kill_script():
+    """Generate concorekill.bat that validates PIDs before killing.
+
+    The script reads concorekill_pids.txt and for each PID:
+      1. Checks if the process still exists
+      2. Verifies it is a Python process
+      3. Only then issues taskkill
+    After killing, the registry file is deleted.
+    """
+    try:
+        script = "@echo off\r\n"
+        script += "if not exist \"%~dp0" + _PID_REGISTRY_FILE + "\" (\r\n"
+        script += "    echo No PID registry found. Nothing to kill.\r\n"
+        script += "    exit /b 0\r\n"
+        script += ")\r\n"
+        script += "for /f \"tokens=*\" %%p in (%~dp0" + _PID_REGISTRY_FILE + ") do (\r\n"
+        script += "    tasklist /FI \"PID eq %%p\" 2>nul | find /i \"python\" >nul\r\n"
+        script += "    if not errorlevel 1 (\r\n"
+        script += "        echo Killing Python process %%p\r\n"
+        script += "        taskkill /F /PID %%p >nul 2>&1\r\n"
+        script += "    ) else (\r\n"
+        script += "        echo Skipping PID %%p - not a Python process or not running\r\n"
+        script += "    )\r\n"
+        script += ")\r\n"
+        script += "del /q \"%~dp0" + _PID_REGISTRY_FILE + "\" 2>nul\r\n"
+        script += "del /q \"%~dp0" + _KILL_SCRIPT_FILE + "\" 2>nul\r\n"
+        with open(_KILL_SCRIPT_FILE, "w") as f:
+            f.write(script)
+    except OSError:
+        pass  # Non-fatal: best-effort script generation
+
+
 if hasattr(sys, 'getwindowsversion'):
-    with open("concorekill.bat","w") as fpid:
-        fpid.write("taskkill /F /PID "+str(os.getpid())+"\n")
+    _register_pid()
+    _write_kill_script()
+    atexit.register(_cleanup_pid)
 
 ZeroMQPort = concore_base.ZeroMQPort
 convert_numpy_to_python = concore_base.convert_numpy_to_python
