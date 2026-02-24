@@ -1,5 +1,5 @@
-import pytest
 import os
+
 
 # can't import mkconcore directly (sys.argv at module level), so we duplicate the parser
 def _load_tool_config(filepath):
@@ -17,7 +17,6 @@ def _load_tool_config(filepath):
 
 
 class TestLoadToolConfig:
-
     def test_basic_overrides(self, temp_dir):
         cfg = os.path.join(temp_dir, "concore.tools")
         with open(cfg, "w") as f:
@@ -69,7 +68,7 @@ class TestLoadToolConfig:
 
     def test_empty_file(self, temp_dir):
         cfg = os.path.join(temp_dir, "concore.tools")
-        with open(cfg, "w") as f:
+        with open(cfg, "w") as _:
             pass
 
         tools = _load_tool_config(cfg)
