@@ -130,9 +130,10 @@ class TestRead:
 
         concoredocker.s = ''
         concoredocker.simtime = 0
-        result = concoredocker.read(1, "data", "[0, 0, 0]")
+        result, ok = concoredocker.read(1, "data", "[0, 0, 0]")
 
         assert result == [100, 200]
+        assert ok is True
         assert concoredocker.simtime == 7.0
         concoredocker.inpath = old_inpath
         concoredocker.delay = old_delay
@@ -148,9 +149,10 @@ class TestRead:
 
         concoredocker.s = ''
         concoredocker.simtime = 0
-        result = concoredocker.read(1, "nofile", "[0, 5, 5]")
+        result, ok = concoredocker.read(1, "nofile", "[0, 5, 5]")
 
         assert result == [5, 5]
+        assert ok is False
         concoredocker.inpath = old_inpath
         concoredocker.delay = old_delay
 
@@ -194,9 +196,10 @@ class TestZMQ:
         concoredocker.zmq_ports["test_zmq"] = DummyPort()
         concoredocker.simtime = 0
 
-        result = concoredocker.read("test_zmq", "data", "[]")
+        result, ok = concoredocker.read("test_zmq", "data", "[]")
 
         assert result == [4.0, 5.0]
+        assert ok is True
         assert concoredocker.simtime == 10.0
 
     def test_read_updates_simtime_monotonically(self):
@@ -232,6 +235,7 @@ class TestZMQ:
 
         original = [1.5, 2.5, 3.5]
         concoredocker.write("roundtrip", "data", original)
-        result = concoredocker.read("roundtrip", "data", "[]")
+        result, ok = concoredocker.read("roundtrip", "data", "[]")
 
         assert result == original
+        assert ok is True

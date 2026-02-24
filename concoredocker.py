@@ -25,6 +25,8 @@ parse_params = concore_base.parse_params
 zmq_ports = {}
 _cleanup_in_progress = False
 
+last_read_status = "SUCCESS"
+
 s = ''
 olds = ''
 delay = 1
@@ -90,7 +92,10 @@ def unchanged():
 # I/O Handling (File + ZMQ)
 # ===================================================================
 def read(port_identifier, name, initstr_val):
-    return concore_base.read(_mod, port_identifier, name, initstr_val)
+    global last_read_status
+    result = concore_base.read(_mod, port_identifier, name, initstr_val)
+    last_read_status = concore_base.last_read_status
+    return result
 
 def write(port_identifier, name, val, delta=0):
     concore_base.write(_mod, port_identifier, name, val, delta)

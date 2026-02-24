@@ -188,6 +188,11 @@ def load_params(params_file):
         return dict()
 
 # ===================================================================
+# Read Status Tracking
+# ===================================================================
+last_read_status = "SUCCESS"
+
+# ===================================================================
 # I/O Handling (File + ZMQ)
 # ===================================================================
 
@@ -201,6 +206,31 @@ def unchanged(mod):
 
 
 def read(mod, port_identifier, name, initstr_val):
+    """Read data from a ZMQ port or file-based port.
+
+    Returns:
+        tuple: (data, success_flag) where success_flag is True if real
+            data was received, False if a fallback/default was used.
+            Also sets ``concore.last_read_status`` (and
+            ``concore_base.last_read_status``) to one of:
+            SUCCESS, FILE_NOT_FOUND, TIMEOUT, PARSE_ERROR,
+            EMPTY_DATA, RETRIES_EXCEEDED.
+
+    Backward compatibility:
+        Legacy callers that do ``value = concore.read(...)`` will
+        receive a tuple.  They can adapt with::
+
+            result = concore.read(...)
+            if isinstance(result, tuple):
+                value, ok = result
+            else:
+                value, ok = result, True
+
+        Alternatively, check ``concore.last_read_status`` after the
+        call.
+    """
+    global last_read_status
+
     # Default return
     default_return_val = initstr_val
     if isinstance(initstr_val, str):
@@ -214,41 +244,52 @@ def read(mod, port_identifier, name, initstr_val):
         zmq_p = mod.zmq_ports[port_identifier]
         try:
             message = zmq_p.recv_json_with_retry()
+            if message is None:
+                last_read_status = "TIMEOUT"
+                return default_return_val, False
             # Strip simtime prefix if present (mirroring file-based read behavior)
             if isinstance(message, list) and len(message) > 0:
                 first_element = message[0]
                 if isinstance(first_element, (int, float)):
                     mod.simtime = max(mod.simtime, first_element)
-                    return message[1:]
-            return message
+                    last_read_status = "SUCCESS"
+                    return message[1:], True
+            last_read_status = "SUCCESS"
+            return message, True
         except zmq.error.ZMQError as e:
             logger.error(f"ZMQ read error on port {port_identifier} (name: {name}): {e}. Returning default.")
-            return default_return_val
+            last_read_status = "TIMEOUT"
+            return default_return_val, False
         except Exception as e:
             logger.error(f"Unexpected error during ZMQ read on port {port_identifier} (name: {name}): {e}. Returning default.")
-            return default_return_val
+            last_read_status = "PARSE_ERROR"
+            return default_return_val, False
 
     # Case 2: File-based port
     try:
         file_port_num = int(port_identifier)
     except ValueError:
         logger.error(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
-        return default_return_val
+        last_read_status = "PARSE_ERROR"
+        return default_return_val, False
 
     time.sleep(mod.delay) 
     port_dir = mod._port_path(mod.inpath, file_port_num)
     file_path = os.path.join(port_dir, name)
     ins = ""
 
+    file_not_found = False
     try:
         with open(file_path, "r") as infile:
             ins = infile.read()
     except FileNotFoundError:
+        file_not_found = True
         ins = str(initstr_val) 
         mod.s += ins  # Update s to break unchanged() loop
     except Exception as e:
         logger.error(f"Error reading {file_path}: {e}. Using default value.")
-        return default_return_val 
+        last_read_status = "FILE_NOT_FOUND"
+        return default_return_val, False
 
     # Retry logic if file is empty
     attempts = 0
@@ -265,7 +306,8 @@ def read(mod, port_identifier, name, initstr_val):
 
     if len(ins) == 0:
         logger.error(f"Max retries reached for {file_path}, using default value.")
-        return default_return_val
+        last_read_status = "RETRIES_EXCEEDED"
+        return default_return_val, False
 
     mod.s += ins 
 
@@ -276,13 +318,25 @@ def read(mod, port_identifier, name, initstr_val):
             current_simtime_from_file = inval[0]
             if isinstance(current_simtime_from_file, (int, float)):
                  mod.simtime = max(mod.simtime, current_simtime_from_file)
-            return inval[1:] 
+            if file_not_found:
+                last_read_status = "FILE_NOT_FOUND"
+                return inval[1:], False
+            last_read_status = "SUCCESS"
+            return inval[1:], True
         else: 
             logger.warning(f"Warning: Unexpected data format in {file_path}: {ins}. Returning raw content or default.")
-            return inval 
+            if file_not_found:
+                last_read_status = "FILE_NOT_FOUND"
+                return inval, False
+            last_read_status = "SUCCESS"
+            return inval, True
     except Exception as e:
         logger.error(f"Error parsing content from {file_path} ('{ins}'): {e}. Returning default.")
-        return default_return_val
+        if file_not_found:
+            last_read_status = "FILE_NOT_FOUND"
+        else:
+            last_read_status = "PARSE_ERROR"
+        return default_return_val, False
 
 
 def write(mod, port_identifier, name, val, delta=0):
