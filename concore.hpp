@@ -338,6 +338,27 @@ private:
     }
 
     /**
+     * @brief Parses a Python-literal payload into a structured ConcoreValue.
+     *        Supports numbers, booleans, strings, nested arrays, and tuples.
+     *        Use this when you need the full parsed structure, not just doubles.
+     * @param f The input string to parse.
+     * @return A ConcoreValue representing the parsed literal.
+     * @throws std::runtime_error on malformed input.
+     */
+    concore_base::ConcoreValue parse_literal(string f){
+        return concore_base::parse_literal(f);
+    }
+
+    /**
+     * @brief Recursively extracts all numeric values from a ConcoreValue.
+     * @param v The ConcoreValue to flatten.
+     * @return A flat vector of doubles.
+     */
+    vector<double> flatten_numeric(const concore_base::ConcoreValue& v){
+        return concore_base::flatten_numeric(v);
+    }
+
+    /**
      * @brief deviate the read to either the SM (Shared Memory) or FM (File Method) communication protocol based on iport and oport.
      * @param port The port number.
      * @param name The name of the file.
