@@ -1,6 +1,7 @@
 import pytest
 import os
 import numpy as np
+from unittest.mock import patch
 
 
 class TestSafeLiteralEval:
@@ -450,3 +451,97 @@ class TestSimtimeNotMutatedByWrite:
             "After 3 writes with delta=1 simtime must remain 0 "
             "(matching C++/MATLAB/Verilog); got %s" % concore.simtime
         )
+
+
+# ===================================================================
+# ZMQ Retry Exhaustion Tests (Issue #393)
+# ===================================================================
+
+
+class TestZMQRetryExhaustion:
+    """Tests for issue #393 — TimeoutError on retry exhaustion."""
+
+    @pytest.fixture(autouse=True)
+    def reset_zmq_ports(self):
+        import concore
+
+        original_ports = concore.zmq_ports.copy()
+        yield
+        concore.zmq_ports.clear()
+        concore.zmq_ports.update(original_ports)
+
+    @pytest.fixture(autouse=True)
+    def reset_simtime(self):
+        import concore
+
+        old_simtime = concore.simtime
+        yield
+        concore.simtime = old_simtime
+
+    @patch("concore_base.time.sleep")
+    def test_recv_json_with_retry_raises_timeout_error(self, mock_sleep):
+        """recv_json_with_retry must raise TimeoutError after 5 failed attempts."""
+        from concore import ZeroMQPort
+        from unittest.mock import MagicMock, patch
+        import zmq
+
+        with patch.object(ZeroMQPort, "__init__", lambda self, *a, **kw: None):
+            port = ZeroMQPort.__new__(ZeroMQPort)
+            port.socket = MagicMock()
+            port.socket.recv_json.side_effect = zmq.Again()
+            port.address = "tcp://test:5555"
+
+            with pytest.raises(TimeoutError, match="ZMQ recv failed after 5 retries"):
+                port.recv_json_with_retry()
+
+            assert port.socket.recv_json.call_count == 5
+
+    @patch("concore_base.time.sleep")
+    def test_send_json_with_retry_raises_timeout_error(self, mock_sleep):
+        """send_json_with_retry must raise TimeoutError after 5 failed attempts."""
+        from concore import ZeroMQPort
+        from unittest.mock import MagicMock, patch
+        import zmq
+
+        with patch.object(ZeroMQPort, "__init__", lambda self, *a, **kw: None):
+            port = ZeroMQPort.__new__(ZeroMQPort)
+            port.socket = MagicMock()
+            port.socket.send_json.side_effect = zmq.Again()
+            port.address = "tcp://test:5555"
+
+            with pytest.raises(TimeoutError, match="ZMQ send failed after 5 retries"):
+                port.send_json_with_retry({"test": "data"})
+
+            assert port.socket.send_json.call_count == 5
+
+    def test_read_returns_default_on_zmq_timeout(self):
+        """read() must return default_return_val when recv exhausts retries, not None."""
+        import concore
+
+        class MockZMQPort:
+            def recv_json_with_retry(self):
+                raise TimeoutError("ZMQ recv failed after 5 retries on tcp://test:5555")
+
+        concore.zmq_ports["test_timeout_port"] = MockZMQPort()
+        concore.simtime = 0
+
+        result, ok = concore.read("test_timeout_port", "test_name", "[1.0, 2.0]")
+
+        assert result == [1.0, 2.0], (
+            "read() must return default_return_val on TimeoutError, got %s" % result
+        )
+        assert ok is False
+
+    def test_write_does_not_crash_on_zmq_send_timeout(self):
+        """write() must handle TimeoutError from send gracefully."""
+        import concore
+
+        class MockZMQPort:
+            def send_json_with_retry(self, message):
+                raise TimeoutError("ZMQ send failed after 5 retries on tcp://test:5555")
+
+        concore.zmq_ports["test_timeout_port"] = MockZMQPort()
+        concore.simtime = 0
+
+        # Should not raise — just log the error
+        concore.write("test_timeout_port", "test_name", [1.0, 2.0])

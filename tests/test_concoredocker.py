@@ -247,3 +247,61 @@ class TestZMQ:
 
         assert result == original
         assert ok is True
+
+
+# ===================================================================
+# ZMQ Retry Exhaustion Tests (Issue #393)
+# ===================================================================
+
+
+class TestZMQRetryExhaustion:
+    """Tests for issue #393 — TimeoutError on retry exhaustion via concoredocker."""
+
+    @pytest.fixture(autouse=True)
+    def reset_zmq_ports(self):
+        import concoredocker
+
+        original_ports = concoredocker.zmq_ports.copy()
+        yield
+        concoredocker.zmq_ports.clear()
+        concoredocker.zmq_ports.update(original_ports)
+
+    @pytest.fixture(autouse=True)
+    def reset_simtime(self):
+        import concoredocker
+
+        old_simtime = concoredocker.simtime
+        yield
+        concoredocker.simtime = old_simtime
+
+    def test_read_returns_default_on_zmq_timeout(self):
+        """read() must return default_return_val when recv exhausts retries, not None."""
+        import concoredocker
+
+        class MockZMQPort:
+            def recv_json_with_retry(self):
+                raise TimeoutError("ZMQ recv failed after 5 retries on tcp://test:5555")
+
+        concoredocker.zmq_ports["test_timeout_port"] = MockZMQPort()
+        concoredocker.simtime = 0
+
+        result, ok = concoredocker.read("test_timeout_port", "test_name", "[1.0, 2.0]")
+
+        assert result == [1.0, 2.0], (
+            "read() must return default_return_val on TimeoutError, got %s" % result
+        )
+        assert ok is False
+
+    def test_write_does_not_crash_on_zmq_send_timeout(self):
+        """write() must handle TimeoutError from send gracefully."""
+        import concoredocker
+
+        class MockZMQPort:
+            def send_json_with_retry(self, message):
+                raise TimeoutError("ZMQ send failed after 5 retries on tcp://test:5555")
+
+        concoredocker.zmq_ports["test_timeout_port"] = MockZMQPort()
+        concoredocker.simtime = 0
+
+        # Should not raise — just log the error
+        concoredocker.write("test_timeout_port", "test_name", [1.0, 2.0])
