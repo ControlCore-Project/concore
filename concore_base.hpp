@@ -81,28 +81,10 @@ inline std::vector<std::string> parselist(const std::string& str) {
     return result;
 }
 
-/**
- * Parses a double-valued list like "[0.0, 1.5, 2.3]" into a vector<double>.
- * Used by concore.hpp's read/write which work with numeric data.
- * Now delegates to the full literal parser to handle mixed-type payloads
- * (strings, booleans, nested lists, tuples) without crashing.
- * See Issue #389.
- */
-inline std::vector<double> parselist_double(const std::string& str);  // forward decl; defined after ConcoreValue
+inline std::vector<double> parselist_double(const std::string& str);
 
-// ===================================================================
-// Python-Literal-Compatible Value Type and Parser  (Issue #389)
-// ===================================================================
-
-/**
- * Tag for ConcoreValue discriminated union.
- */
 enum class ConcoreValueType { NUMBER, BOOL, STRING, ARRAY };
 
-/**
- * A recursive value type that mirrors Python's ast.literal_eval output.
- * Supported: numbers, booleans, strings, and nested arrays / tuples.
- */
 struct ConcoreValue {
     ConcoreValueType type;
     double   number;
@@ -122,7 +104,7 @@ struct ConcoreValue {
         ConcoreValue cv;
         cv.type    = ConcoreValueType::BOOL;
         cv.boolean = v;
-        cv.number  = v ? 1.0 : 0.0;   // Python: True == 1, False == 0
+        cv.number  = v ? 1.0 : 0.0;
         return cv;
     }
     static ConcoreValue make_string(const std::string& v) {
@@ -139,8 +121,6 @@ struct ConcoreValue {
     }
 };
 
-// --------------- internal helpers (anonymous-namespace-like) --------
-
 inline void skip_ws(const std::string& s, size_t& pos) {
     while (pos < s.size() && std::isspace(static_cast<unsigned char>(s[pos])))
         ++pos;
@@ -149,7 +129,7 @@ inline void skip_ws(const std::string& s, size_t& pos) {
 inline ConcoreValue parse_literal_value(const std::string& s, size_t& pos);
 
 inline ConcoreValue parse_literal_string(const std::string& s, size_t& pos) {
-    char quote = s[pos];          // ' or "
+    char quote = s[pos];
     ++pos;
     std::string result;
     while (pos < s.size() && s[pos] != quote) {
@@ -170,7 +150,7 @@ inline ConcoreValue parse_literal_string(const std::string& s, size_t& pos) {
     }
     if (pos >= s.size())
         throw std::runtime_error("Invalid concore payload: unterminated string");
-    ++pos;  // skip closing quote
+    ++pos;
     return ConcoreValue::make_string(result);
 }
 
@@ -190,10 +170,6 @@ inline ConcoreValue parse_literal_array(const std::string& s, size_t& pos) {
     throw std::runtime_error("Invalid concore payload: unterminated array/tuple");
 }
 
-/**
- * Recursive descent parser entry for a single Python literal value.
- * Advances `pos` past the consumed token.
- */
 inline ConcoreValue parse_literal_value(const std::string& s, size_t& pos) {
     skip_ws(s, pos);
     if (pos >= s.size())
@@ -201,34 +177,28 @@ inline ConcoreValue parse_literal_value(const std::string& s, size_t& pos) {
 
     char c = s[pos];
 
-    // Array / Tuple
     if (c == '[' || c == '(')
         return parse_literal_array(s, pos);
 
-    // String
     if (c == '\'' || c == '"')
         return parse_literal_string(s, pos);
 
-    // Boolean True
     if (s.compare(pos, 4, "True") == 0 &&
         (pos + 4 >= s.size() || !std::isalnum(static_cast<unsigned char>(s[pos + 4])))) {
         pos += 4;
         return ConcoreValue::make_bool(true);
     }
-    // Boolean False
     if (s.compare(pos, 5, "False") == 0 &&
         (pos + 5 >= s.size() || !std::isalnum(static_cast<unsigned char>(s[pos + 5])))) {
         pos += 5;
         return ConcoreValue::make_bool(false);
     }
-    // None → treat as string "None" (no numeric equivalent)
     if (s.compare(pos, 4, "None") == 0 &&
         (pos + 4 >= s.size() || !std::isalnum(static_cast<unsigned char>(s[pos + 4])))) {
         pos += 4;
         return ConcoreValue::make_string("None");
     }
 
-    // Number (int, float, negative, scientific notation)
     {
         size_t start = pos;
         if (pos < s.size() && (s[pos] == '+' || s[pos] == '-')) ++pos;
@@ -257,7 +227,7 @@ inline ConcoreValue parse_literal_value(const std::string& s, size_t& pos) {
                     "Invalid concore payload: bad number '" + numstr + "'");
             }
         }
-        pos = start;  // backtrack
+        pos = start;
     }
 
     throw std::runtime_error(
@@ -265,10 +235,6 @@ inline ConcoreValue parse_literal_value(const std::string& s, size_t& pos) {
         std::to_string(pos));
 }
 
-/**
- * Parses a complete Python literal string and returns a ConcoreValue.
- * Trailing content after the value (other than whitespace) is an error.
- */
 inline ConcoreValue parse_literal(const std::string& s) {
     size_t pos = 0;
     ConcoreValue v = parse_literal_value(s, pos);
@@ -279,12 +245,6 @@ inline ConcoreValue parse_literal(const std::string& s) {
     return v;
 }
 
-/**
- * Recursively extracts all numeric values from a ConcoreValue.
- * Booleans convert to 1.0 / 0.0 (matching Python's int(True) / int(False)).
- * Strings are skipped.
- * Nested arrays are flattened.
- */
 inline void flatten_numeric_impl(const ConcoreValue& v, std::vector<double>& out) {
     switch (v.type) {
         case ConcoreValueType::NUMBER:
@@ -294,7 +254,6 @@ inline void flatten_numeric_impl(const ConcoreValue& v, std::vector<double>& out
             out.push_back(v.boolean ? 1.0 : 0.0);
             break;
         case ConcoreValueType::STRING:
-            // Skip non-numeric tokens
             break;
         case ConcoreValueType::ARRAY:
             for (const auto& elem : v.array)
@@ -309,8 +268,6 @@ inline std::vector<double> flatten_numeric(const ConcoreValue& v) {
     return out;
 }
 
-// --------------- parselist_double (full definition) -----------------
-
 inline std::vector<double> parselist_double(const std::string& str) {
     std::string trimmed = stripstr(str);
     if (trimmed.empty()) return {};
@@ -318,7 +275,6 @@ inline std::vector<double> parselist_double(const std::string& str) {
         ConcoreValue v = parse_literal(trimmed);
         return flatten_numeric(v);
     } catch (...) {
-        // Fall back to the simple comma-split parser for edge cases
         std::vector<double> result;
         if (trimmed.size() < 2) return result;
         if (trimmed.front() == '[' || trimmed.front() == '(') {
