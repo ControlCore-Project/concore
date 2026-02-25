@@ -112,7 +112,7 @@ public class concoredocker {
      * Sets maxtime from concore.maxtime file, or uses defaultValue if file not found.
      * Catches both IOException and RuntimeException to match Python safe_literal_eval.
      */
-    private static void defaultMaxTime(double defaultValue) {
+    public static void defaultMaxTime(double defaultValue) {
         try {
             String content = new String(Files.readAllBytes(Paths.get(inpath + "/1/concore.maxtime")));
             Object parsed = literalEval(content.trim());
@@ -126,7 +126,7 @@ public class concoredocker {
         }
     }
 
-    private static boolean unchanged() {
+    public static boolean unchanged() {
         if (olds.equals(s)) {
             s = "";
             return true;
@@ -135,7 +135,7 @@ public class concoredocker {
         return false;
     }
 
-    private static Object tryParam(String n, Object i) {
+    public static Object tryParam(String n, Object i) {
         if (params.containsKey(n)) {
             return params.get(n);
         } else {
@@ -149,7 +149,7 @@ public class concoredocker {
      * Returns: list of values after simtime
      * Includes max retry limit to avoid infinite blocking (matches Python behavior).
      */
-    private static List<Object> read(int port, String name, String initstr) {
+    public static List<Object> read(int port, String name, String initstr) {
         // Parse default value upfront for consistent return type
         List<Object> defaultVal = new ArrayList<>();
         try {
@@ -275,7 +275,7 @@ public class concoredocker {
      * Prepends simtime+delta to the value list, then serializes to Python-literal format.
      * Accepts List or String values (matching Python implementation).
      */
-    private static void write(int port, String name, Object val, int delta) {
+    public static void write(int port, String name, Object val, int delta) {
         try {
             String path = outpath + "/" + port + "/" + name;
             StringBuilder content = new StringBuilder();
@@ -322,7 +322,7 @@ public class concoredocker {
      * Parses an initial value string like "[0.0, 1.0, 2.0]".
      * Extracts simtime from position 0 and returns the remaining values as a List.
      */
-    private static List<Object> initVal(String simtimeVal) {
+    public static List<Object> initVal(String simtimeVal) {
         List<Object> val = new ArrayList<>();
         try {
             List<?> inval = (List<?>) literalEval(simtimeVal);
