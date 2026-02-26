@@ -5,7 +5,13 @@ import matplotlib.pyplot as plt
 import time
 
 size = 10
-lag = concore.tryparam("lag", 0) 
+lag = concore.tryparam("lag", 0)
+if lag >= size:
+    logging.warning(
+        "Requested lag (%d) exceeds buffer size (%d). Clamping to %d.",
+        lag, size, size - 1
+    )
+    lag = size - 1
 logging.info(f"plot ym with lag={lag}")
 
 concore.delay = 0.005
