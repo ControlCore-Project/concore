@@ -77,6 +77,32 @@ _concore_ supports customization through configuration files in the `CONCOREPATH
 
 Tool paths can also be set via environment variables (e.g., `CONCORE_CPPEXE=/usr/bin/g++`). Priority: config file > env var > defaults.
 
+### Docker Executable Configuration
+
+The Docker executable used by generated scripts (`build`, `run`, `stop`, `maxtime`, `params`, `unlock`) is controlled by the `DOCKEREXE` variable. It defaults to `docker` and can be overridden in three ways (highest priority first):
+
+1. **Config file** — Write the desired command into `concore.sudo` in your `CONCOREPATH` directory:
+   ```
+   docker
+   ```
+   This remains the highest-priority override, preserving backward compatibility.
+
+2. **Environment variable** — Set `DOCKEREXE` before running `mkconcore.py`:
+   ```bash
+   # Rootless Docker / Docker Desktop (macOS, Windows)
+   export DOCKEREXE="docker"
+
+   # Podman
+   export DOCKEREXE="podman"
+
+   # Traditional Linux with sudo
+   export DOCKEREXE="sudo docker"
+   ```
+
+3. **Default** — If neither the config file nor the environment variable is set, `docker` is used.
+
+> **Note:** Previous versions defaulted to `sudo docker`, which failed on Docker Desktop (macOS/Windows), rootless Docker, and Podman. The new default (`docker`) works out of the box on those platforms. If you still need `sudo`, set `DOCKEREXE="sudo docker"` via the environment variable or `concore.sudo` config file.
+
 ### Security Configuration
 
 Set a secure secret key for the Flask server before running in production:
