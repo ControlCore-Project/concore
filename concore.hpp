@@ -124,6 +124,78 @@ private:
     }
 
     /**
+     * @brief Concore is not copyable as it owns shared memory handles.
+     */
+    Concore(const Concore&) = delete;
+    Concore& operator=(const Concore&) = delete;
+
+    /**
+     * @brief Move constructor. Transfers SHM handle ownership to the new instance.
+     */
+    Concore(Concore&& other) noexcept
+        : s(std::move(other.s)), olds(std::move(other.olds)),
+          inpath(std::move(other.inpath)), outpath(std::move(other.outpath)),
+          shmId_create(other.shmId_create), shmId_get(other.shmId_get),
+          sharedData_create(other.sharedData_create), sharedData_get(other.sharedData_get),
+          communication_iport(other.communication_iport), communication_oport(other.communication_oport),
+          delay(other.delay), retrycount(other.retrycount), simtime(other.simtime),
+          maxtime(other.maxtime), iport(std::move(other.iport)), oport(std::move(other.oport)),
+          params(std::move(other.params))
+    {
+        other.shmId_create = -1;
+        other.shmId_get = -1;
+        other.sharedData_create = nullptr;
+        other.sharedData_get = nullptr;
+        other.communication_iport = 0;
+        other.communication_oport = 0;
+    }
+
+    /**
+     * @brief Move assignment. Cleans up current SHM resources, then takes ownership from other.
+     */
+    Concore& operator=(Concore&& other) noexcept
+    {
+        if (this == &other)
+            return *this;
+
+#ifdef __linux__
+        if (communication_oport == 1 && sharedData_create != nullptr)
+            shmdt(sharedData_create);
+        if (communication_iport == 1 && sharedData_get != nullptr)
+            shmdt(sharedData_get);
+        if (shmId_create != -1)
+            shmctl(shmId_create, IPC_RMID, nullptr);
+#endif
+
+        s = std::move(other.s);
+        olds = std::move(other.olds);
+        inpath = std::move(other.inpath);
+        outpath = std::move(other.outpath);
+        shmId_create = other.shmId_create;
+        shmId_get = other.shmId_get;
+        sharedData_create = other.sharedData_create;
+        sharedData_get = other.sharedData_get;
+        communication_iport = other.communication_iport;
+        communication_oport = other.communication_oport;
+        delay = other.delay;
+        retrycount = other.retrycount;
+        simtime = other.simtime;
+        maxtime = other.maxtime;
+        iport = std::move(other.iport);
+        oport = std::move(other.oport);
+        params = std::move(other.params);
+
+        other.shmId_create = -1;
+        other.shmId_get = -1;
+        other.sharedData_create = nullptr;
+        other.sharedData_get = nullptr;
+        other.communication_iport = 0;
+        other.communication_oport = 0;
+
+        return *this;
+    }
+
+    /**
      * @brief Extracts the numeric part from a string.
      * @param str The input string.
      * @return The numeric part of the string.
