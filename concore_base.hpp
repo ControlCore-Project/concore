@@ -178,6 +178,117 @@ inline std::string tryparam(
     return (it != params.end()) ? it->second : defaultValue;
 }
 
+
+// ===================================================================
+// ZeroMQ Transport (opt-in: compile with -DCONCORE_USE_ZMQ)
+// ===================================================================
+#ifdef CONCORE_USE_ZMQ
+#include <zmq.hpp>
+
+/**
+ * ZMQ socket wrapper with bind/connect, timeouts, and retry.
+ */
+class ZeroMQPort {
+public:
+    zmq::context_t context;
+    zmq::socket_t  socket;
+    std::string    port_type;
+    std::string    address;
+
+    ZeroMQPort(const std::string& port_type_, const std::string& address_, int socket_type)
+        : context(1), socket(context, socket_type),
+          port_type(port_type_), address(address_)
+    {
+        socket.setsockopt(ZMQ_RCVTIMEO, 2000);
+        socket.setsockopt(ZMQ_SNDTIMEO, 2000);
+        socket.setsockopt(ZMQ_LINGER,   0);
+
+        if (port_type == "bind")
+            socket.bind(address);
+        else
+            socket.connect(address);
+    }
+
+    ZeroMQPort(const ZeroMQPort&) = delete;
+    ZeroMQPort& operator=(const ZeroMQPort&) = delete;
+
+    /**
+     * Sends a vector<double> as "[v0, v1, ...]" with retry on timeout.
+     */
+    void send_with_retry(const std::vector<double>& payload) {
+        std::ostringstream ss;
+        ss << "[";
+        for (size_t i = 0; i < payload.size(); ++i) {
+            if (i) ss << ", ";
+            ss << payload[i];
+        }
+        ss << "]";
+        std::string msg = ss.str();
+        for (int attempt = 0; attempt < 5; ++attempt) {
+            try {
+                zmq::message_t zmsg(msg.begin(), msg.end());
+                socket.send(zmsg, zmq::send_flags::none);
+                return;
+            } catch (const zmq::error_t&) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            }
+        }
+        std::cerr << "ZMQ send failed after retries." << std::endl;
+    }
+
+    /**
+     * Sends a raw string with retry on timeout.
+     */
+    void send_string_with_retry(const std::string& msg) {
+        for (int attempt = 0; attempt < 5; ++attempt) {
+            try {
+                zmq::message_t zmsg(msg.begin(), msg.end());
+                socket.send(zmsg, zmq::send_flags::none);
+                return;
+            } catch (const zmq::error_t&) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            }
+        }
+        std::cerr << "ZMQ send failed after retries." << std::endl;
+    }
+
+    /**
+     * Receives and parses "[v0, v1, ...]" back to vector<double>.
+     */
+    std::vector<double> recv_with_retry() {
+        for (int attempt = 0; attempt < 5; ++attempt) {
+            try {
+                zmq::message_t zmsg;
+                auto res = socket.recv(zmsg, zmq::recv_flags::none);
+                if (res) {
+                    std::string data(static_cast<char*>(zmsg.data()), zmsg.size());
+                    return parselist_double(data);
+                }
+            } catch (const zmq::error_t&) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            }
+        }
+        std::cerr << "ZMQ recv failed after retries." << std::endl;
+        return {};
+    }
+};
+
+/**
+ * Maps socket type string ("REQ", "REP", etc.) to ZMQ constant.
+ * Returns -1 on unknown type.
+ */
+inline int zmq_socket_type_from_string(const std::string& s) {
+    if (s == "REQ")  return ZMQ_REQ;
+    if (s == "REP")  return ZMQ_REP;
+    if (s == "PUB")  return ZMQ_PUB;
+    if (s == "SUB")  return ZMQ_SUB;
+    if (s == "PUSH") return ZMQ_PUSH;
+    if (s == "PULL") return ZMQ_PULL;
+    if (s == "PAIR") return ZMQ_PAIR;
+    return -1;
+}
+#endif // CONCORE_USE_ZMQ
+
 } // namespace concore_base
 
 #endif // CONCORE_BASE_HPP
