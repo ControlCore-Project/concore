@@ -297,9 +297,10 @@ class TestWriteZMQ:
         original_data = [1.5, 2.5, 3.5]
         concore.write("roundtrip_test", "data", original_data)
 
-        # Read should return original data (simtime stripped)
-        result = concore.read("roundtrip_test", "data", "[]")
+        # Read should return original data (simtime stripped) plus success flag
+        result, ok = concore.read("roundtrip_test", "data", "[]")
         assert result == original_data
+        assert ok is True
 
 
 class TestSimtimeNotMutatedByWrite:
