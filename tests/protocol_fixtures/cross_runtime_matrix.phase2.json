@@ -1,0 +1,211 @@
+{
+  "schema_version": "1.0",
+  "phase": "2",
+  "mode": "report_only",
+  "source_fixture": "python_phase1_cases.json",
+  "runtimes": [
+    "python",
+    "cpp",
+    "matlab",
+    "octave",
+    "verilog"
+  ],
+  "classifications": [
+    "required",
+    "implementation_defined",
+    "known_deviation"
+  ],
+  "statuses": [
+    "observed_pass",
+    "observed_fail",
+    "not_audited"
+  ],
+  "cases": [
+    {
+      "id": "parse_params/simple_types_and_whitespace",
+      "target": "parse_params",
+      "runtime_results": {
+        "python": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Phase-1 baseline execution."
+        },
+        "cpp": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "matlab": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "octave": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "verilog": {
+          "status": "not_audited",
+          "classification": "implementation_defined",
+          "note": "May require binding-specific interpretation."
+        }
+      }
+    },
+    {
+      "id": "parse_params/embedded_equals_not_split",
+      "target": "parse_params",
+      "runtime_results": {
+        "python": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Phase-1 baseline execution."
+        },
+        "cpp": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "matlab": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "octave": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "verilog": {
+          "status": "not_audited",
+          "classification": "implementation_defined",
+          "note": "May require binding-specific interpretation."
+        }
+      }
+    },
+    {
+      "id": "initval/valid_list_sets_simtime",
+      "target": "initval",
+      "runtime_results": {
+        "python": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Phase-1 baseline execution."
+        },
+        "cpp": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "matlab": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "octave": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "verilog": {
+          "status": "not_audited",
+          "classification": "implementation_defined",
+          "note": "May require binding-specific interpretation."
+        }
+      }
+    },
+    {
+      "id": "initval/invalid_input_returns_empty_and_preserves_simtime",
+      "target": "initval",
+      "runtime_results": {
+        "python": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Phase-1 baseline execution."
+        },
+        "cpp": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "matlab": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "octave": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "verilog": {
+          "status": "not_audited",
+          "classification": "implementation_defined",
+          "note": "May require binding-specific interpretation."
+        }
+      }
+    },
+    {
+      "id": "write_zmq/list_payload_prepends_timestamp_without_mutation",
+      "target": "write_zmq",
+      "runtime_results": {
+        "python": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Phase-1 baseline execution."
+        },
+        "cpp": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "matlab": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "octave": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "verilog": {
+          "status": "not_audited",
+          "classification": "implementation_defined",
+          "note": "May require binding-specific interpretation."
+        }
+      }
+    },
+    {
+      "id": "write_zmq/non_list_payload_forwarded_as_is",
+      "target": "write_zmq",
+      "runtime_results": {
+        "python": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Phase-1 baseline execution."
+        },
+        "cpp": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "matlab": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "octave": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "verilog": {
+          "status": "not_audited",
+          "classification": "implementation_defined",
+          "note": "May require binding-specific interpretation."
+        }
+      }
+    }
+  ]
+}
