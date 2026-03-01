@@ -5,4 +5,11 @@ from .status import show_status
 from .stop import stop_all
 from .watch import watch_study
 
-__all__ = ['init_project', 'run_workflow', 'validate_workflow', 'show_status', 'stop_all', 'watch_study']
+__all__ = [
+    "init_project",
+    "run_workflow",
+    "validate_workflow",
+    "show_status",
+    "stop_all",
+    "watch_study",
+]

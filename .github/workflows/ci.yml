@@ -7,67 +7,58 @@ on:
     branches: [main, dev]
 
 jobs:
-  lint-and-test:
+  lint:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Lint
+        run: ruff check . --output-format=github
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-ci.txt
-        # Uses minimal CI requirements (no tensorflow/heavy packages)
 
-      - name: Run linter (ruff)
+      - name: Run tests
         run: |
-          ruff check . --select=E9,F63,F7,F82 --output-format=github \
-            --exclude="Dockerfile.*" \
-            --exclude="linktest/" \
-            --exclude="measurements/" \
-            --exclude="0mq/" \
-            --exclude="ratc/"
-        # E9: Runtime errors (syntax errors, etc.)
-        # F63: Invalid print syntax
-        # F7: Syntax errors in type comments
-        # F82: Undefined names in __all__
-        # Excludes: Dockerfiles (not Python), linktest (symlinks),
-        # measurements/0mq/ratc (config-dependent experimental scripts)
-
-      - name: Run tests (pytest)
-        run: |
-          set +e
           pytest --tb=short -q \
+            --cov=concore_cli --cov=concore_base \
+            --cov-report=term-missing \
             --ignore=measurements/ \
             --ignore=0mq/ \
             --ignore=ratc/ \
             --ignore=linktest/
-          status=$?
-          set -e
-          # Allow success if no tests are collected (pytest exit code 5)
-          if [ "$status" -ne 0 ] && [ "$status" -ne 5 ]; then
-            exit "$status"
-          fi
-        # Fails on real test failures, passes on no tests collected
 
   docker-build:
     runs-on: ubuntu-latest
-    # Only run when Dockerfile.py or related files change
-    if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'pull_request' && 
-       contains(github.event.pull_request.changed_files, 'Dockerfile'))
-    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Check if Dockerfile.py changed
         uses: dorny/paths-filter@v3
@@ -80,7 +71,4 @@ jobs:
 
       - name: Validate Dockerfile build
         if: steps.filter.outputs.dockerfile == 'true'
-        run: |
-          docker build -f Dockerfile.py -t concore-py-test .
-        # Validates that Dockerfile.py can be built successfully
-        # Does not push the image
+        run: docker build -f Dockerfile.py -t concore-py-test .

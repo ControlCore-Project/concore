@@ -21,11 +21,17 @@ def _validate_fixture_document_shape(doc):
     required_top = {"schema_version", "runtime", "mode", "cases"}
     missing = required_top - set(doc.keys())
     if missing:
-        raise AssertionError(f"Fixture document missing required top-level keys: {sorted(missing)}")
+        raise AssertionError(
+            f"Fixture document missing required top-level keys: {sorted(missing)}"
+        )
     if doc["runtime"] != "python":
-        raise AssertionError(f"Phase-1 fixture runtime must be 'python', found: {doc['runtime']}")
+        raise AssertionError(
+            f"Phase-1 fixture runtime must be 'python', found: {doc['runtime']}"
+        )
     if doc["mode"] != "report_only":
-        raise AssertionError(f"Phase-1 fixture mode must be 'report_only', found: {doc['mode']}")
+        raise AssertionError(
+            f"Phase-1 fixture mode must be 'report_only', found: {doc['mode']}"
+        )
     if not isinstance(doc["cases"], list) or not doc["cases"]:
         raise AssertionError("Fixture document must contain a non-empty 'cases' list")
 

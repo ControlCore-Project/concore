@@ -1,9 +1,7 @@
-import os
-import shutil
 from pathlib import Path
 from rich.panel import Panel
 
-SAMPLE_GRAPHML = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+SAMPLE_GRAPHML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd" xmlns:y="http://www.yworks.com/xml/graphml">
   <key for="node" id="d6" yfiles.type="nodegraphics"/>
   <key for="edge" id="d10" yfiles.type="edgegraphics"/>
@@ -21,9 +19,9 @@ SAMPLE_GRAPHML = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     </node>
   </graph>
 </graphml>
-'''
+"""
 
-SAMPLE_PYTHON = '''import concore
+SAMPLE_PYTHON = """import concore
 
 concore.default_maxtime(100)
 concore.delay = 0.02
@@ -36,9 +34,9 @@ while(concore.simtime<concore.maxtime):
         val = concore.read(1,"data",init_simtime_val)
     result = [v * 2 for v in val]
     concore.write(1,"result",result,delta=0)
-'''
+"""
 
-README_TEMPLATE = '''# {project_name}
+README_TEMPLATE = """# {project_name}
 
 A concore workflow project.
 
@@ -63,38 +61,41 @@ A concore workflow project.
 - Add Python/C++/MATLAB scripts to `src/`
 - Use `concore validate workflow.graphml` to check your workflow
 - Use `concore status` to monitor running processes
-'''
+"""
+
 
 def init_project(name, template, console):
     project_path = Path(name)
-    
+
     if project_path.exists():
         raise FileExistsError(f"Directory '{name}' already exists")
-    
+
     console.print(f"[cyan]Creating project:[/cyan] {name}")
-    
+
     project_path.mkdir()
-    (project_path / 'src').mkdir()
-    
-    workflow_file = project_path / 'workflow.graphml'
-    with open(workflow_file, 'w') as f:
+    (project_path / "src").mkdir()
+
+    workflow_file = project_path / "workflow.graphml"
+    with open(workflow_file, "w") as f:
         f.write(SAMPLE_GRAPHML)
-    
-    sample_script = project_path / 'src' / 'script.py'
-    with open(sample_script, 'w') as f:
+
+    sample_script = project_path / "src" / "script.py"
+    with open(sample_script, "w") as f:
         f.write(SAMPLE_PYTHON)
-    
-    readme_file = project_path / 'README.md'
-    with open(readme_file, 'w') as f:
+
+    readme_file = project_path / "README.md"
+    with open(readme_file, "w") as f:
         f.write(README_TEMPLATE.format(project_name=name))
-    
+
     console.print()
-    console.print(Panel.fit(
-        f"[green]✓[/green] Project created successfully!\n\n"
-        f"Next steps:\n"
-        f"  cd {name}\n"
-        f"  concore validate workflow.graphml\n"
-        f"  concore run workflow.graphml",
-        title="Success",
-        border_style="green"
-    ))
+    console.print(
+        Panel.fit(
+            f"[green]✓[/green] Project created successfully!\n\n"
+            f"Next steps:\n"
+            f"  cd {name}\n"
+            f"  concore validate workflow.graphml\n"
+            f"  concore run workflow.graphml",
+            title="Success",
+            border_style="green",
+        )
+    )

@@ -1,4 +1,5 @@
 """Tests for the secured /openJupyter/ and /stopJupyter/ endpoints."""
+
 import os
 import sys
 import pytest
@@ -8,7 +9,9 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Skip entire module if flask is not installed (e.g. in CI with minimal deps)
-pytest.importorskip("flask", reason="flask not installed — skipping server endpoint tests")
+pytest.importorskip(
+    "flask", reason="flask not installed — skipping server endpoint tests"
+)
 
 # Set a test API key before importing the app module
 TEST_API_KEY = "test-secret-key-12345"
@@ -18,6 +21,7 @@ TEST_API_KEY = "test-secret-key-12345"
 def reset_jupyter_process():
     """Reset the module-level jupyter_process before each test."""
     import fri.server.main as mod
+
     mod.jupyter_process = None
     yield
     mod.jupyter_process = None
@@ -29,6 +33,7 @@ def client():
     with patch.dict(os.environ, {"CONCORE_API_KEY": TEST_API_KEY}):
         # Re-read env var after patching
         import fri.server.main as mod
+
         mod.API_KEY = TEST_API_KEY
         mod.app.config["TESTING"] = True
         with mod.app.test_client() as c:
@@ -39,6 +44,7 @@ def client():
 def client_no_key():
     """Create a Flask test client without API key configured."""
     import fri.server.main as mod
+
     mod.API_KEY = None
     mod.app.config["TESTING"] = True
     with mod.app.test_client() as c:
@@ -60,9 +66,7 @@ class TestOpenJupyterAuth:
 
     def test_server_without_api_key_configured_returns_500(self, client_no_key):
         """If CONCORE_API_KEY is not set on server, return 500."""
-        resp = client_no_key.post(
-            "/openJupyter/", headers={"X-API-KEY": "anything"}
-        )
+        resp = client_no_key.post("/openJupyter/", headers={"X-API-KEY": "anything"})
         assert resp.status_code == 500
 
 
@@ -76,9 +80,7 @@ class TestOpenJupyterProcess:
         mock_proc.poll.return_value = None  # process running
         mock_popen.return_value = mock_proc
 
-        resp = client.post(
-            "/openJupyter/", headers={"X-API-KEY": TEST_API_KEY}
-        )
+        resp = client.post("/openJupyter/", headers={"X-API-KEY": TEST_API_KEY})
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["message"] == "Jupyter Lab started"
@@ -96,15 +98,11 @@ class TestOpenJupyterProcess:
         mock_popen.return_value = mock_proc
 
         # First launch
-        resp1 = client.post(
-            "/openJupyter/", headers={"X-API-KEY": TEST_API_KEY}
-        )
+        resp1 = client.post("/openJupyter/", headers={"X-API-KEY": TEST_API_KEY})
         assert resp1.status_code == 200
 
         # Second launch should be rejected
-        resp2 = client.post(
-            "/openJupyter/", headers={"X-API-KEY": TEST_API_KEY}
-        )
+        resp2 = client.post("/openJupyter/", headers={"X-API-KEY": TEST_API_KEY})
         assert resp2.status_code == 409
         data = resp2.get_json()
         assert data["message"] == "Jupyter already running"
@@ -112,9 +110,7 @@ class TestOpenJupyterProcess:
     @patch("fri.server.main.subprocess.Popen", side_effect=OSError("fail"))
     def test_popen_failure_returns_500(self, mock_popen, client):
         """If Popen raises, return 500."""
-        resp = client.post(
-            "/openJupyter/", headers={"X-API-KEY": TEST_API_KEY}
-        )
+        resp = client.post("/openJupyter/", headers={"X-API-KEY": TEST_API_KEY})
         assert resp.status_code == 500
         data = resp.get_json()
         assert "error" in data
@@ -130,9 +126,7 @@ class TestStopJupyter:
 
     def test_stop_when_no_process_returns_404(self, client):
         """Stop with no running process returns 404."""
-        resp = client.post(
-            "/stopJupyter/", headers={"X-API-KEY": TEST_API_KEY}
-        )
+        resp = client.post("/stopJupyter/", headers={"X-API-KEY": TEST_API_KEY})
         assert resp.status_code == 404
 
     @patch("fri.server.main.subprocess.Popen")
@@ -146,9 +140,7 @@ class TestStopJupyter:
         client.post("/openJupyter/", headers={"X-API-KEY": TEST_API_KEY})
 
         # Stop
-        resp = client.post(
-            "/stopJupyter/", headers={"X-API-KEY": TEST_API_KEY}
-        )
+        resp = client.post("/stopJupyter/", headers={"X-API-KEY": TEST_API_KEY})
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["message"] == "Jupyter stopped"

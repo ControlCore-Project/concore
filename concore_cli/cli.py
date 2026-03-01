@@ -13,16 +13,18 @@ from .commands.watch import watch_study
 from . import __version__
 
 console = Console()
-DEFAULT_EXEC_TYPE = 'windows' if os.name == 'nt' else 'posix'
+DEFAULT_EXEC_TYPE = "windows" if os.name == "nt" else "posix"
+
 
 @click.group()
-@click.version_option(version=__version__, prog_name='concore')
+@click.version_option(version=__version__, prog_name="concore")
 def cli():
     pass
 
+
 @cli.command()
-@click.argument('name', required=True)
-@click.option('--template', default='basic', help='Template type to use')
+@click.argument("name", required=True)
+@click.option("--template", default="basic", help="Template type to use")
 def init(name, template):
     """Create a new concore project"""
     try:
@@ -31,12 +33,21 @@ def init(name, template):
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
 
+
 @cli.command()
-@click.argument('workflow_file', type=click.Path(exists=True))
-@click.option('--source', '-s', default='src', help='Source directory')
-@click.option('--output', '-o', default='out', help='Output directory')
-@click.option('--type', '-t', default=DEFAULT_EXEC_TYPE, type=click.Choice(['windows', 'posix', 'docker']), help='Execution type')
-@click.option('--auto-build', is_flag=True, help='Automatically run build after generation')
+@click.argument("workflow_file", type=click.Path(exists=True))
+@click.option("--source", "-s", default="src", help="Source directory")
+@click.option("--output", "-o", default="out", help="Output directory")
+@click.option(
+    "--type",
+    "-t",
+    default=DEFAULT_EXEC_TYPE,
+    type=click.Choice(["windows", "posix", "docker"]),
+    help="Execution type",
+)
+@click.option(
+    "--auto-build", is_flag=True, help="Automatically run build after generation"
+)
 def run(workflow_file, source, output, type, auto_build):
     """Run a concore workflow"""
     try:
@@ -45,9 +56,10 @@ def run(workflow_file, source, output, type, auto_build):
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
 
+
 @cli.command()
-@click.argument('workflow_file', type=click.Path(exists=True))
-@click.option('--source', '-s', default='src', help='Source directory')
+@click.argument("workflow_file", type=click.Path(exists=True))
+@click.option("--source", "-s", default="src", help="Source directory")
 def validate(workflow_file, source):
     """Validate a workflow file"""
     try:
@@ -58,10 +70,11 @@ def validate(workflow_file, source):
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
 
+
 @cli.command()
-@click.argument('workflow_file', type=click.Path(exists=True))
-@click.option('--source', '-s', default='src', help='Source directory')
-@click.option('--json', 'output_json', is_flag=True, help='Output in JSON format')
+@click.argument("workflow_file", type=click.Path(exists=True))
+@click.option("--source", "-s", default="src", help="Source directory")
+@click.option("--json", "output_json", is_flag=True, help="Output in JSON format")
 def inspect(workflow_file, source, output_json):
     """Inspect a workflow file and show its structure"""
     try:
@@ -69,6 +82,7 @@ def inspect(workflow_file, source, output_json):
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
+
 
 @cli.command()
 def status():
@@ -79,8 +93,9 @@ def status():
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
 
+
 @cli.command()
-@click.confirmation_option(prompt='Stop all running concore processes?')
+@click.confirmation_option(prompt="Stop all running concore processes?")
 def stop():
     """Stop all running concore processes"""
     try:
@@ -89,10 +104,11 @@ def stop():
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
 
+
 @cli.command()
-@click.argument('study_dir', type=click.Path(exists=True))
-@click.option('--interval', '-n', default=2.0, help='Refresh interval in seconds')
-@click.option('--once', is_flag=True, help='Print a single snapshot and exit')
+@click.argument("study_dir", type=click.Path(exists=True))
+@click.option("--interval", "-n", default=2.0, help="Refresh interval in seconds")
+@click.option("--once", is_flag=True, help="Print a single snapshot and exit")
 def watch(study_dir, interval, once):
     """Watch a running simulation study for live monitoring"""
     try:
@@ -101,5 +117,6 @@ def watch(study_dir, interval, once):
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     cli()

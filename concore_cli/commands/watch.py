@@ -20,10 +20,14 @@ def watch_study(study_dir, interval, once, console):
     edges = _find_edges(study_path, nodes)
 
     if not nodes and not edges:
-        console.print(Panel(
-            "[yellow]No nodes or edge directories found.[/yellow]\n"
-            "[dim]Make sure you point to a built study directory (run makestudy/build first).[/dim]",
-            title="concore watch", border_style="yellow"))
+        console.print(
+            Panel(
+                "[yellow]No nodes or edge directories found.[/yellow]\n"
+                "[dim]Make sure you point to a built study directory (run makestudy/build first).[/dim]",
+                title="concore watch",
+                border_style="yellow",
+            )
+        )
         return
 
     if once:
@@ -63,15 +67,18 @@ def _build_display(study_path, nodes, edges):
         parts.append(_node_table(nodes))
 
     if not edges and not nodes:
-        parts.append(Panel("[yellow]No data yet[/yellow]",
-                           border_style="yellow"))
+        parts.append(Panel("[yellow]No data yet[/yellow]", border_style="yellow"))
 
     return Group(*parts)
 
 
 def _edge_table(edges):
-    table = Table(title="Edges (port data)", show_header=True,
-                  title_style="bold cyan", expand=True)
+    table = Table(
+        title="Edges (port data)",
+        show_header=True,
+        title_style="bold cyan",
+        expand=True,
+    )
     table.add_column("Edge", style="green", min_width=10)
     table.add_column("Port File", style="cyan")
     table.add_column("Simtime", style="yellow", justify="right")
@@ -96,18 +103,23 @@ def _edge_table(edges):
 
 
 def _node_table(nodes):
-    table = Table(title="Nodes", show_header=True,
-                  title_style="bold cyan", expand=True)
+    table = Table(title="Nodes", show_header=True, title_style="bold cyan", expand=True)
     table.add_column("Node", style="green", min_width=10)
     table.add_column("Ports (in)", style="cyan")
     table.add_column("Ports (out)", style="cyan")
     table.add_column("Source", style="dim")
 
     for node_name, node_path in sorted(nodes):
-        in_dirs = sorted(d.name for d in node_path.iterdir()
-                         if d.is_dir() and re.match(r'^in\d+$', d.name))
-        out_dirs = sorted(d.name for d in node_path.iterdir()
-                          if d.is_dir() and re.match(r'^out\d+$', d.name))
+        in_dirs = sorted(
+            d.name
+            for d in node_path.iterdir()
+            if d.is_dir() and re.match(r"^in\d+$", d.name)
+        )
+        out_dirs = sorted(
+            d.name
+            for d in node_path.iterdir()
+            if d.is_dir() and re.match(r"^out\d+$", d.name)
+        )
         src = _detect_source(node_path)
         table.add_row(
             node_name,
@@ -121,14 +133,15 @@ def _node_table(nodes):
 
 def _find_nodes(study_path):
     nodes = []
-    port_re = re.compile(r'^(in|out)\d+$')
-    skip = {'src', '__pycache__', '.git'}
+    port_re = re.compile(r"^(in|out)\d+$")
+    skip = {"src", "__pycache__", ".git"}
     for entry in study_path.iterdir():
-        if not entry.is_dir() or entry.name in skip or entry.name.startswith('.'):
+        if not entry.is_dir() or entry.name in skip or entry.name.startswith("."):
             continue
         try:
-            has_ports = any(c.is_dir() and port_re.match(c.name)
-                           for c in entry.iterdir())
+            has_ports = any(
+                c.is_dir() and port_re.match(c.name) for c in entry.iterdir()
+            )
         except PermissionError:
             continue
         if has_ports:
@@ -140,12 +153,12 @@ def _find_edges(study_path, nodes=None):
     if nodes is None:
         nodes = _find_nodes(study_path)
     node_names = {name for name, _ in nodes}
-    skip = {'src', '__pycache__', '.git'}
+    skip = {"src", "__pycache__", ".git"}
     edges = []
     for entry in study_path.iterdir():
         if not entry.is_dir():
             continue
-        if entry.name in skip or entry.name in node_names or entry.name.startswith('.'):
+        if entry.name in skip or entry.name in node_names or entry.name.startswith("."):
             continue
         try:
             has_file = any(f.is_file() for f in entry.iterdir())
@@ -166,7 +179,7 @@ def _read_edge_files(edge_path):
         if not f.is_file():
             continue
         # skip concore internal files
-        if f.name.startswith('concore.'):
+        if f.name.startswith("concore."):
             continue
         simtime_val, value_str = _parse_port_file(f)
         try:
@@ -178,11 +191,11 @@ def _read_edge_files(edge_path):
 
 
 def _detect_source(node_path):
-    for ext in ('*.py', '*.m', '*.cpp', '*.v', '*.sh', '*.java'):
+    for ext in ("*.py", "*.m", "*.cpp", "*.v", "*.sh", "*.java"):
         matches = list(node_path.glob(ext))
         for m in matches:
             # skip concore library copies
-            if m.name.startswith('concore'):
+            if m.name.startswith("concore"):
                 continue
             return m.name
     return "—"
