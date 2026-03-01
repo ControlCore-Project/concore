@@ -49,6 +49,10 @@ private:
     int communication_iport = 0;  // iport refers to input port
     int communication_oport = 0;  // oport refers to input port
 
+#ifdef CONCORE_USE_ZMQ
+    map<string, concore_base::ZeroMQPort*> zmq_ports;
+#endif
+
  public:
     double delay = 1;
     int retrycount = 0;
@@ -107,6 +111,11 @@ private:
      */
     ~Concore()
     {
+#ifdef CONCORE_USE_ZMQ
+        for (auto& kv : zmq_ports)
+            delete kv.second;
+        zmq_ports.clear();
+#endif
 #ifdef __linux__
         // Detach the shared memory segment from the process
         if (communication_oport == 1 && sharedData_create != nullptr) {
@@ -549,6 +558,117 @@ private:
         }
     }
     
+#ifdef CONCORE_USE_ZMQ
+    /**
+     * @brief Registers a ZMQ port for use with read()/write().
+     * @param port_name The ZMQ port name.
+     * @param port_type "bind" or "connect".
+     * @param address The ZMQ address.
+     * @param socket_type_str The socket type string.
+     */
+    void init_zmq_port(string port_name, string port_type, string address, string socket_type_str) {
+        if (zmq_ports.count(port_name)) return;
+        int sock_type = concore_base::zmq_socket_type_from_string(socket_type_str);
+        if (sock_type == -1) {
+            cerr << "init_zmq_port: unknown socket type '" << socket_type_str << "'" << endl;
+            return;
+        }
+        zmq_ports[port_name] = new concore_base::ZeroMQPort(port_type, address, sock_type);
+    }
+
+    /**
+     * @brief Reads data from a ZMQ port. Strips simtime prefix, updates simtime.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param initstr The initial string.
+     * @return a vector of double values
+     */
+    vector<double> read_ZMQ(string port_name, string name, string initstr) {
+        auto it = zmq_ports.find(port_name);
+        if (it == zmq_ports.end()) {
+            cerr << "read_ZMQ: port '" << port_name << "' not initialized" << endl;
+            return parser(initstr);
+        }
+        vector<double> inval = it->second->recv_with_retry();
+        if (inval.empty())
+            inval = parser(initstr);
+        if (inval.empty()) return inval;
+        simtime = simtime > inval[0] ? simtime : inval[0];
+        s += port_name;
+        inval.erase(inval.begin());
+        return inval;
+    }
+
+    /**
+     * @brief Writes a vector of double values to a ZMQ port. Prepends simtime+delta.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param val The vector of double values to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write_ZMQ(string port_name, string name, vector<double> val, int delta=0) {
+        auto it = zmq_ports.find(port_name);
+        if (it == zmq_ports.end()) {
+            cerr << "write_ZMQ: port '" << port_name << "' not initialized" << endl;
+            return;
+        }
+        val.insert(val.begin(), simtime + delta);
+        it->second->send_with_retry(val);
+        // simtime must not be mutated here (issue #385).
+    }
+
+    /**
+     * @brief Writes a string to a ZMQ port.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write_ZMQ(string port_name, string name, string val, int delta=0) {
+        auto it = zmq_ports.find(port_name);
+        if (it == zmq_ports.end()) {
+            cerr << "write_ZMQ: port '" << port_name << "' not initialized" << endl;
+            return;
+        }
+        chrono::milliseconds timespan((int)(2000*delay));
+        this_thread::sleep_for(timespan);
+        it->second->send_string_with_retry(val);
+    }
+
+    /**
+     * @brief deviate the read to ZMQ communication protocol when port identifier is a string key.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param initstr The initial string.
+     * @return 
+     */
+    vector<double> read(string port_name, string name, string initstr) {
+        return read_ZMQ(port_name, name, initstr);
+    }
+
+    /**
+     * @brief deviate the write to ZMQ communication protocol when port identifier is a string key.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param val The vector of double values to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write(string port_name, string name, vector<double> val, int delta=0) {
+        return write_ZMQ(port_name, name, val, delta);
+    }
+
+    /**
+     * @brief deviate the write to ZMQ communication protocol when port identifier is a string key.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write(string port_name, string name, string val, int delta=0) {
+        return write_ZMQ(port_name, name, val, delta);
+    }
+#endif // CONCORE_USE_ZMQ
+
     /**
      * @brief Strips leading and trailing whitespace from a string.
      * @param str The input string.
