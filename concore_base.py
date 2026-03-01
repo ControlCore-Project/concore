@@ -11,15 +11,18 @@ logger.addHandler(logging.NullHandler())
 # ===================================================================
 # ZeroMQ Communication Wrapper
 # ===================================================================
+# single shared ZMQ context for the entire process.
+_zmq_context = zmq.Context()
+
 class ZeroMQPort:
-    def __init__(self, port_type, address, zmq_socket_type):
+    def __init__(self, port_type, address, zmq_socket_type, context):
         """
         port_type: "bind" or "connect"
         address: ZeroMQ address (e.g., "tcp://*:5555")
         zmq_socket_type: zmq.REQ, zmq.REP, zmq.PUB, zmq.SUB etc.
+        context: shared zmq.Context() for the process (do not create one per port)
         """
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq_socket_type)
+        self.socket = context.socket(zmq_socket_type)
         self.port_type = port_type  # "bind" or "connect"
         self.address = address
 
@@ -76,7 +79,7 @@ def init_zmq_port(mod, port_name, port_type, address, socket_type_str):
     try:
         # Map socket type string to actual ZMQ constant (e.g., zmq.REQ, zmq.REP)
         zmq_socket_type = getattr(zmq, socket_type_str.upper())
-        mod.zmq_ports[port_name] = ZeroMQPort(port_type, address, zmq_socket_type)
+        mod.zmq_ports[port_name] = ZeroMQPort(port_type, address, zmq_socket_type, _zmq_context)
         logger.info(f"Initialized ZMQ port: {port_name} ({socket_type_str}) on {address}")
     except AttributeError:
         logger.error(f"Error: Invalid ZMQ socket type string '{socket_type_str}'.")
@@ -86,23 +89,31 @@ def init_zmq_port(mod, port_name, port_type, address, socket_type_str):
         logger.error(f"An unexpected error occurred during ZMQ port initialization for {port_name}: {e}")
 
 def terminate_zmq(mod):
-    """Clean up all ZMQ sockets and contexts before exit."""
+    """Clean up all ZMQ sockets, then terminate the shared context once."""
     if mod._cleanup_in_progress:
         return  # Already cleaning up, prevent reentrant calls
-    
+
     if not mod.zmq_ports:
         return  # No ports to clean up
-    
+
     mod._cleanup_in_progress = True
     print("\nCleaning up ZMQ resources...")
+
+    # all sockets must be closed before context.term() is called.
     for port_name, port in mod.zmq_ports.items():
         try:
             port.socket.close()
-            port.context.term()
             print(f"Closed ZMQ port: {port_name}")
         except Exception as e:
             logger.error(f"Error while terminating ZMQ port {port.address}: {e}")
     mod.zmq_ports.clear()
+
+    # terminate the single shared context exactly once.
+    try:
+        _zmq_context.term()
+    except Exception as e:
+        logger.error(f"Error while terminating shared ZMQ context: {e}")
+
     mod._cleanup_in_progress = False
 
 # --- ZeroMQ Integration End ---
