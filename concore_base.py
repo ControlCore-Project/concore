@@ -104,8 +104,8 @@ def terminate_zmq(mod):
     if mod._cleanup_in_progress:
         return  # Already cleaning up, prevent reentrant calls
 
-    if not mod.zmq_ports:
-        return  # No ports to clean up
+    if not mod.zmq_ports and (_zmq_context is None or _zmq_context.closed):
+        return  # Nothing to clean up: no ports and no active context
 
     mod._cleanup_in_progress = True
     print("\nCleaning up ZMQ resources...")
