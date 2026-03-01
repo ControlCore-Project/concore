@@ -20,7 +20,7 @@ class ZeroMQPort:
         port_type: "bind" or "connect"
         address: ZeroMQ address (e.g., "tcp://*:5555")
         zmq_socket_type: zmq.REQ, zmq.REP, zmq.PUB, zmq.SUB etc.
-        context: shared zmq.Context() for the process (do not create one per port)
+        context: shared zmq.Context() for the process
         """
         self.socket = context.socket(zmq_socket_type)
         self.port_type = port_type  # "bind" or "connect"
