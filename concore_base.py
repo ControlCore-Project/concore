@@ -101,6 +101,7 @@ def init_zmq_port(mod, port_name, port_type, address, socket_type_str):
 
 def terminate_zmq(mod):
     """Clean up all ZMQ sockets, then terminate the shared context once."""
+    global _zmq_context  # declared first — used both in the early-return guard and reset below
     if mod._cleanup_in_progress:
         return  # Already cleaning up, prevent reentrant calls
 
@@ -121,7 +122,6 @@ def terminate_zmq(mod):
 
     # terminate the single shared context exactly once, then reset so it
     # can be safely recreated if init_zmq_port is called again later.
-    global _zmq_context
     if _zmq_context is not None and not _zmq_context.closed:
         try:
             _zmq_context.term()
