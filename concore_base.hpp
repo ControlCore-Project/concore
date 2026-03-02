@@ -81,6 +81,10 @@ inline std::vector<std::string> parselist(const std::string& str) {
     return result;
 }
 
+/**
+ * Parses a double-valued list like "[0.0, 1.5, 2.3]" into a vector<double>.
+ * Used by concore.hpp's read/write which work with numeric data.
+ */
 inline std::vector<double> parselist_double(const std::string& str);
 
 enum class ConcoreValueType { NUMBER, BOOL, STRING, ARRAY };
