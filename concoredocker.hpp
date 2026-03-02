@@ -53,6 +53,38 @@ public:
         load_params();
     }
 
+    Concore(const Concore&) = delete;
+    Concore& operator=(const Concore&) = delete;
+
+    Concore(Concore&& other) noexcept
+        : iport(std::move(other.iport)), oport(std::move(other.oport)),
+          s(std::move(other.s)), olds(std::move(other.olds)),
+          delay(other.delay), retrycount(other.retrycount),
+          inpath(std::move(other.inpath)), outpath(std::move(other.outpath)),
+          simtime(other.simtime), maxtime(other.maxtime),
+          params(std::move(other.params))
+    {}
+
+    Concore& operator=(Concore&& other) noexcept
+    {
+        if (this == &other)
+            return *this;
+
+        iport = std::move(other.iport);
+        oport = std::move(other.oport);
+        s = std::move(other.s);
+        olds = std::move(other.olds);
+        delay = other.delay;
+        retrycount = other.retrycount;
+        inpath = std::move(other.inpath);
+        outpath = std::move(other.outpath);
+        simtime = other.simtime;
+        maxtime = other.maxtime;
+        params = std::move(other.params);
+
+        return *this;
+    }
+
     std::unordered_map<std::string, std::string> safe_literal_eval(const std::string& filename, std::unordered_map<std::string, std::string> defaultValue) {
         std::ifstream file(filename);
         if (!file) return defaultValue;
