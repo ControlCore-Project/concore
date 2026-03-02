@@ -11,14 +11,14 @@ import signal
 
 import concore_base
 
-logger = logging.getLogger('concore')
+logger = logging.getLogger("concore")
 logger.addHandler(logging.NullHandler())
 
-#these lines mute the noisy library
-logging.getLogger('matplotlib').setLevel(logging.WARNING)
-logging.getLogger('PIL').setLevel(logging.WARNING)
-logging.getLogger('urllib3').setLevel(logging.WARNING) 
-logging.getLogger('requests').setLevel(logging.WARNING) 
+# these lines mute the noisy library
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 # ===================================================================
@@ -51,28 +51,40 @@ def _register_pid():
 
 
 def _cleanup_pid():
-    """Remove the current process PID from the registry on exit."""
+    """Remove the current process PID from the registry on exit.
+
+    Uses file locking on Windows (msvcrt.locking) to prevent race
+    conditions when multiple nodes exit concurrently.
+    """
     pid = str(os.getpid())
     try:
         if not os.path.exists(_PID_REGISTRY_FILE):
             return
-        with open(_PID_REGISTRY_FILE, "r") as f:
+        with open(_PID_REGISTRY_FILE, "r+") as f:
+            # Acquire an exclusive lock on Windows to prevent concurrent
+            # read-modify-write races between exiting nodes.
+            if hasattr(sys, "getwindowsversion"):
+                import msvcrt
+
+                msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
             pids = [line.strip() for line in f if line.strip()]
-        remaining = [p for p in pids if p != pid]
-        if remaining:
-            with open(_PID_REGISTRY_FILE, "w") as f:
+            remaining = [p for p in pids if p != pid]
+            if remaining:
+                f.seek(0)
+                f.truncate()
                 for p in remaining:
                     f.write(p + "\n")
-        else:
-            # No PIDs left — clean up both files
-            try:
-                os.remove(_PID_REGISTRY_FILE)
-            except OSError:
-                pass
-            try:
-                os.remove(_KILL_SCRIPT_FILE)
-            except OSError:
-                pass
+            else:
+                f.close()
+                # No PIDs left — clean up both files
+                try:
+                    os.remove(_PID_REGISTRY_FILE)
+                except OSError:
+                    pass
+                try:
+                    os.remove(_KILL_SCRIPT_FILE)
+                except OSError:
+                    pass
     except OSError:
         pass  # Non-fatal: best-effort cleanup
 
@@ -88,28 +100,34 @@ def _write_kill_script():
     """
     try:
         script = "@echo off\r\n"
-        script += "if not exist \"%~dp0" + _PID_REGISTRY_FILE + "\" (\r\n"
+        script += 'if not exist "%~dp0' + _PID_REGISTRY_FILE + '" (\r\n'
         script += "    echo No PID registry found. Nothing to kill.\r\n"
         script += "    exit /b 0\r\n"
         script += ")\r\n"
-        script += "for /f \"tokens=*\" %%p in (%~dp0" + _PID_REGISTRY_FILE + ") do (\r\n"
-        script += "    tasklist /FI \"PID eq %%p\" 2>nul | find /i \"python\" >nul\r\n"
+        script += (
+            'for /f "usebackq tokens=*" %%p in ("%~dp0'
+            + _PID_REGISTRY_FILE
+            + '") do (\r\n'
+        )
+        script += '    tasklist /FI "PID eq %%p" 2>nul | find /i "python" >nul\r\n'
         script += "    if not errorlevel 1 (\r\n"
         script += "        echo Killing Python process %%p\r\n"
         script += "        taskkill /F /PID %%p >nul 2>&1\r\n"
         script += "    ) else (\r\n"
-        script += "        echo Skipping PID %%p - not a Python process or not running\r\n"
+        script += (
+            "        echo Skipping PID %%p - not a Python process or not running\r\n"
+        )
         script += "    )\r\n"
         script += ")\r\n"
-        script += "del /q \"%~dp0" + _PID_REGISTRY_FILE + "\" 2>nul\r\n"
-        script += "del /q \"%~dp0" + _KILL_SCRIPT_FILE + "\" 2>nul\r\n"
-        with open(_KILL_SCRIPT_FILE, "w") as f:
+        script += 'del /q "%~dp0' + _PID_REGISTRY_FILE + '" 2>nul\r\n'
+        script += 'del /q "%~dp0' + _KILL_SCRIPT_FILE + '" 2>nul\r\n'
+        with open(_KILL_SCRIPT_FILE, "w", newline="") as f:
             f.write(script)
     except OSError:
         pass  # Non-fatal: best-effort script generation
 
 
-if hasattr(sys, 'getwindowsversion'):
+if hasattr(sys, "getwindowsversion"):
     _register_pid()
     _write_kill_script()
     atexit.register(_cleanup_pid)
@@ -125,16 +143,18 @@ _cleanup_in_progress = False
 
 last_read_status = "SUCCESS"
 
-s = ''
-olds = ''
+s = ""
+olds = ""
 delay = 1
 retrycount = 0
-inpath = "./in" #must be rel path for local
+inpath = "./in"  # must be rel path for local
 outpath = "./out"
 simtime = 0
 
+
 def _port_path(base, port_num):
     return base + str(port_num)
+
 
 concore_params_file = os.path.join(_port_path(inpath, 1), "concore.params")
 concore_maxtime_file = os.path.join(_port_path(inpath, 1), "concore.maxtime")
@@ -145,15 +165,18 @@ oport = safe_literal_eval("concore.oport", {})
 
 _mod = sys.modules[__name__]
 
+
 # ===================================================================
 # ZeroMQ Communication Wrapper
 # ===================================================================
 def init_zmq_port(port_name, port_type, address, socket_type_str):
     concore_base.init_zmq_port(_mod, port_name, port_type, address, socket_type_str)
 
+
 def terminate_zmq():
     """Clean up all ZMQ sockets and contexts before exit."""
     concore_base.terminate_zmq(_mod)
+
 
 def signal_handler(sig, frame):
     """Handle interrupt signals gracefully."""
@@ -165,20 +188,23 @@ def signal_handler(sig, frame):
     concore_base.terminate_zmq(_mod)
     sys.exit(0)
 
+
 # Register cleanup handlers
 atexit.register(terminate_zmq)
-signal.signal(signal.SIGINT, signal_handler)   # Handle Ctrl+C
-if not hasattr(sys, 'getwindowsversion'):
+signal.signal(signal.SIGINT, signal_handler)  # Handle Ctrl+C
+if not hasattr(sys, "getwindowsversion"):
     signal.signal(signal.SIGTERM, signal_handler)  # Handle termination (Unix only)
 
 params = concore_base.load_params(concore_params_file)
 
-#9/30/22
+
+# 9/30/22
 def tryparam(n, i):
     """Return parameter `n` from params dict, else default `i`."""
     return params.get(n, i)
 
-#9/12/21
+
+# 9/12/21
 # ===================================================================
 # Simulation Time Handling
 # ===================================================================
@@ -187,11 +213,14 @@ def default_maxtime(default):
     global maxtime
     maxtime = safe_literal_eval(concore_maxtime_file, default)
 
+
 default_maxtime(100)
+
 
 def unchanged():
     """Check if global string `s` is unchanged since last call."""
     return concore_base.unchanged(_mod)
+
 
 # ===================================================================
 # I/O Handling (File + ZMQ)
@@ -228,5 +257,6 @@ def read(port_identifier, name, initstr_val):
 def write(port_identifier, name, val, delta=0):
     concore_base.write(_mod, port_identifier, name, val, delta)
 
-def initval(simtime_val_str): 
+
+def initval(simtime_val_str):
     return concore_base.initval(_mod, simtime_val_str)

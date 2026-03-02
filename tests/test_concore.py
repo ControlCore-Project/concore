@@ -8,6 +8,7 @@ import numpy as np
 # PID Registry Tests (Issue #391)
 # ===================================================================
 
+
 class TestPidRegistry:
     """Tests for the Windows PID registry mechanism that replaces the
     old single-overwrite concorekill.bat approach."""
@@ -21,6 +22,7 @@ class TestPidRegistry:
     def test_register_pid_creates_registry_file(self):
         """_register_pid should create concorekill_pids.txt with current PID."""
         from concore import _register_pid, _PID_REGISTRY_FILE
+
         _register_pid()
         assert os.path.exists(_PID_REGISTRY_FILE)
         with open(_PID_REGISTRY_FILE) as f:
@@ -30,6 +32,7 @@ class TestPidRegistry:
     def test_register_pid_appends_not_overwrites(self):
         """Multiple calls to _register_pid should append, not overwrite."""
         from concore import _register_pid, _PID_REGISTRY_FILE
+
         # Simulate two different PIDs by writing manually then registering
         with open(_PID_REGISTRY_FILE, "w") as f:
             f.write("11111\n")
@@ -45,6 +48,7 @@ class TestPidRegistry:
     def test_cleanup_pid_removes_current_pid(self):
         """_cleanup_pid should remove only the current PID from the registry."""
         from concore import _cleanup_pid, _PID_REGISTRY_FILE
+
         current_pid = str(os.getpid())
         with open(_PID_REGISTRY_FILE, "w") as f:
             f.write("99999\n")
@@ -61,6 +65,7 @@ class TestPidRegistry:
         """When the current PID is the only one left, cleanup should
         remove both the registry file and the kill script."""
         from concore import _cleanup_pid, _PID_REGISTRY_FILE, _KILL_SCRIPT_FILE
+
         current_pid = str(os.getpid())
         with open(_PID_REGISTRY_FILE, "w") as f:
             f.write(current_pid + "\n")
@@ -74,12 +79,14 @@ class TestPidRegistry:
     def test_cleanup_pid_handles_missing_registry(self):
         """_cleanup_pid should not crash when registry file doesn't exist."""
         from concore import _cleanup_pid, _PID_REGISTRY_FILE
+
         assert not os.path.exists(_PID_REGISTRY_FILE)
         _cleanup_pid()  # Should not raise
 
     def test_write_kill_script_generates_bat_file(self):
         """_write_kill_script should create concorekill.bat with validation logic."""
         from concore import _write_kill_script, _KILL_SCRIPT_FILE, _PID_REGISTRY_FILE
+
         _write_kill_script()
         assert os.path.exists(_KILL_SCRIPT_FILE)
         with open(_KILL_SCRIPT_FILE) as f:
@@ -94,6 +101,7 @@ class TestPidRegistry:
     def test_multi_node_registration(self):
         """Simulate 3 nodes registering PIDs — all should be present."""
         from concore import _register_pid, _PID_REGISTRY_FILE
+
         fake_pids = ["1204", "1932", "8120"]
         with open(_PID_REGISTRY_FILE, "w") as f:
             for pid in fake_pids:
@@ -109,6 +117,7 @@ class TestPidRegistry:
     def test_cleanup_preserves_other_pids(self):
         """After cleanup, only the current process PID should be removed."""
         from concore import _cleanup_pid, _PID_REGISTRY_FILE
+
         current_pid = str(os.getpid())
         other_pids = ["1111", "2222", "3333"]
         with open(_PID_REGISTRY_FILE, "w") as f:
@@ -123,17 +132,30 @@ class TestPidRegistry:
         for pid in other_pids:
             assert pid in pids
 
-    @pytest.mark.skipif(not hasattr(sys, 'getwindowsversion'),
-                        reason="Windows-only test")
+    @pytest.mark.skipif(
+        not hasattr(sys, "getwindowsversion"), reason="Windows-only test"
+    )
     def test_import_registers_pid_on_windows(self):
-        """On Windows, importing concore should register the PID."""
-        from concore import _PID_REGISTRY_FILE
-        # The import already happened, so just verify the registry exists
-        # in our temp dir (we can't easily test the import-time side effect
-        # since concore was already imported — we test the functions directly)
-        from concore import _register_pid
-        _register_pid()
-        assert os.path.exists(_PID_REGISTRY_FILE)
+        """On Windows, importing concore should register the PID.
+
+        We force a fresh import by removing the cached module so that
+        the module-level registration code runs inside our temp dir.
+        """
+        import importlib
+
+        # Remove cached modules so re-import triggers module-level code
+        for mod_name in ("concore", "concore_base"):
+            sys.modules.pop(mod_name, None)
+
+        import concore  # noqa: F811 – intentional reimport
+
+        assert os.path.exists(concore._PID_REGISTRY_FILE)
+        with open(concore._PID_REGISTRY_FILE) as f:
+            pids = [line.strip() for line in f if line.strip()]
+        assert str(os.getpid()) in pids
+
+        # Restore module for other tests
+        importlib.reload(concore)
 
 
 class TestSafeLiteralEval:
