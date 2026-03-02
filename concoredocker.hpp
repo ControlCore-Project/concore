@@ -231,7 +231,7 @@ public:
         }
         val.insert(val.begin(), simtime + delta);
         it->second->send_with_retry(val);
-        // simtime must not be mutated here (issue #385).
+        // simtime must not be mutated here.
     }
 
     std::vector<double> read(const std::string& port_name, const std::string& name, const std::string& initstr) {
