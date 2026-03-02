@@ -13,6 +13,7 @@ import numpy as np
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 class DummyZMQPort:
     """Minimal stand-in for ZeroMQPort used in ZMQ read tests."""
 
@@ -33,14 +34,16 @@ class DummyZMQPort:
 # File-based read tests
 # ---------------------------------------------------------------------------
 
+
 class TestReadFileSuccess:
     """read() on a valid file returns (data, True) with SUCCESS status."""
 
     @pytest.fixture(autouse=True)
     def setup(self, temp_dir, monkeypatch):
         import concore
+
         self.concore = concore
-        monkeypatch.setattr(concore, 'delay', 0)
+        monkeypatch.setattr(concore, "delay", 0)
 
         # Create ./in1/ym with valid data: [simtime, value]
         in_dir = os.path.join(temp_dir, "in1")
@@ -48,7 +51,7 @@ class TestReadFileSuccess:
         with open(os.path.join(in_dir, "ym"), "w") as f:
             f.write("[10, 3.14]")
 
-        monkeypatch.setattr(concore, 'inpath', os.path.join(temp_dir, "in"))
+        monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
 
     def test_returns_data_and_true(self):
         data, ok = self.concore.read(1, "ym", "[0, 0.0]")
@@ -66,10 +69,11 @@ class TestReadFileMissing:
     @pytest.fixture(autouse=True)
     def setup(self, temp_dir, monkeypatch):
         import concore
+
         self.concore = concore
-        monkeypatch.setattr(concore, 'delay', 0)
+        monkeypatch.setattr(concore, "delay", 0)
         # Point to a directory that does NOT have the file
-        monkeypatch.setattr(concore, 'inpath', os.path.join(temp_dir, "in"))
+        monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
 
     def test_returns_default_and_false(self):
         data, ok = self.concore.read(1, "nonexistent", "[0, 0.0]")
@@ -86,15 +90,16 @@ class TestReadFileParseError:
     @pytest.fixture(autouse=True)
     def setup(self, temp_dir, monkeypatch):
         import concore
+
         self.concore = concore
-        monkeypatch.setattr(concore, 'delay', 0)
+        monkeypatch.setattr(concore, "delay", 0)
 
         in_dir = os.path.join(temp_dir, "in1")
         os.makedirs(in_dir, exist_ok=True)
         with open(os.path.join(in_dir, "ym"), "w") as f:
             f.write("NOT_VALID_PYTHON{{{")
 
-        monkeypatch.setattr(concore, 'inpath', os.path.join(temp_dir, "in"))
+        monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
 
     def test_returns_default_and_false(self):
         data, ok = self.concore.read(1, "ym", "[0, 0.0]")
@@ -111,8 +116,9 @@ class TestReadFileRetriesExceeded:
     @pytest.fixture(autouse=True)
     def setup(self, temp_dir, monkeypatch):
         import concore
+
         self.concore = concore
-        monkeypatch.setattr(concore, 'delay', 0)
+        monkeypatch.setattr(concore, "delay", 0)
 
         # Create an empty file
         in_dir = os.path.join(temp_dir, "in1")
@@ -120,7 +126,7 @@ class TestReadFileRetriesExceeded:
         with open(os.path.join(in_dir, "ym"), "w") as f:
             pass  # empty
 
-        monkeypatch.setattr(concore, 'inpath', os.path.join(temp_dir, "in"))
+        monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
 
     def test_returns_default_and_false(self):
         data, ok = self.concore.read(1, "ym", "[0, 0.0]")
@@ -135,12 +141,14 @@ class TestReadFileRetriesExceeded:
 # ZMQ read tests
 # ---------------------------------------------------------------------------
 
+
 class TestReadZMQSuccess:
     """Successful ZMQ read returns (data, True)."""
 
     @pytest.fixture(autouse=True)
     def setup(self, monkeypatch):
         import concore
+
         self.concore = concore
         self.original_ports = concore.zmq_ports.copy()
         yield
@@ -164,6 +172,7 @@ class TestReadZMQTimeout:
     @pytest.fixture(autouse=True)
     def setup(self, monkeypatch):
         import concore
+
         self.concore = concore
         self.original_ports = concore.zmq_ports.copy()
         yield
@@ -185,6 +194,7 @@ class TestReadZMQError:
     @pytest.fixture(autouse=True)
     def setup(self, monkeypatch):
         import concore
+
         self.concore = concore
         self.original_ports = concore.zmq_ports.copy()
         yield
@@ -193,6 +203,7 @@ class TestReadZMQError:
 
     def test_zmq_error_returns_default_and_false(self):
         import zmq
+
         dummy = DummyZMQPort(raise_on_recv=zmq.error.ZMQError("test error"))
         self.concore.zmq_ports["test_port"] = dummy
 
@@ -205,21 +216,23 @@ class TestReadZMQError:
 # Backward compatibility
 # ---------------------------------------------------------------------------
 
+
 class TestReadBackwardCompatibility:
     """Legacy callers can use isinstance check on the result."""
 
     @pytest.fixture(autouse=True)
     def setup(self, temp_dir, monkeypatch):
         import concore
+
         self.concore = concore
-        monkeypatch.setattr(concore, 'delay', 0)
+        monkeypatch.setattr(concore, "delay", 0)
 
         in_dir = os.path.join(temp_dir, "in1")
         os.makedirs(in_dir, exist_ok=True)
         with open(os.path.join(in_dir, "ym"), "w") as f:
             f.write("[10, 42.0]")
 
-        monkeypatch.setattr(concore, 'inpath', os.path.join(temp_dir, "in"))
+        monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
 
     def test_legacy_unpack_pattern(self):
         """The recommended migration pattern works correctly."""
@@ -245,17 +258,24 @@ class TestReadBackwardCompatibility:
 # last_read_status exposed on module
 # ---------------------------------------------------------------------------
 
+
 class TestLastReadStatusExposed:
     """concore.last_read_status is publicly accessible."""
 
     def test_attribute_exists(self):
         import concore
-        assert hasattr(concore, 'last_read_status')
+
+        assert hasattr(concore, "last_read_status")
 
     def test_initial_value_is_success(self):
         import concore
+
         # Before any read, default is SUCCESS
         assert concore.last_read_status in (
-            "SUCCESS", "FILE_NOT_FOUND", "TIMEOUT",
-            "PARSE_ERROR", "EMPTY_DATA", "RETRIES_EXCEEDED",
+            "SUCCESS",
+            "FILE_NOT_FOUND",
+            "TIMEOUT",
+            "PARSE_ERROR",
+            "EMPTY_DATA",
+            "RETRIES_EXCEEDED",
         )
