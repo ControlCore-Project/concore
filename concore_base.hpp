@@ -14,6 +14,8 @@
 #include <regex>
 #include <algorithm>
 #include <cstring>
+#include <stdexcept>
+#include <cctype>
 
 namespace concore_base {
 
@@ -188,17 +190,20 @@ inline ConcoreValue parse_literal_value(const std::string& s, size_t& pos) {
         return parse_literal_string(s, pos);
 
     if (s.compare(pos, 4, "True") == 0 &&
-        (pos + 4 >= s.size() || !std::isalnum(static_cast<unsigned char>(s[pos + 4])))) {
+        (pos + 4 >= s.size() ||
+         (!std::isalnum(static_cast<unsigned char>(s[pos + 4])) && s[pos + 4] != '_'))) {
         pos += 4;
         return ConcoreValue::make_bool(true);
     }
     if (s.compare(pos, 5, "False") == 0 &&
-        (pos + 5 >= s.size() || !std::isalnum(static_cast<unsigned char>(s[pos + 5])))) {
+        (pos + 5 >= s.size() ||
+         (!std::isalnum(static_cast<unsigned char>(s[pos + 5])) && s[pos + 5] != '_'))) {
         pos += 5;
         return ConcoreValue::make_bool(false);
     }
     if (s.compare(pos, 4, "None") == 0 &&
-        (pos + 4 >= s.size() || !std::isalnum(static_cast<unsigned char>(s[pos + 4])))) {
+        (pos + 4 >= s.size() ||
+         (!std::isalnum(static_cast<unsigned char>(s[pos + 4])) && s[pos + 4] != '_'))) {
         pos += 4;
         return ConcoreValue::make_string("None");
     }

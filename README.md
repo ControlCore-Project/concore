@@ -23,7 +23,7 @@ _concore_ enables composing studies from programs developed in different languag
 
 ## Wire Format
 
-Concore payloads follow Python literal syntax compatible with `ast.literal_eval()`. All language implementations (Python, C++, Java, MATLAB) parse this shared format. Supported value types include:
+Concore payloads follow Python literal syntax compatible with `ast.literal_eval()`. The Python, C++, and Java implementations parse this shared format; the MATLAB and Verilog implementations currently support only flat numeric arrays derived from it. Supported value types include:
 
 * **Numbers** — integers and floats, including scientific notation (e.g., `1e3`, `-2.5`)
 * **Booleans** — `True` / `False` (converted to `1.0` / `0.0` in numeric contexts)

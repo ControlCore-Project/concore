@@ -337,10 +337,20 @@ private:
         return concore_base::parselist_double(f);
     }
 
+    /**
+     * @brief Parses a literal string into a ConcoreValue representation.
+     * @param f The input string to parse.
+     * @return A ConcoreValue obtained by parsing the input string.
+     */
     concore_base::ConcoreValue parse_literal(string f){
         return concore_base::parse_literal(f);
     }
 
+    /**
+     * @brief Flattens a ConcoreValue into a vector of numeric (double) values.
+     * @param v The ConcoreValue to flatten.
+     * @return A vector of double values obtained by flattening the input.
+     */
     vector<double> flatten_numeric(const concore_base::ConcoreValue& v){
         return concore_base::flatten_numeric(v);
     }
