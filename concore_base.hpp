@@ -14,6 +14,8 @@
 #include <regex>
 #include <algorithm>
 #include <cstring>
+#include <stdexcept>
+#include <cctype>
 
 namespace concore_base {
 
@@ -85,13 +87,213 @@ inline std::vector<std::string> parselist(const std::string& str) {
  * Parses a double-valued list like "[0.0, 1.5, 2.3]" into a vector<double>.
  * Used by concore.hpp's read/write which work with numeric data.
  */
-inline std::vector<double> parselist_double(const std::string& str) {
-    std::vector<double> result;
-    std::vector<std::string> tokens = parselist(str);
-    for (const auto& tok : tokens) {
-        result.push_back(std::stod(tok));
+inline std::vector<double> parselist_double(const std::string& str);
+
+enum class ConcoreValueType { NUMBER, BOOL, STRING, ARRAY };
+
+struct ConcoreValue {
+    ConcoreValueType type;
+    double   number;
+    bool     boolean;
+    std::string str;
+    std::vector<ConcoreValue> array;
+
+    ConcoreValue() : type(ConcoreValueType::NUMBER), number(0.0), boolean(false) {}
+
+    static ConcoreValue make_number(double v) {
+        ConcoreValue cv;
+        cv.type   = ConcoreValueType::NUMBER;
+        cv.number = v;
+        return cv;
     }
-    return result;
+    static ConcoreValue make_bool(bool v) {
+        ConcoreValue cv;
+        cv.type    = ConcoreValueType::BOOL;
+        cv.boolean = v;
+        cv.number  = v ? 1.0 : 0.0;
+        return cv;
+    }
+    static ConcoreValue make_string(const std::string& v) {
+        ConcoreValue cv;
+        cv.type = ConcoreValueType::STRING;
+        cv.str  = v;
+        return cv;
+    }
+    static ConcoreValue make_array(const std::vector<ConcoreValue>& v) {
+        ConcoreValue cv;
+        cv.type  = ConcoreValueType::ARRAY;
+        cv.array = v;
+        return cv;
+    }
+};
+
+inline void skip_ws(const std::string& s, size_t& pos) {
+    while (pos < s.size() && std::isspace(static_cast<unsigned char>(s[pos])))
+        ++pos;
+}
+
+inline ConcoreValue parse_literal_value(const std::string& s, size_t& pos);
+
+inline ConcoreValue parse_literal_string(const std::string& s, size_t& pos) {
+    char quote = s[pos];
+    ++pos;
+    std::string result;
+    while (pos < s.size() && s[pos] != quote) {
+        if (s[pos] == '\\' && pos + 1 < s.size()) {
+            ++pos;
+            switch (s[pos]) {
+                case 'n':  result += '\n'; break;
+                case 't':  result += '\t'; break;
+                case '\\': result += '\\'; break;
+                case '\'': result += '\''; break;
+                case '"':  result += '"';  break;
+                default:   result += '\\'; result += s[pos]; break;
+            }
+        } else {
+            result += s[pos];
+        }
+        ++pos;
+    }
+    if (pos >= s.size())
+        throw std::runtime_error("Invalid concore payload: unterminated string");
+    ++pos;
+    return ConcoreValue::make_string(result);
+}
+
+inline ConcoreValue parse_literal_array(const std::string& s, size_t& pos) {
+    char open  = s[pos];
+    char close = (open == '[') ? ']' : ')';
+    ++pos;
+    std::vector<ConcoreValue> elements;
+    skip_ws(s, pos);
+    if (pos < s.size() && s[pos] == close) { ++pos; return ConcoreValue::make_array(elements); }
+    while (pos < s.size()) {
+        elements.push_back(parse_literal_value(s, pos));
+        skip_ws(s, pos);
+        if (pos < s.size() && s[pos] == ',') { ++pos; skip_ws(s, pos); }
+        if (pos < s.size() && s[pos] == close) { ++pos; return ConcoreValue::make_array(elements); }
+    }
+    throw std::runtime_error("Invalid concore payload: unterminated array/tuple");
+}
+
+inline ConcoreValue parse_literal_value(const std::string& s, size_t& pos) {
+    skip_ws(s, pos);
+    if (pos >= s.size())
+        throw std::runtime_error("Invalid concore payload: unexpected end of input");
+
+    char c = s[pos];
+
+    if (c == '[' || c == '(')
+        return parse_literal_array(s, pos);
+
+    if (c == '\'' || c == '"')
+        return parse_literal_string(s, pos);
+
+    if (s.compare(pos, 4, "True") == 0 &&
+        (pos + 4 >= s.size() ||
+         (!std::isalnum(static_cast<unsigned char>(s[pos + 4])) && s[pos + 4] != '_'))) {
+        pos += 4;
+        return ConcoreValue::make_bool(true);
+    }
+    if (s.compare(pos, 5, "False") == 0 &&
+        (pos + 5 >= s.size() ||
+         (!std::isalnum(static_cast<unsigned char>(s[pos + 5])) && s[pos + 5] != '_'))) {
+        pos += 5;
+        return ConcoreValue::make_bool(false);
+    }
+    if (s.compare(pos, 4, "None") == 0 &&
+        (pos + 4 >= s.size() ||
+         (!std::isalnum(static_cast<unsigned char>(s[pos + 4])) && s[pos + 4] != '_'))) {
+        pos += 4;
+        return ConcoreValue::make_string("None");
+    }
+
+    {
+        size_t start = pos;
+        if (pos < s.size() && (s[pos] == '+' || s[pos] == '-')) ++pos;
+        bool has_digits = false;
+        while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) {
+            ++pos; has_digits = true;
+        }
+        if (pos < s.size() && s[pos] == '.') {
+            ++pos;
+            while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) {
+                ++pos; has_digits = true;
+            }
+        }
+        if (has_digits && pos < s.size() && (s[pos] == 'e' || s[pos] == 'E')) {
+            ++pos;
+            if (pos < s.size() && (s[pos] == '+' || s[pos] == '-')) ++pos;
+            while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
+        }
+        if (has_digits && pos > start) {
+            std::string numstr = s.substr(start, pos - start);
+            try {
+                double val = std::stod(numstr);
+                return ConcoreValue::make_number(val);
+            } catch (...) {
+                throw std::runtime_error(
+                    "Invalid concore payload: bad number '" + numstr + "'");
+            }
+        }
+        pos = start;
+    }
+
+    throw std::runtime_error(
+        std::string("Invalid concore payload: unsupported literal at position ") +
+        std::to_string(pos));
+}
+
+inline ConcoreValue parse_literal(const std::string& s) {
+    size_t pos = 0;
+    ConcoreValue v = parse_literal_value(s, pos);
+    skip_ws(s, pos);
+    if (pos != s.size())
+        throw std::runtime_error(
+            "Invalid concore payload: unexpected trailing content");
+    return v;
+}
+
+inline void flatten_numeric_impl(const ConcoreValue& v, std::vector<double>& out) {
+    switch (v.type) {
+        case ConcoreValueType::NUMBER:
+            out.push_back(v.number);
+            break;
+        case ConcoreValueType::BOOL:
+            out.push_back(v.boolean ? 1.0 : 0.0);
+            break;
+        case ConcoreValueType::STRING:
+            break;
+        case ConcoreValueType::ARRAY:
+            for (const auto& elem : v.array)
+                flatten_numeric_impl(elem, out);
+            break;
+    }
+}
+
+inline std::vector<double> flatten_numeric(const ConcoreValue& v) {
+    std::vector<double> out;
+    flatten_numeric_impl(v, out);
+    return out;
+}
+
+inline std::vector<double> parselist_double(const std::string& str) {
+    std::string trimmed = stripstr(str);
+    if (trimmed.empty()) return {};
+    try {
+        ConcoreValue v = parse_literal(trimmed);
+        return flatten_numeric(v);
+    } catch (...) {
+        std::vector<double> result;
+        if (trimmed.size() < 2) return result;
+        if (trimmed.front() == '[' || trimmed.front() == '(') {
+            std::vector<std::string> tokens = parselist(trimmed);
+            for (const auto& tok : tokens) {
+                try { result.push_back(std::stod(tok)); } catch (...) {}
+            }
+        }
+        return result;
+    }
 }
 
 /**

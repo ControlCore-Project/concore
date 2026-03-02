@@ -338,6 +338,24 @@ private:
     }
 
     /**
+     * @brief Parses a literal string into a ConcoreValue representation.
+     * @param f The input string to parse.
+     * @return A ConcoreValue obtained by parsing the input string.
+     */
+    concore_base::ConcoreValue parse_literal(string f){
+        return concore_base::parse_literal(f);
+    }
+
+    /**
+     * @brief Flattens a ConcoreValue into a vector of numeric (double) values.
+     * @param v The ConcoreValue to flatten.
+     * @return A vector of double values obtained by flattening the input.
+     */
+    vector<double> flatten_numeric(const concore_base::ConcoreValue& v){
+        return concore_base::flatten_numeric(v);
+    }
+
+    /**
      * @brief deviate the read to either the SM (Shared Memory) or FM (File Method) communication protocol based on iport and oport.
      * @param port The port number.
      * @param name The name of the file.

@@ -21,6 +21,16 @@ The CONTROL-CORE framework consists of the below projects.
 
 _concore_ enables composing studies from programs developed in different languages. Currently supported languages are, Python, Matlab/Octave, Verilog, and C++. The studies are designed through the visual _concore_ Editor (DHGWorkflow) and interpreted into _concore_ through its parser. Neural control systems consist of loops (dicycles). Therefore, they cannot be represented by classic workflow standards (such as CWL or WDL). Therefore, _concore_ addresses a significant research gap to model closed-loop neuromodulation control systems. The _concore_ protocol shares data between the programs through file sharing, with no centralized entity (a broker or an orchestrator) to arbitrate communications between the programs. (In the distributed executions, the CONTROL-CORE Mediator enables connecting the disjoint pieces of the study through REST APIs).
 
+## Wire Format
+
+Concore payloads follow Python literal syntax compatible with `ast.literal_eval()`. The Python, C++, and Java implementations parse this shared format; the MATLAB and Verilog implementations currently support only flat numeric arrays derived from it. Supported value types include:
+
+* **Numbers** — integers and floats, including scientific notation (e.g., `1e3`, `-2.5`)
+* **Booleans** — `True` / `False` (converted to `1.0` / `0.0` in numeric contexts)
+* **Strings** — single- or double-quoted (e.g., `"start"`, `'label'`)
+* **Nested arrays** — `[1, [2, 3]]`
+* **Tuples** — `(1.0, 2.0)` (treated identically to arrays)
+
 
 # Installation and Getting Started Guide
 
