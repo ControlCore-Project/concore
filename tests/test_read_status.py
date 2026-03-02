@@ -6,7 +6,6 @@ concore.last_read_status / concore_base.last_read_status.
 
 import os
 import pytest
-import numpy as np
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +122,7 @@ class TestReadFileRetriesExceeded:
         # Create an empty file
         in_dir = os.path.join(temp_dir, "in1")
         os.makedirs(in_dir, exist_ok=True)
-        with open(os.path.join(in_dir, "ym"), "w") as f:
+        with open(os.path.join(in_dir, "ym"), "w") as _f:
             pass  # empty
 
         monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
