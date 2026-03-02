@@ -115,6 +115,31 @@ Do **NOT** commit your secret key to version control. If `FLASK_SECRET_KEY` is n
 
 For a detailed and more scientific documentation, please read our extensive [open-access research paper on CONTROL-CORE](https://doi.org/10.1109/ACCESS.2022.3161471). This paper has a complete discussion on the CONTROL-CORE architecture and deployment, together with the commands to execute the studies in different programming languages and programming environments (Ubuntu, Windows, MacOS, Docker, and distributed execution).
 
+## C++ ZMQ Transport
+
+`concore.hpp` supports ZMQ-based communication as an opt-in transport alongside the default file-based I/O.
+
+To enable it, compile with `-DCONCORE_USE_ZMQ` and link against cppzmq:
+
+```bash
+g++ -DCONCORE_USE_ZMQ my_node.cpp -lzmq -o my_node
+```
+
+In your C++ node, register a ZMQ port before reading or writing:
+
+```cpp
+#include "concore.hpp"
+
+Concore c;
+c.init_zmq_port("in1", "bind", "tcp://*:5555", "REP");
+c.init_zmq_port("out1", "connect", "tcp://localhost:5556", "REQ");
+
+vector<double> val = c.read("in1", "", "0.0");
+c.write("out1", "", val, 0);
+```
+
+Builds without `-DCONCORE_USE_ZMQ` are unaffected.
+
 
 # The _concore_ Repository
 
