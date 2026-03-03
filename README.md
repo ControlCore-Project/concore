@@ -170,5 +170,6 @@ Please make sure to send your _concore_ pull requests to the [dev branch](https:
 
 If you use _concore_ in your research, please cite the below papers:
 
-* Kathiravelu, P., Arnold, M., Vijay, S., Jagwani, R., Goyal, P., Goel, A.K., Li, N., Horn, C., Pan, T., Kothare, M. V., and Mahmoudi, B. **Distributed Executions with CONTROL-CORE Integrated Development Environment (IDE) for Closed-loop Neuromodulation Control Systems.** In Cluster Computing – The Journal of Networks Software Tools and Applications (CLUSTER). May 2025. Accepted. Springer.
+* Kathiravelu, P., Arnold, M., Vijay, S., Jagwani, R., Goyal, P., Goel, A.K., Li, N., Horn, C., Pan, T., Kothare, M. V., and Mahmoudi, B. **Distributed Executions with CONTROL-CORE Integrated Development Environment (IDE) for Closed-loop Neuromodulation Control Systems.** In Cluster Computing – The Journal of Networks Software Tools and Applications (CLUSTER). 28, 697. September 2025. Springer. https://doi.org/10.1007/s10586-025-05476-w
+  
 * Kathiravelu, P., Arnold, M., Fleischer, J., Yao, Y., Awasthi, S., Goel, A. K., Branen, A., Sarikhani, P., Kumar, G., Kothare, M. V., and Mahmoudi, B. **CONTROL-CORE: A Framework for Simulation and Design of Closed-Loop Peripheral Neuromodulation Control Systems**. In IEEE Access. March 2022. https://doi.org/10.1109/ACCESS.2022.3161471 
