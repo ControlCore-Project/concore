@@ -130,6 +130,13 @@ public class concoredocker {
         }
     }
 
+    // package-level helpers for testing with temp directories
+    static void setInPath(String path) { inpath = path; }
+    static void setOutPath(String path) { outpath = path; }
+    static void setDelay(int ms) { delay = ms; }
+    static double getSimtime() { return simtime; }
+    static void resetState() { s = ""; olds = ""; simtime = 0; }
+
     public static boolean unchanged() {
         if (olds.equals(s)) {
             s = "";
