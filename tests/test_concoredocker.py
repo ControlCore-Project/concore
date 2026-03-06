@@ -247,3 +247,94 @@ class TestZMQ:
 
         assert result == original
         assert ok is True
+
+
+class TestZMQRetryExhaustion:
+    """Issue #393 – concoredocker read/write must handle TimeoutError
+    raised by ZMQ retry exhaustion without crashing."""
+
+    def test_read_returns_default_on_timeout(self, temp_dir):
+        """read() must return (default, False) when ZMQ recv times out."""
+        import concoredocker
+        import concore_base
+
+        # Save original global state to avoid leaking into other tests.
+        had_inpath = hasattr(concoredocker, "inpath")
+        orig_inpath = concoredocker.inpath if had_inpath else None
+        orig_zmq_ports = dict(concoredocker.zmq_ports)
+        had_simtime = hasattr(concoredocker, "simtime")
+        orig_simtime = concoredocker.simtime if had_simtime else None
+
+        try:
+            concoredocker.inpath = os.path.join(temp_dir, "in")
+
+            class TimeoutPort:
+                address = "tcp://127.0.0.1:0"
+                socket = None
+
+                def recv_json_with_retry(self):
+                    raise TimeoutError("ZMQ recv failed after 5 retries")
+
+            concoredocker.zmq_ports["t_in"] = TimeoutPort()
+            concoredocker.simtime = 0
+
+            result, ok = concoredocker.read("t_in", "x", "[0.0]")
+
+            assert result == [0.0]
+            assert ok is False
+            assert concore_base.last_read_status == "TIMEOUT"
+        finally:
+            # Restore zmq_ports and other globals to their original state.
+            concoredocker.zmq_ports.clear()
+            concoredocker.zmq_ports.update(orig_zmq_ports)
+
+            if had_inpath:
+                concoredocker.inpath = orig_inpath
+            elif hasattr(concoredocker, "inpath"):
+                delattr(concoredocker, "inpath")
+
+            if had_simtime:
+                concoredocker.simtime = orig_simtime
+            elif hasattr(concoredocker, "simtime"):
+                delattr(concoredocker, "simtime")
+
+    def test_write_does_not_crash_on_timeout(self, temp_dir):
+        """write() must not propagate TimeoutError to the caller."""
+        import concoredocker
+
+        # Save original global state to avoid leaking into other tests.
+        had_outpath = hasattr(concoredocker, "outpath")
+        orig_outpath = concoredocker.outpath if had_outpath else None
+        orig_zmq_ports = dict(concoredocker.zmq_ports)
+        had_simtime = hasattr(concoredocker, "simtime")
+        orig_simtime = concoredocker.simtime if had_simtime else None
+
+        try:
+            concoredocker.outpath = os.path.join(temp_dir, "out")
+            os.makedirs(os.path.join(temp_dir, "out_t_out"), exist_ok=True)
+
+            class TimeoutPort:
+                address = "tcp://127.0.0.1:0"
+                socket = None
+
+                def send_json_with_retry(self, message):
+                    raise TimeoutError("ZMQ send failed after 5 retries")
+
+            concoredocker.zmq_ports["t_out"] = TimeoutPort()
+            concoredocker.simtime = 0
+
+            concoredocker.write("t_out", "y", [1.0], delta=1)
+        finally:
+            # Restore zmq_ports and other globals to their original state.
+            concoredocker.zmq_ports.clear()
+            concoredocker.zmq_ports.update(orig_zmq_ports)
+
+            if had_outpath:
+                concoredocker.outpath = orig_outpath
+            elif hasattr(concoredocker, "outpath"):
+                delattr(concoredocker, "outpath")
+
+            if had_simtime:
+                concoredocker.simtime = orig_simtime
+            elif hasattr(concoredocker, "simtime"):
+                delattr(concoredocker, "simtime")

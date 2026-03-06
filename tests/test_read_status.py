@@ -179,7 +179,9 @@ class TestReadZMQTimeout:
         concore.zmq_ports.update(self.original_ports)
 
     def test_zmq_timeout_returns_default_and_false(self):
-        dummy = DummyZMQPort(response=None)  # recv returns None → timeout
+        dummy = DummyZMQPort(
+            raise_on_recv=TimeoutError("ZMQ recv failed after 5 retries")
+        )
         self.concore.zmq_ports["test_port"] = dummy
 
         data, ok = self.concore.read("test_port", "ym", "[]")

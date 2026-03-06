@@ -59,8 +59,7 @@ class ZeroMQPort:
             except zmq.Again:
                 logger.warning(f"Send timeout (attempt {attempt + 1}/5)")
                 time.sleep(0.5)
-        logger.error("Failed to send after retries.")
-        return
+        raise TimeoutError(f"ZMQ send failed after 5 retries on {self.address}")
 
     def recv_json_with_retry(self):
         """Receive JSON message with retries if timeout occurs."""
@@ -70,8 +69,7 @@ class ZeroMQPort:
             except zmq.Again:
                 logger.warning(f"Receive timeout (attempt {attempt + 1}/5)")
                 time.sleep(0.5)
-        logger.error("Failed to receive after retries.")
-        return None
+        raise TimeoutError(f"ZMQ recv failed after 5 retries on {self.address}")
 
 
 def init_zmq_port(mod, port_name, port_type, address, socket_type_str):
@@ -270,9 +268,6 @@ def read(mod, port_identifier, name, initstr_val):
         zmq_p = mod.zmq_ports[port_identifier]
         try:
             message = zmq_p.recv_json_with_retry()
-            if message is None:
-                last_read_status = "TIMEOUT"
-                return default_return_val, False
             # Strip simtime prefix if present (mirroring file-based read behavior)
             if isinstance(message, list) and len(message) > 0:
                 first_element = message[0]
@@ -282,6 +277,10 @@ def read(mod, port_identifier, name, initstr_val):
                     return message[1:], True
             last_read_status = "SUCCESS"
             return message, True
+        except TimeoutError as e:
+            logger.error(f"ZMQ read timeout on port {port_identifier} (name: {name}): {e}. Returning default.")
+            last_read_status = "TIMEOUT"
+            return default_return_val, False
         except zmq.error.ZMQError as e:
             logger.error(f"ZMQ read error on port {port_identifier} (name: {name}): {e}. Returning default.")
             last_read_status = "TIMEOUT"
@@ -384,6 +383,8 @@ def write(mod, port_identifier, name, val, delta=0):
                 # Mutation breaks cross-language determinism (see issue #385).
             else:
                 zmq_p.send_json_with_retry(zmq_val)
+        except TimeoutError as e:
+            logger.error(f"ZMQ write timeout on port {port_identifier} (name: {name}): {e}")
         except zmq.error.ZMQError as e:
             logger.error(f"ZMQ write error on port {port_identifier} (name: {name}): {e}")
         except Exception as e:

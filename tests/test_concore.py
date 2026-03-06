@@ -1,6 +1,7 @@
 import pytest
 import os
 import numpy as np
+from unittest.mock import patch
 
 
 class TestSafeLiteralEval:
@@ -450,3 +451,131 @@ class TestSimtimeNotMutatedByWrite:
             "After 3 writes with delta=1 simtime must remain 0 "
             "(matching C++/MATLAB/Verilog); got %s" % concore.simtime
         )
+
+
+class TestZMQRetryExhaustion:
+    """Issue #393 – recv_json_with_retry / send_json_with_retry must raise
+    TimeoutError instead of silently returning None when retries are
+    exhausted, and callers (read / write) must handle it gracefully."""
+
+    @patch("concore_base.time.sleep")
+    def test_recv_raises_timeout_error(self, _mock_sleep):
+        """recv_json_with_retry must raise TimeoutError after 5 failed attempts."""
+        import concore_base
+
+        port = concore_base.ZeroMQPort.__new__(concore_base.ZeroMQPort)
+        port.address = "tcp://127.0.0.1:9999"
+
+        class FakeSocket:
+            def recv_json(self, flags=0):
+                import zmq
+
+                raise zmq.Again("Resource temporarily unavailable")
+
+        port.socket = FakeSocket()
+        with pytest.raises(TimeoutError):
+            port.recv_json_with_retry()
+
+    @patch("concore_base.time.sleep")
+    def test_send_raises_timeout_error(self, _mock_sleep):
+        """send_json_with_retry must raise TimeoutError after 5 failed attempts."""
+        import concore_base
+
+        port = concore_base.ZeroMQPort.__new__(concore_base.ZeroMQPort)
+        port.address = "tcp://127.0.0.1:9999"
+
+        class FakeSocket:
+            def send_json(self, data, flags=0):
+                import zmq
+
+                raise zmq.Again("Resource temporarily unavailable")
+
+        port.socket = FakeSocket()
+        with pytest.raises(TimeoutError):
+            port.send_json_with_retry([42])
+
+    def test_read_returns_default_on_timeout(self, temp_dir):
+        """read() must return (default, False) when ZMQ recv times out."""
+        import concore
+        import concore_base
+
+        # Save original global state to avoid leaking into other tests.
+        had_inpath = hasattr(concore, "inpath")
+        orig_inpath = concore.inpath if had_inpath else None
+        orig_zmq_ports = dict(concore.zmq_ports)
+        had_simtime = hasattr(concore, "simtime")
+        orig_simtime = concore.simtime if had_simtime else None
+
+        try:
+            concore.inpath = os.path.join(temp_dir, "in")
+
+            class TimeoutPort:
+                address = "tcp://127.0.0.1:0"
+                socket = None
+
+                def recv_json_with_retry(self):
+                    raise TimeoutError("ZMQ recv failed after 5 retries")
+
+            concore.zmq_ports["t_in"] = TimeoutPort()
+            concore.simtime = 0
+
+            result, ok = concore.read("t_in", "x", "[0.0]")
+
+            assert result == [0.0]
+            assert ok is False
+            assert concore_base.last_read_status == "TIMEOUT"
+        finally:
+            # Restore zmq_ports and other globals to their original state.
+            concore.zmq_ports.clear()
+            concore.zmq_ports.update(orig_zmq_ports)
+
+            if had_inpath:
+                concore.inpath = orig_inpath
+            elif hasattr(concore, "inpath"):
+                delattr(concore, "inpath")
+
+            if had_simtime:
+                concore.simtime = orig_simtime
+            elif hasattr(concore, "simtime"):
+                delattr(concore, "simtime")
+
+    def test_write_does_not_crash_on_timeout(self, temp_dir):
+        """write() must not propagate TimeoutError to the caller."""
+        import concore
+
+        # Save original global state to avoid leaking into other tests.
+        had_outpath = hasattr(concore, "outpath")
+        orig_outpath = concore.outpath if had_outpath else None
+        orig_zmq_ports = dict(concore.zmq_ports)
+        had_simtime = hasattr(concore, "simtime")
+        orig_simtime = concore.simtime if had_simtime else None
+
+        try:
+            concore.outpath = os.path.join(temp_dir, "out")
+            os.makedirs(os.path.join(temp_dir, "out_t_out"), exist_ok=True)
+
+            class TimeoutPort:
+                address = "tcp://127.0.0.1:0"
+                socket = None
+
+                def send_json_with_retry(self, message):
+                    raise TimeoutError("ZMQ send failed after 5 retries")
+
+            concore.zmq_ports["t_out"] = TimeoutPort()
+            concore.simtime = 0
+
+            concore.write("t_out", "y", [1.0], delta=1)
+        finally:
+            # Restore zmq_ports and other globals to their original state.
+            concore.zmq_ports.clear()
+            concore.zmq_ports.update(orig_zmq_ports)
+
+            if had_outpath:
+                concore.outpath = orig_outpath
+            elif hasattr(concore, "outpath"):
+                delattr(concore, "outpath")
+
+            if had_simtime:
+                concore.simtime = orig_simtime
+            elif hasattr(concore, "simtime"):
+                delattr(concore, "simtime")
