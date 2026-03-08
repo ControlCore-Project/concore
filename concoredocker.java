@@ -160,7 +160,7 @@ public class concoredocker {
      * Returns: list of values after simtime
      * Includes max retry limit to avoid infinite blocking (matches Python behavior).
      */
-    public static List<Object> read(int port, String name, String initstr) {
+    public static ReadResult read(int port, String name, String initstr) {
         // Parse default value upfront for consistent return type
         List<Object> defaultVal = new ArrayList<>();
         try {
@@ -178,7 +178,7 @@ public class concoredocker {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             s += initstr;
-            return defaultVal;
+            return new ReadResult(ReadStatus.TIMEOUT, defaultVal);
         }
 
         String ins;
@@ -187,7 +187,7 @@ public class concoredocker {
         } catch (IOException e) {
             System.out.println("File " + filePath + " not found, using default value.");
             s += initstr;
-            return defaultVal;
+            return new ReadResult(ReadStatus.FILE_NOT_FOUND, defaultVal);
         }
 
         int attempts = 0;
@@ -197,7 +197,7 @@ public class concoredocker {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 s += initstr;
-                return defaultVal;
+                return new ReadResult(ReadStatus.TIMEOUT, defaultVal);
             }
             try {
                 ins = new String(Files.readAllBytes(Paths.get(filePath)));
@@ -210,7 +210,7 @@ public class concoredocker {
 
         if (ins.length() == 0) {
             System.out.println("Max retries reached for " + filePath + ", using default value.");
-            return defaultVal;
+            return new ReadResult(ReadStatus.RETRIES_EXCEEDED, defaultVal);
         }
 
         s += ins;
@@ -219,12 +219,12 @@ public class concoredocker {
             if (!inval.isEmpty()) {
                 double firstSimtime = ((Number) inval.get(0)).doubleValue();
                 simtime = Math.max(simtime, firstSimtime);
-                return new ArrayList<>(inval.subList(1, inval.size()));
+                return new ReadResult(ReadStatus.SUCCESS, new ArrayList<>(inval.subList(1, inval.size())));
             }
         } catch (Exception e) {
             System.out.println("Error parsing " + ins + ": " + e.getMessage());
         }
-        return defaultVal;
+        return new ReadResult(ReadStatus.PARSE_ERROR, defaultVal);
     }
 
     /**
@@ -392,7 +392,7 @@ public class concoredocker {
      * Reads data from a ZMQ port. Same wire format as file-based read:
      * expects [simtime, val1, val2, ...], strips simtime, returns the rest.
      */
-    public static List<Object> read(String portName, String name, String initstr) {
+    public static ReadResult read(String portName, String name, String initstr) {
         List<Object> defaultVal = new ArrayList<>();
         try {
             List<?> parsed = (List<?>) literalEval(initstr);
@@ -404,24 +404,24 @@ public class concoredocker {
         ZeroMQPort port = zmqPorts.get(portName);
         if (port == null) {
             System.err.println("read: ZMQ port '" + portName + "' not initialized");
-            return defaultVal;
+            return new ReadResult(ReadStatus.FILE_NOT_FOUND, defaultVal);
         }
         String msg = port.recvWithRetry();
         if (msg == null) {
             System.err.println("read: ZMQ recv timeout on port '" + portName + "'");
-            return defaultVal;
+            return new ReadResult(ReadStatus.TIMEOUT, defaultVal);
         }
         s += msg;
         try {
             List<?> inval = (List<?>) literalEval(msg);
             if (!inval.isEmpty()) {
                 simtime = Math.max(simtime, ((Number) inval.get(0)).doubleValue());
-                return new ArrayList<>(inval.subList(1, inval.size()));
+                return new ReadResult(ReadStatus.SUCCESS, new ArrayList<>(inval.subList(1, inval.size())));
             }
         } catch (Exception e) {
             System.out.println("Error parsing ZMQ message '" + msg + "': " + e.getMessage());
         }
-        return defaultVal;
+        return new ReadResult(ReadStatus.PARSE_ERROR, defaultVal);
     }
 
     /**
@@ -470,6 +470,19 @@ public class concoredocker {
             throw new IllegalArgumentException("Unexpected trailing content at position " + parser.pos);
         }
         return result;
+    }
+
+    public enum ReadStatus {
+        SUCCESS, FILE_NOT_FOUND, TIMEOUT, PARSE_ERROR, RETRIES_EXCEEDED
+    }
+
+    public static class ReadResult {
+        public final ReadStatus status;
+        public final List<Object> data;
+        ReadResult(ReadStatus status, List<Object> data) {
+            this.status = status;
+            this.data = data;
+        }
     }
 
     /**
