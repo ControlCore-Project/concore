@@ -40,12 +40,14 @@ class TestDoctorCommand(unittest.TestCase):
         """Doctor should show the current Python version."""
         result = self.runner.invoke(cli, ["doctor"])
         import platform
+
         py_version = platform.python_version()
         self.assertIn(py_version, result.output)
 
     def test_doctor_shows_concore_version(self):
         """Doctor should detect and show concore version."""
         from concore_cli import __version__
+
         result = self.runner.invoke(cli, ["doctor"])
         self.assertIn("concore", result.output)
         self.assertIn(__version__, result.output)
@@ -87,9 +89,7 @@ class TestDetectTool(unittest.TestCase):
 
     def test_detect_tool_tries_multiple_names(self):
         """Should try all candidate names and return the first match."""
-        path, name = _detect_tool(
-            ["nonexistent_tool_abc123", "python3", "python"]
-        )
+        path, name = _detect_tool(["nonexistent_tool_abc123", "python3", "python"])
         self.assertIsNotNone(path)
 
     def test_detect_tool_empty_list(self):
@@ -165,9 +165,7 @@ class TestDoctorWithConfig(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.temp_dir)
 
-    @patch(
-        "concore_cli.commands.doctor._resolve_concore_path"
-    )
+    @patch("concore_cli.commands.doctor._resolve_concore_path")
     def test_doctor_with_concore_tools(self, mock_path):
         """Doctor should detect and report concore.tools."""
         mock_path.return_value = Path(self.temp_dir)
@@ -176,14 +174,13 @@ class TestDoctorWithConfig(unittest.TestCase):
 
         from rich.console import Console
         import io
+
         console = Console(file=io.StringIO(), force_terminal=True)
         result = doctor_check(console)
         # Just verify it doesn't crash
         self.assertIsInstance(result, bool)
 
-    @patch(
-        "concore_cli.commands.doctor._resolve_concore_path"
-    )
+    @patch("concore_cli.commands.doctor._resolve_concore_path")
     def test_doctor_with_concore_octave(self, mock_path):
         """Doctor should detect concore.octave flag."""
         mock_path.return_value = Path(self.temp_dir)
@@ -192,13 +189,12 @@ class TestDoctorWithConfig(unittest.TestCase):
 
         from rich.console import Console
         import io
+
         console = Console(file=io.StringIO(), force_terminal=True)
         result = doctor_check(console)
         self.assertIsInstance(result, bool)
 
-    @patch(
-        "concore_cli.commands.doctor._resolve_concore_path"
-    )
+    @patch("concore_cli.commands.doctor._resolve_concore_path")
     def test_doctor_with_concore_sudo(self, mock_path):
         """Doctor should detect concore.sudo config."""
         mock_path.return_value = Path(self.temp_dir)
@@ -207,6 +203,7 @@ class TestDoctorWithConfig(unittest.TestCase):
 
         from rich.console import Console
         import io
+
         console = Console(file=io.StringIO(), force_terminal=True)
         result = doctor_check(console)
         self.assertIsInstance(result, bool)

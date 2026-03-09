@@ -104,6 +104,7 @@ OPTIONAL_PACKAGES = {
     "matplotlib": "pip install concore[demo]",
 }
 
+
 def _get_platform_key():
     """Return 'posix' or 'windows' based on OS."""
     return "windows" if os.name == "nt" else "posix"
@@ -206,14 +207,14 @@ def doctor_check(console):
         passed += 1
     else:
         console.print(
-            f"  [red]✗[/red] Python {py_version} — "
-            f"concore requires Python >= 3.9"
+            f"  [red]✗[/red] Python {py_version} — concore requires Python >= 3.9"
         )
         errors += 1
 
     # concore installation
     try:
         from concore_cli import __version__
+
         console.print(f"  [green]✓[/green] concore {__version__} installed")
         passed += 1
     except ImportError:
@@ -226,9 +227,7 @@ def doctor_check(console):
         writable = os.access(str(concore_path), os.W_OK)
         status = "writable" if writable else "read-only"
         if writable:
-            console.print(
-                f"  [green]✓[/green] CONCOREPATH: {concore_path} ({status})"
-            )
+            console.print(f"  [green]✓[/green] CONCOREPATH: {concore_path} ({status})")
             passed += 1
         else:
             console.print(
@@ -285,9 +284,7 @@ def doctor_check(console):
                 )
                 warnings += 1
             else:
-                console.print(
-                    f"  [red]✗[/red] {tool_label} → Not found{hint_str}"
-                )
+                console.print(f"  [red]✗[/red] {tool_label} → Not found{hint_str}")
                 errors += 1
 
     console.print()
@@ -310,8 +307,11 @@ def doctor_check(console):
                 content = filepath.read_text().strip()
                 if filename == "concore.tools":
                     line_count = len(
-                        [ln for ln in content.splitlines()
-                         if ln.strip() and not ln.strip().startswith("#")]
+                        [
+                            ln
+                            for ln in content.splitlines()
+                            if ln.strip() and not ln.strip().startswith("#")
+                        ]
                     )
                     console.print(
                         f"  [green]✓[/green] {filename} → "
@@ -319,9 +319,7 @@ def doctor_check(console):
                     )
                 elif filename == "concore.mcr":
                     if os.path.exists(os.path.expanduser(content)):
-                        console.print(
-                            f"  [green]✓[/green] {filename} → {content}"
-                        )
+                        console.print(f"  [green]✓[/green] {filename} → {content}")
                         passed += 1
                     else:
                         console.print(
@@ -331,27 +329,17 @@ def doctor_check(console):
                         warnings += 1
                     continue
                 elif filename == "concore.sudo":
-                    console.print(
-                        f"  [green]✓[/green] {filename} → {content}"
-                    )
+                    console.print(f"  [green]✓[/green] {filename} → {content}")
                 elif filename == "concore.repo":
-                    console.print(
-                        f"  [green]✓[/green] {filename} → {content}"
-                    )
+                    console.print(f"  [green]✓[/green] {filename} → {content}")
                 else:
-                    console.print(
-                        f"  [green]✓[/green] {filename} → Enabled"
-                    )
+                    console.print(f"  [green]✓[/green] {filename} → Enabled")
                 passed += 1
             except Exception:
-                console.print(
-                    f"  [yellow]![/yellow] {filename} → Could not read"
-                )
+                console.print(f"  [yellow]![/yellow] {filename} → Could not read")
                 warnings += 1
         else:
-            console.print(
-                f"  [dim]—[/dim] {filename} → Not set ({description})"
-            )
+            console.print(f"  [dim]—[/dim] {filename} → Not set ({description})")
 
     # Build environment variable list from TOOL_DEFINITIONS config_keys
     env_vars = []
@@ -361,10 +349,7 @@ def doctor_check(console):
     env_vars.append("DOCKEREXE")
     env_set = [v for v in env_vars if os.environ.get(v)]
     if env_set:
-        console.print(
-            f"  [green]✓[/green] Environment variables: "
-            f"{', '.join(env_set)}"
-        )
+        console.print(f"  [green]✓[/green] Environment variables: {', '.join(env_set)}")
         passed += 1
     else:
         console.print("  [dim]—[/dim] No concore environment variables set")
@@ -380,10 +365,7 @@ def doctor_check(console):
             console.print(f"  [green]✓[/green] {pkg} {version}")
             passed += 1
         else:
-            console.print(
-                f"  [red]✗[/red] {pkg} → Not installed "
-                f"(pip install {pkg})"
-            )
+            console.print(f"  [red]✗[/red] {pkg} → Not installed (pip install {pkg})")
             errors += 1
 
     for pkg, install_hint in OPTIONAL_PACKAGES.items():
@@ -393,8 +375,7 @@ def doctor_check(console):
             passed += 1
         else:
             console.print(
-                f"  [yellow]![/yellow] {pkg} → Not installed "
-                f"({install_hint})"
+                f"  [yellow]![/yellow] {pkg} → Not installed ({install_hint})"
             )
             warnings += 1
 
