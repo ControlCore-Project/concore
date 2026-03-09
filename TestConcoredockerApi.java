@@ -24,6 +24,9 @@ public class TestConcoredockerApi {
         testInitValExtractsSimtime();
         testInitValReturnsRemainingValues();
         testOutputFileMatchesPythonWireFormat();
+        testReadFileNotFound();
+        testReadRetriesExceeded();
+        testReadParseError();
 
         System.out.println("\n=== Results: " + passed + " passed, " + failed + " failed out of " + (passed + failed) + " tests ===");
         if (failed > 0) {
@@ -102,10 +105,11 @@ public class TestConcoredockerApi {
         concoredocker.setInPath(tmp.toString());
         writeFile(tmp, 1, "sensor", "[0.0, 42.0, 99.0]");
 
-        List<Object> result = concoredocker.read(1, "sensor", "[0.0, 0.0, 0.0]");
-        check("read: strips simtime, size=2", 2, result.size());
-        check("read: val1 correct", 42.0, result.get(0));
-        check("read: val2 correct", 99.0, result.get(1));
+        concoredocker.ReadResult result = concoredocker.read(1, "sensor", "[0.0, 0.0, 0.0]");
+        check("read: status SUCCESS", concoredocker.ReadStatus.SUCCESS, result.status);
+        check("read: strips simtime, size=2", 2, result.data.size());
+        check("read: val1 correct", 42.0, result.data.get(0));
+        check("read: val2 correct", 99.0, result.data.get(1));
     }
 
     static void testReadWriteRoundtrip() {
@@ -119,10 +123,11 @@ public class TestConcoredockerApi {
         outVals.add(8.0);
         concoredocker.write(1, "data", outVals, 1);
 
-        List<Object> inVals = concoredocker.read(1, "data", "[0.0, 0.0, 0.0]");
-        check("roundtrip: size", 2, inVals.size());
-        check("roundtrip: val1", 7.0, inVals.get(0));
-        check("roundtrip: val2", 8.0, inVals.get(1));
+        concoredocker.ReadResult inVals = concoredocker.read(1, "data", "[0.0, 0.0, 0.0]");
+        check("roundtrip: status", concoredocker.ReadStatus.SUCCESS, inVals.status);
+        check("roundtrip: size", 2, inVals.data.size());
+        check("roundtrip: val1", 7.0, inVals.data.get(0));
+        check("roundtrip: val2", 8.0, inVals.data.get(1));
     }
 
     static void testSimtimeAdvancesWithDelta() {
@@ -194,5 +199,35 @@ public class TestConcoredockerApi {
         check("wire format: ends with ']'", true, raw.endsWith("]"));
         Object reparsed = concoredocker.literalEval(raw);
         check("wire format: re-parseable as list", true, reparsed instanceof List);
+    }
+
+    static void testReadFileNotFound() {
+        Path tmp = makeTempDir();
+        concoredocker.resetState();
+        concoredocker.setInPath(tmp.toString());
+        // no file written, port 1/missing does not exist
+        concoredocker.ReadResult result = concoredocker.read(1, "missing", "[0.0, 0.0]");
+        check("read file not found: status", concoredocker.ReadStatus.FILE_NOT_FOUND, result.status);
+        check("read file not found: data is default", 1, result.data.size());
+    }
+
+    static void testReadRetriesExceeded() {
+        Path tmp = makeTempDir();
+        concoredocker.resetState();
+        concoredocker.setInPath(tmp.toString());
+        writeFile(tmp, 1, "empty", ""); // always empty, exhausts retries
+        concoredocker.ReadResult result = concoredocker.read(1, "empty", "[0.0, 0.0]");
+        check("read retries exceeded: status", concoredocker.ReadStatus.RETRIES_EXCEEDED, result.status);
+        check("read retries exceeded: data is default", 1, result.data.size());
+    }
+
+    static void testReadParseError() {
+        Path tmp = makeTempDir();
+        concoredocker.resetState();
+        concoredocker.setInPath(tmp.toString());
+        writeFile(tmp, 1, "bad", "not_a_valid_list");
+        concoredocker.ReadResult result = concoredocker.read(1, "bad", "[0.0, 0.0]");
+        check("read parse error: status", concoredocker.ReadStatus.PARSE_ERROR, result.status);
+        check("read parse error: data is default", 1, result.data.size());
     }
 }
