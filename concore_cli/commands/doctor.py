@@ -1,3 +1,4 @@
+import importlib.metadata
 import shutil
 import subprocess
 import sys
@@ -65,7 +66,7 @@ TOOL_DEFINITIONS = {
             "posix": ["matlab"],
             "windows": ["matlab"],
         },
-        "version_flag": "-batch \"disp('ok')\"",
+        "version_flag": ["-batch", "disp('ok')"],
         "config_keys": ["MATLABEXE", "MATLABWIN"],
         "install_hints": {
             "Linux": "Install from https://mathworks.com/downloads/",
@@ -103,13 +104,6 @@ OPTIONAL_PACKAGES = {
     "matplotlib": "pip install concore[demo]",
 }
 
-# Map import names that differ from package names
-IMPORT_NAME_MAP = {
-    "beautifulsoup4": "bs4",
-    "pyzmq": "zmq",
-}
-
-
 def _get_platform_key():
     """Return 'posix' or 'windows' based on OS."""
     return "windows" if os.name == "nt" else "posix"
@@ -146,8 +140,12 @@ def _detect_tool(names):
 def _get_version(path, version_flag):
     """Run tool with version flag and return first line of output."""
     try:
+        if isinstance(version_flag, list):
+            cmd = [path] + version_flag
+        else:
+            cmd = [path, version_flag]
         result = subprocess.run(
-            [path, version_flag],
+            cmd,
             capture_output=True,
             text=True,
             timeout=10,
@@ -176,14 +174,10 @@ def _check_docker_daemon(docker_path):
 
 def _check_package(package_name):
     """Check if a Python package is importable and get its version."""
-    import_name = IMPORT_NAME_MAP.get(package_name, package_name)
     try:
-        mod = __import__(import_name)
-        version = getattr(mod, "__version__", None)
-        if version is None:
-            version = getattr(mod, "VERSION", "installed")
-        return True, str(version)
-    except ImportError:
+        version = importlib.metadata.version(package_name)
+        return True, version
+    except importlib.metadata.PackageNotFoundError:
         return False, None
 
 
@@ -207,8 +201,7 @@ def doctor_check(console):
 
     # Python version
     py_version = platform.python_version()
-    py_major, py_minor = sys.version_info.major, sys.version_info.minor
-    if py_major >= 3 and py_minor >= 9:
+    if sys.version_info >= (3, 9):
         console.print(f"  [green]✓[/green] Python {py_version} (>= 3.9 required)")
         passed += 1
     else:
@@ -261,6 +254,7 @@ def doctor_check(console):
         if path:
             version = _get_version(path, tool_def["version_flag"])
             version_str = f" ({version})" if version else ""
+            exe_info = f" [{found_name}]" if found_name else ""
             extra = ""
             if tool_label == "Docker":
                 daemon_ok = _check_docker_daemon(path)
@@ -272,24 +266,20 @@ def doctor_check(console):
                 if not daemon_ok:
                     warnings += 1
                     console.print(
-                        f"  [yellow]![/yellow] {tool_label}{version_str} "
-                        f"→ {path}{extra}"
+                        f"  [yellow]![/yellow] {tool_label}{exe_info}"
+                        f"{version_str} → {path}{extra}"
                     )
                     continue
             console.print(
-                f"  [green]✓[/green] {tool_label}{version_str} → {path}{extra}"
+                f"  [green]✓[/green] {tool_label}{exe_info}"
+                f"{version_str} → {path}{extra}"
             )
             passed += 1
         else:
             hint = tool_def["install_hints"].get(plat_name, "")
             hint_str = f" (install: {hint})" if hint else ""
-            # MATLAB is optional if Octave is available, show as warning
-            if tool_label == "MATLAB":
-                console.print(
-                    f"  [yellow]![/yellow] {tool_label} → Not found{hint_str}"
-                )
-                warnings += 1
-            elif tool_label == "Verilog (iverilog)":
+            # Docker, MATLAB, Verilog are optional — show as warning
+            if tool_label in ("MATLAB", "Verilog (iverilog)", "Docker"):
                 console.print(
                     f"  [yellow]![/yellow] {tool_label} → Not found{hint_str}"
                 )
@@ -309,6 +299,7 @@ def doctor_check(console):
         "concore.tools": "Tool path overrides",
         "concore.octave": "Treat .m files as Octave",
         "concore.mcr": "MATLAB Compiler Runtime path",
+        "concore.repo": "Docker repository path",
         "concore.sudo": "Docker executable override",
     }
 
@@ -331,14 +322,19 @@ def doctor_check(console):
                         console.print(
                             f"  [green]✓[/green] {filename} → {content}"
                         )
+                        passed += 1
                     else:
                         console.print(
                             f"  [yellow]![/yellow] {filename} → "
                             f"path does not exist: {content}"
                         )
                         warnings += 1
-                        continue
+                    continue
                 elif filename == "concore.sudo":
+                    console.print(
+                        f"  [green]✓[/green] {filename} → {content}"
+                    )
+                elif filename == "concore.repo":
                     console.print(
                         f"  [green]✓[/green] {filename} → {content}"
                     )
@@ -357,11 +353,12 @@ def doctor_check(console):
                 f"  [dim]—[/dim] {filename} → Not set ({description})"
             )
 
-    # Check environment variables
-    env_vars = [
-        "CONCORE_CPPEXE", "CONCORE_PYTHONEXE", "CONCORE_VEXE",
-        "CONCORE_OCTAVEEXE", "CONCORE_MATLABEXE", "DOCKEREXE",
-    ]
+    # Build environment variable list from TOOL_DEFINITIONS config_keys
+    env_vars = []
+    for tool_def in TOOL_DEFINITIONS.values():
+        for key in tool_def.get("config_keys", []):
+            env_vars.append(f"CONCORE_{key}")
+    env_vars.append("DOCKEREXE")
     env_set = [v for v in env_vars if os.environ.get(v)]
     if env_set:
         console.print(
@@ -412,7 +409,12 @@ def doctor_check(console):
     if errors:
         summary_parts.append(f"[red]{errors} error(s)[/red]")
 
-    console.print(f"[bold]Summary:[/bold] {', '.join(summary_parts)}")
+    if summary_parts:
+        summary_text = ", ".join(summary_parts)
+    else:
+        summary_text = "[yellow]No checks were run.[/yellow]"
+
+    console.print(f"[bold]Summary:[/bold] {summary_text}")
 
     if errors == 0:
         console.print()

@@ -45,9 +45,10 @@ class TestDoctorCommand(unittest.TestCase):
 
     def test_doctor_shows_concore_version(self):
         """Doctor should detect and show concore version."""
+        from concore_cli import __version__
         result = self.runner.invoke(cli, ["doctor"])
         self.assertIn("concore", result.output)
-        self.assertIn("1.0.0", result.output)
+        self.assertIn(__version__, result.output)
 
     def test_doctor_shows_concorepath(self):
         """Doctor should show the CONCOREPATH."""
@@ -106,13 +107,13 @@ class TestGetPlatformKey(unittest.TestCase):
         key = _get_platform_key()
         self.assertIn(key, ["posix", "windows"])
 
-    @patch("os.name", "nt")
+    @patch("concore_cli.commands.doctor.os.name", "nt")
     def test_windows_detection(self):
         """Should return 'windows' when os.name is 'nt'."""
         key = _get_platform_key()
         self.assertEqual(key, "windows")
 
-    @patch("os.name", "posix")
+    @patch("concore_cli.commands.doctor.os.name", "posix")
     def test_posix_detection(self):
         """Should return 'posix' when os.name is 'posix'."""
         key = _get_platform_key()
@@ -151,13 +152,6 @@ class TestResolveConCorePath(unittest.TestCase):
     def test_resolves_to_existing_path(self):
         """Should return a Path object."""
         result = _resolve_concore_path()
-        self.assertIsInstance(result, Path)
-
-    def test_resolved_path_contains_concore(self):
-        """Resolved path should contain concore.py if run from repo."""
-        result = _resolve_concore_path()
-        # In the test environment (run from repo), concore.py should exist
-        # This may not hold in all CI environments, so we just check it's a Path
         self.assertIsInstance(result, Path)
 
 
