@@ -37,6 +37,11 @@ public class TestLiteralEval {
         testUnterminatedDict();
         testUnterminatedTuple();
         testNonStringDictKey();
+        testJsonKeywordTrue();
+        testJsonKeywordFalse();
+        testJsonKeywordNull();
+        testJsonMixedList();
+        testJsonRoundTrip();
 
         System.out.println("\n=== Results: " + passed + " passed, " + failed + " failed out of " + (passed + failed) + " tests ===");
         if (failed > 0) {
@@ -266,5 +271,43 @@ public class TestLiteralEval {
         } catch (IllegalArgumentException e) {
             check("numeric dict key throws", true, e.getMessage().contains("Dict keys must be non-null strings"));
         }
+    }
+
+    // --- JSON keyword interop tests ---
+
+    static void testJsonKeywordTrue() {
+        Object result = concoredocker.literalEval("true");
+        check("json true -> Boolean.TRUE", Boolean.TRUE, result);
+    }
+
+    static void testJsonKeywordFalse() {
+        Object result = concoredocker.literalEval("false");
+        check("json false -> Boolean.FALSE", Boolean.FALSE, result);
+    }
+
+    static void testJsonKeywordNull() {
+        Object result = concoredocker.literalEval("null");
+        check("json null -> null", null, result);
+    }
+
+    static void testJsonMixedList() {
+        // Python sends [0.0, true, null] via json.dumps — Java must parse it
+        @SuppressWarnings("unchecked")
+        List<Object> result = (List<Object>) concoredocker.literalEval("[0.0, true, null]");
+        check("json list[0] simtime", 0.0, result.get(0));
+        check("json list[1] true", Boolean.TRUE, result.get(1));
+        check("json list[2] null", null, result.get(2));
+    }
+
+    static void testJsonRoundTrip() {
+        // JSON-style payload: true/false/null and double-quoted strings
+        String jsonPayload = "[0.0, 1.5, true, false, null, \"hello\"]";
+        @SuppressWarnings("unchecked")
+        List<Object> result = (List<Object>) concoredocker.literalEval(jsonPayload);
+        check("json round-trip double", 1.5, result.get(1));
+        check("json round-trip true", Boolean.TRUE, result.get(2));
+        check("json round-trip false", Boolean.FALSE, result.get(3));
+        check("json round-trip null", null, result.get(4));
+        check("json round-trip string", "hello", result.get(5));
     }
 }

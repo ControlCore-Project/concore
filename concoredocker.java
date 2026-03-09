@@ -282,6 +282,60 @@ public class concoredocker {
     }
 
     /**
+     * Escapes a Java string so it can be safely embedded in a JSON double-quoted string.
+     * Escapes backslash, double quote, newline, carriage return, and tab.
+     */
+    private static String escapeJsonString(String s) {
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '\\': sb.append("\\\\"); break;
+                case '"':  sb.append("\\\""); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                default: sb.append(c); break;
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Converts a Java object to its JSON string representation.
+     * true/false/null instead of True/False/None; strings double-quoted.
+     */
+    private static String toJsonLiteral(Object obj) {
+        if (obj == null) return "null";
+        if (obj instanceof Boolean) return ((Boolean) obj) ? "true" : "false";
+        if (obj instanceof String) return "\"" + escapeJsonString((String) obj) + "\"";
+        if (obj instanceof Number) return obj.toString();
+        if (obj instanceof List) {
+            List<?> list = (List<?>) obj;
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < list.size(); i++) {
+                if (i > 0) sb.append(", ");
+                sb.append(toJsonLiteral(list.get(i)));
+            }
+            sb.append("]");
+            return sb.toString();
+        }
+        if (obj instanceof Map) {
+            Map<?, ?> map = (Map<?, ?>) obj;
+            StringBuilder sb = new StringBuilder("{");
+            boolean first = true;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (!first) sb.append(", ");
+                sb.append(toJsonLiteral(entry.getKey())).append(": ").append(toJsonLiteral(entry.getValue()));
+                first = false;
+            }
+            sb.append("}");
+            return sb.toString();
+        }
+        return obj.toString();
+    }
+
+    /**
      * Writes data to a port file.
      * Prepends simtime+delta to the value list, then serializes to Python-literal format.
      * Accepts List or String values (matching Python implementation).
@@ -437,10 +491,10 @@ public class concoredocker {
         if (val instanceof List) {
             List<?> listVal = (List<?>) val;
             StringBuilder sb = new StringBuilder("[");
-            sb.append(toPythonLiteral(simtime + delta));
+            sb.append(toJsonLiteral(simtime + delta));
             for (Object o : listVal) {
                 sb.append(", ");
-                sb.append(toPythonLiteral(o));
+                sb.append(toJsonLiteral(o));
             }
             sb.append("]");
             payload = sb.toString();
@@ -750,9 +804,9 @@ public class concoredocker {
             }
             String word = input.substring(start, pos);
             switch (word) {
-                case "True": return Boolean.TRUE;
-                case "False": return Boolean.FALSE;
-                case "None": return null;
+                case "True":  case "true":  return Boolean.TRUE;
+                case "False": case "false": return Boolean.FALSE;
+                case "None":  case "null":  return null;
                 default: throw new IllegalArgumentException("Unknown keyword: '" + word + "' at position " + start);
             }
         }
