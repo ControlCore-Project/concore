@@ -10,6 +10,7 @@ from .commands.status import show_status
 from .commands.stop import stop_all
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
+from .commands.doctor import doctor_check
 from . import __version__
 
 console = Console()
@@ -113,6 +114,18 @@ def watch(study_dir, interval, once):
     """Watch a running simulation study for live monitoring"""
     try:
         watch_study(study_dir, interval, once, console)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+def doctor():
+    """Check system readiness for running concore studies"""
+    try:
+        ok = doctor_check(console)
+        if not ok:
+            sys.exit(1)
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
