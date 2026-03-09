@@ -191,7 +191,7 @@ def doctor_check(console):
     console.print()
     console.print(
         Panel.fit(
-            "[bold]concore Doctor — System Readiness Report[/bold]",
+            "[bold]concore Doctor - System Readiness Report[/bold]",
             border_style="cyan",
         )
     )
@@ -203,11 +203,11 @@ def doctor_check(console):
     # Python version
     py_version = platform.python_version()
     if sys.version_info >= (3, 9):
-        console.print(f"  [green]✓[/green] Python {py_version} (>= 3.9 required)")
+        console.print(f"  [green]+[/green] Python {py_version} (>= 3.9 required)")
         passed += 1
     else:
         console.print(
-            f"  [red]✗[/red] Python {py_version} — concore requires Python >= 3.9"
+            f"  [red]x[/red] Python {py_version} - concore requires Python >= 3.9"
         )
         errors += 1
 
@@ -215,10 +215,10 @@ def doctor_check(console):
     try:
         from concore_cli import __version__
 
-        console.print(f"  [green]✓[/green] concore {__version__} installed")
+        console.print(f"  [green]+[/green] concore {__version__} installed")
         passed += 1
     except ImportError:
-        console.print("  [red]✗[/red] concore package not found")
+        console.print("  [red]x[/red] concore package not found")
         errors += 1
 
     # CONCOREPATH
@@ -227,7 +227,7 @@ def doctor_check(console):
         writable = os.access(str(concore_path), os.W_OK)
         status = "writable" if writable else "read-only"
         if writable:
-            console.print(f"  [green]✓[/green] CONCOREPATH: {concore_path} ({status})")
+            console.print(f"  [green]+[/green] CONCOREPATH: {concore_path} ({status})")
             passed += 1
         else:
             console.print(
@@ -235,7 +235,7 @@ def doctor_check(console):
             )
             warnings += 1
     else:
-        console.print(f"  [red]✗[/red] CONCOREPATH: {concore_path} (not found)")
+        console.print(f"  [red]x[/red] CONCOREPATH: {concore_path} (not found)")
         errors += 1
 
     console.print()
@@ -266,25 +266,25 @@ def doctor_check(console):
                     warnings += 1
                     console.print(
                         f"  [yellow]![/yellow] {tool_label}{exe_info}"
-                        f"{version_str} → {path}{extra}"
+                        f"{version_str} -> {path}{extra}"
                     )
                     continue
             console.print(
-                f"  [green]✓[/green] {tool_label}{exe_info}"
-                f"{version_str} → {path}{extra}"
+                f"  [green]+[/green] {tool_label}{exe_info}"
+                f"{version_str} -> {path}{extra}"
             )
             passed += 1
         else:
             hint = tool_def["install_hints"].get(plat_name, "")
             hint_str = f" (install: {hint})" if hint else ""
-            # Docker, MATLAB, Verilog are optional — show as warning
+            # Docker, MATLAB, Verilog are optional - show as warning
             if tool_label in ("MATLAB", "Verilog (iverilog)", "Docker"):
                 console.print(
-                    f"  [yellow]![/yellow] {tool_label} → Not found{hint_str}"
+                    f"  [yellow]![/yellow] {tool_label} -> Not found{hint_str}"
                 )
                 warnings += 1
             else:
-                console.print(f"  [red]✗[/red] {tool_label} → Not found{hint_str}")
+                console.print(f"  [red]x[/red] {tool_label} -> Not found{hint_str}")
                 errors += 1
 
     console.print()
@@ -314,32 +314,32 @@ def doctor_check(console):
                         ]
                     )
                     console.print(
-                        f"  [green]✓[/green] {filename} → "
+                        f"  [green]+[/green] {filename} -> "
                         f"{line_count} tool path(s) configured"
                     )
                 elif filename == "concore.mcr":
                     if os.path.exists(os.path.expanduser(content)):
-                        console.print(f"  [green]✓[/green] {filename} → {content}")
+                        console.print(f"  [green]+[/green] {filename} -> {content}")
                         passed += 1
                     else:
                         console.print(
-                            f"  [yellow]![/yellow] {filename} → "
+                            f"  [yellow]![/yellow] {filename} -> "
                             f"path does not exist: {content}"
                         )
                         warnings += 1
                     continue
                 elif filename == "concore.sudo":
-                    console.print(f"  [green]✓[/green] {filename} → {content}")
+                    console.print(f"  [green]+[/green] {filename} -> {content}")
                 elif filename == "concore.repo":
-                    console.print(f"  [green]✓[/green] {filename} → {content}")
+                    console.print(f"  [green]+[/green] {filename} -> {content}")
                 else:
-                    console.print(f"  [green]✓[/green] {filename} → Enabled")
+                    console.print(f"  [green]+[/green] {filename} -> Enabled")
                 passed += 1
             except Exception:
-                console.print(f"  [yellow]![/yellow] {filename} → Could not read")
+                console.print(f"  [yellow]![/yellow] {filename} -> Could not read")
                 warnings += 1
         else:
-            console.print(f"  [dim]—[/dim] {filename} → Not set ({description})")
+            console.print(f"  [dim]-[/dim] {filename} -> Not set ({description})")
 
     # Build environment variable list from TOOL_DEFINITIONS config_keys
     env_vars = []
@@ -349,10 +349,10 @@ def doctor_check(console):
     env_vars.append("DOCKEREXE")
     env_set = [v for v in env_vars if os.environ.get(v)]
     if env_set:
-        console.print(f"  [green]✓[/green] Environment variables: {', '.join(env_set)}")
+        console.print(f"  [green]+[/green] Environment variables: {', '.join(env_set)}")
         passed += 1
     else:
-        console.print("  [dim]—[/dim] No concore environment variables set")
+        console.print("  [dim]-[/dim] No concore environment variables set")
 
     console.print()
 
@@ -362,20 +362,20 @@ def doctor_check(console):
     for pkg in REQUIRED_PACKAGES:
         found, version = _check_package(pkg)
         if found:
-            console.print(f"  [green]✓[/green] {pkg} {version}")
+            console.print(f"  [green]+[/green] {pkg} {version}")
             passed += 1
         else:
-            console.print(f"  [red]✗[/red] {pkg} → Not installed (pip install {pkg})")
+            console.print(f"  [red]x[/red] {pkg} -> Not installed (pip install {pkg})")
             errors += 1
 
     for pkg, install_hint in OPTIONAL_PACKAGES.items():
         found, version = _check_package(pkg)
         if found:
-            console.print(f"  [green]✓[/green] {pkg} {version}")
+            console.print(f"  [green]+[/green] {pkg} {version}")
             passed += 1
         else:
             console.print(
-                f"  [yellow]![/yellow] {pkg} → Not installed ({install_hint})"
+                f"  [yellow]![/yellow] {pkg} -> Not installed ({install_hint})"
             )
             warnings += 1
 
