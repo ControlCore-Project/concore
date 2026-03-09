@@ -21,13 +21,122 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('requests').setLevel(logging.WARNING) 
 
 
-# if windows, create script to kill this process 
-# because batch files don't provide easy way to know pid of last command
-# ignored for posix != windows, because "concorepid" is handled by script
-# ignored for docker (linux != windows), because handled by docker stop
+# if windows, register this process PID for safe termination
+# Previous approach: single "concorekill.bat" overwritten by each node (race condition).
+# New approach: append PID to shared registry; generate validated kill script.
+# See: https://github.com/ControlCore-Project/concore/issues/391
+
+_LOCK_LEN = 0x7FFFFFFF  # lock range large enough to cover entire file
+_BASE_DIR = os.path.abspath(".")  # capture CWD before atexit can shift it
+_PID_REGISTRY_FILE = os.path.join(_BASE_DIR, "concorekill_pids.txt")
+_KILL_SCRIPT_FILE = os.path.join(_BASE_DIR, "concorekill.bat")
+
+def _register_pid():
+    """Append current PID to the shared registry file. Uses file locking on Windows."""
+    try:
+        with open(_PID_REGISTRY_FILE, "a") as f:
+            if hasattr(sys, 'getwindowsversion'):
+                import msvcrt
+                try:
+                    msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, _LOCK_LEN)
+                    f.write(str(os.getpid()) + "\n")
+                finally:
+                    try:
+                        f.seek(0)
+                        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, _LOCK_LEN)
+                    except OSError:
+                        pass
+            else:
+                f.write(str(os.getpid()) + "\n")
+    except OSError:
+        pass
+
+def _cleanup_pid():
+    """Remove current PID from registry on exit. Uses file locking on Windows."""
+    pid = str(os.getpid())
+    try:
+        if not os.path.exists(_PID_REGISTRY_FILE):
+            return
+        with open(_PID_REGISTRY_FILE, "r+") as f:
+            if hasattr(sys, 'getwindowsversion'):
+                import msvcrt
+                try:
+                    msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, _LOCK_LEN)
+                    pids = [line.strip() for line in f if line.strip()]
+                    remaining = [p for p in pids if p != pid]
+                    if remaining:
+                        f.seek(0)
+                        f.truncate()
+                        for p in remaining:
+                            f.write(p + "\n")
+                    else:
+                        f.close()
+                        try:
+                            os.remove(_PID_REGISTRY_FILE)
+                        except OSError:
+                            pass
+                        try:
+                            os.remove(_KILL_SCRIPT_FILE)
+                        except OSError:
+                            pass
+                        return
+                finally:
+                    try:
+                        f.seek(0)
+                        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, _LOCK_LEN)
+                    except (OSError, ValueError):
+                        pass
+            else:
+                pids = [line.strip() for line in f if line.strip()]
+                remaining = [p for p in pids if p != pid]
+                if remaining:
+                    f.seek(0)
+                    f.truncate()
+                    for p in remaining:
+                        f.write(p + "\n")
+                else:
+                    f.close()
+                    try:
+                        os.remove(_PID_REGISTRY_FILE)
+                    except OSError:
+                        pass
+                    try:
+                        os.remove(_KILL_SCRIPT_FILE)
+                    except OSError:
+                        pass
+    except OSError:
+        pass
+
+def _write_kill_script():
+    """Generate concorekill.bat that validates each PID before killing."""
+    try:
+        reg_name = os.path.basename(_PID_REGISTRY_FILE)
+        bat_name = os.path.basename(_KILL_SCRIPT_FILE)
+        script = "@echo off\r\n"
+        script += 'if not exist "%~dp0' + reg_name + '" (\r\n'
+        script += "    echo No PID registry found. Nothing to kill.\r\n"
+        script += "    exit /b 0\r\n"
+        script += ")\r\n"
+        script += 'for /f "usebackq tokens=*" %%p in ("%~dp0' + reg_name + '") do (\r\n'
+        script += '    wmic process where "ProcessId=%%p" get CommandLine /value 2>nul | find /i "concore" >nul\r\n'
+        script += "    if not errorlevel 1 (\r\n"
+        script += "        echo Killing concore process %%p\r\n"
+        script += "        taskkill /F /PID %%p >nul 2>&1\r\n"
+        script += "    ) else (\r\n"
+        script += "        echo Skipping PID %%p - not a concore process or not running\r\n"
+        script += "    )\r\n"
+        script += ")\r\n"
+        script += 'del /q "%~dp0' + reg_name + '" 2>nul\r\n'
+        script += 'del /q "%~dp0' + bat_name + '" 2>nul\r\n'
+        with open(_KILL_SCRIPT_FILE, "w", newline="") as f:
+            f.write(script)
+    except OSError:
+        pass
+
 if hasattr(sys, 'getwindowsversion'):
-    with open("concorekill.bat","w") as fpid:
-        fpid.write("taskkill /F /PID "+str(os.getpid())+"\n")
+    _register_pid()
+    _write_kill_script()
+    atexit.register(_cleanup_pid)
 
 ZeroMQPort = concore_base.ZeroMQPort
 convert_numpy_to_python = concore_base.convert_numpy_to_python
