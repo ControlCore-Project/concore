@@ -1095,7 +1095,7 @@ for node in nodes_dict:
   containername,sourcecode = nodes_dict[node].split(':')
   if len(sourcecode)!=0:
       dockername,langext = sourcecode.rsplit(".", 1)
-      if not (langext in ["py","m","sh","cpp","v"]): # 6/22/21
+      if not (langext in ["py","m","sh","cpp","v","java"]): # 6/22/21
           logging.error(f"Extension .{langext} is unsupported")
           quit()
       if concoretype=="windows":
