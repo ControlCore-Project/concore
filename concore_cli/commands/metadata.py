@@ -35,7 +35,9 @@ def _detect_tools() -> dict:
     return detected
 
 
-def write_study_metadata(study_path: Path, generated_by: str, workflow_file: Path = None):
+def write_study_metadata(
+    study_path: Path, generated_by: str, workflow_file: Path = None
+):
     checksums = {}
     checksum_candidates = [
         "workflow.graphml",

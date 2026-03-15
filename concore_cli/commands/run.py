@@ -79,7 +79,9 @@ def run_workflow(workflow_file, source, output, exec_type, auto_build, console):
             console.print(
                 f"[green]✓[/green] Workflow generated in [cyan]{output_path}[/cyan]"
             )
-            console.print(f"[green]✓[/green] Metadata written to [cyan]{metadata_path}[/cyan]")
+            console.print(
+                f"[green]✓[/green] Metadata written to [cyan]{metadata_path}[/cyan]"
+            )
 
         except subprocess.CalledProcessError as e:
             progress.stop()
