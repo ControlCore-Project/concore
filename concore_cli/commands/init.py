@@ -1,6 +1,8 @@
 from pathlib import Path
 from rich.panel import Panel
 
+from .metadata import write_study_metadata
+
 SAMPLE_GRAPHML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd" xmlns:y="http://www.yworks.com/xml/graphml">
   <key for="node" id="d6" yfiles.type="nodegraphics"/>
@@ -87,10 +89,16 @@ def init_project(name, template, console):
     with open(readme_file, "w") as f:
         f.write(README_TEMPLATE.format(project_name=name))
 
+    metadata_path = write_study_metadata(
+      project_path, generated_by="concore init", workflow_file=workflow_file
+    )
+
     console.print()
     console.print(
         Panel.fit(
             f"[green]✓[/green] Project created successfully!\n\n"
+        f"Metadata:\n"
+        f"  {metadata_path.name}\n\n"
             f"Next steps:\n"
             f"  cd {name}\n"
             f"  concore validate workflow.graphml\n"

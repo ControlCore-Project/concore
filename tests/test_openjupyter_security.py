@@ -20,17 +20,33 @@ TEST_API_KEY = "test-secret-key-12345"
 @pytest.fixture(autouse=True)
 def reset_jupyter_process():
     """Reset the module-level jupyter_process before each test."""
-    import fri.server.main as mod
+    with patch.dict(
+        os.environ,
+        {
+            "CONCORE_API_KEY": TEST_API_KEY,
+            "FLASK_SECRET_KEY": "test-flask-secret-key",
+        },
+        clear=False,
+    ):
+        import fri.server.main as mod
 
-    mod.jupyter_process = None
-    yield
-    mod.jupyter_process = None
+        mod.API_KEY = TEST_API_KEY
+        mod.jupyter_process = None
+        yield
+        mod.jupyter_process = None
 
 
 @pytest.fixture
 def client():
     """Create a Flask test client with the API key configured."""
-    with patch.dict(os.environ, {"CONCORE_API_KEY": TEST_API_KEY}):
+    with patch.dict(
+        os.environ,
+        {
+            "CONCORE_API_KEY": TEST_API_KEY,
+            "FLASK_SECRET_KEY": "test-flask-secret-key",
+        },
+        clear=False,
+    ):
         # Re-read env var after patching
         import fri.server.main as mod
 
