@@ -70,18 +70,23 @@ def run_workflow(workflow_file, source, output, exec_type, auto_build, console):
             if result.stdout:
                 console.print(result.stdout)
 
-            metadata_path = write_study_metadata(
-                output_path,
-                generated_by="concore run",
-                workflow_file=workflow_path,
-            )
-
             console.print(
                 f"[green]✓[/green] Workflow generated in [cyan]{output_path}[/cyan]"
             )
-            console.print(
-                f"[green]✓[/green] Metadata written to [cyan]{metadata_path}[/cyan]"
-            )
+            try:
+                metadata_path = write_study_metadata(
+                    output_path,
+                    generated_by="concore run",
+                    workflow_file=workflow_path,
+                )
+                console.print(
+                    f"[green]✓[/green] Metadata written to [cyan]{metadata_path}[/cyan]"
+                )
+            except Exception as exc:
+                # Metadata is additive, so workflow generation should still succeed on failure.
+                console.print(
+                    f"[yellow]Warning:[/yellow] Failed to write study metadata for [cyan]{output_path}[/cyan]: {exc}"
+                )
 
         except subprocess.CalledProcessError as e:
             progress.stop()

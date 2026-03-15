@@ -89,16 +89,25 @@ def init_project(name, template, console):
     with open(readme_file, "w") as f:
         f.write(README_TEMPLATE.format(project_name=name))
 
-    metadata_path = write_study_metadata(
-        project_path, generated_by="concore init", workflow_file=workflow_file
-    )
+    metadata_info = ""
+    try:
+        metadata_path = write_study_metadata(
+            project_path,
+            generated_by="concore init",
+            workflow_file=workflow_file,
+        )
+        metadata_info = f"Metadata:\n  {metadata_path.name}\n\n"
+    except Exception as exc:
+        # Metadata is additive, so project creation should still succeed on failure.
+        console.print(
+            f"[yellow]Warning:[/yellow] Failed to write study metadata: {exc}"
+        )
 
     console.print()
     console.print(
         Panel.fit(
             f"[green]✓[/green] Project created successfully!\n\n"
-            f"Metadata:\n"
-            f"  {metadata_path.name}\n\n"
+            f"{metadata_info}"
             f"Next steps:\n"
             f"  cd {name}\n"
             f"  concore validate workflow.graphml\n"
