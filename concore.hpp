@@ -54,6 +54,19 @@ private:
 #endif
 
  public:
+    enum class ReadStatus {
+        SUCCESS,
+        TIMEOUT,
+        PARSE_ERROR,
+        FILE_NOT_FOUND,
+        RETRIES_EXCEEDED
+    };
+
+    struct ReadResult {
+        ReadStatus status;
+        vector<double> data;
+    };
+
     double delay = 1;
     int retrycount = 0;
     double simtime;
@@ -61,6 +74,7 @@ private:
     map <string, int> iport;
     map <string, int> oport;
     map <string, string> params;
+    ReadStatus last_read_status = ReadStatus::SUCCESS;
 
     /**
      * @brief Constructor for Concore class.
@@ -372,6 +386,14 @@ private:
         return read_FM(port, name, initstr);
     }
 
+    ReadResult read_result(int port, string name, string initstr)
+    {
+        ReadResult result;
+        result.data = read(port, name, initstr);
+        result.status = last_read_status;
+        return result;
+    }
+
     /**
      * @brief Reads data from a specified port and name using the FM (File Method) communication protocol.
      * @param port The port number.
@@ -383,6 +405,7 @@ private:
         chrono::milliseconds timespan((int)(1000*delay));
         this_thread::sleep_for(timespan);
         string ins;
+        ReadStatus status = ReadStatus::SUCCESS;
         try {
             ifstream infile;
             infile.open(inpath+to_string(port)+"/"+name, ios::in);
@@ -393,10 +416,13 @@ private:
                 infile.close();
             }
             else {
+                status = ReadStatus::FILE_NOT_FOUND;
                 throw 505;}
         }
         catch (...) {
             ins = initstr;
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::FILE_NOT_FOUND;
         }
         
         int retry = 0;
@@ -424,14 +450,24 @@ private:
             }
             retry++;
         }
+        if ((int)ins.length()==0)
+            status = ReadStatus::RETRIES_EXCEEDED;
         s += ins;
 
         vector<double> inval = parser(ins);
-        if(inval.empty())
+        if(inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
             inval = parser(initstr);
-        if(inval.empty())
+        }
+        if(inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
+            last_read_status = status;
             return inval;
+        }
         simtime = simtime > inval[0] ? simtime : inval[0];
+        last_read_status = status;
 
         //returning a string with data excluding simtime
         inval.erase(inval.begin());
@@ -450,6 +486,7 @@ private:
         chrono::milliseconds timespan((int)(1000*delay));
         this_thread::sleep_for(timespan);
         string ins = "";
+        ReadStatus status = ReadStatus::SUCCESS;
         try {
         if (shmId_get != -1) {
             if (sharedData_get && sharedData_get[0] != '\0') {
@@ -463,10 +500,13 @@ private:
         } 
         else 
         {
+            status = ReadStatus::FILE_NOT_FOUND;
             throw 505;
         }
         } catch (...) {
             ins = initstr;
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::FILE_NOT_FOUND;
         }
         
         int retry = 0;
@@ -490,14 +530,24 @@ private:
             }
             retry++;
         }
+        if ((int)ins.length()==0)
+            status = ReadStatus::RETRIES_EXCEEDED;
         s += ins;
 
         vector<double> inval = parser(ins);
-        if(inval.empty())
+        if(inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
             inval = parser(initstr);
-        if(inval.empty())
+        }
+        if(inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
+            last_read_status = status;
             return inval;
+        }
         simtime = simtime > inval[0] ? simtime : inval[0];
+        last_read_status = status;
 
         //returning a string with data excluding simtime
         inval.erase(inval.begin());
@@ -674,15 +724,26 @@ private:
      * @return a vector of double values
      */
     vector<double> read_ZMQ(string port_name, string name, string initstr) {
+        ReadStatus status = ReadStatus::SUCCESS;
         auto it = zmq_ports.find(port_name);
         if (it == zmq_ports.end()) {
             cerr << "read_ZMQ: port '" << port_name << "' not initialized" << endl;
+            status = ReadStatus::FILE_NOT_FOUND;
+            last_read_status = status;
             return parser(initstr);
         }
         vector<double> inval = it->second->recv_with_retry();
-        if (inval.empty())
+        if (inval.empty()) {
+            status = ReadStatus::TIMEOUT;
             inval = parser(initstr);
-        if (inval.empty()) return inval;
+        }
+        if (inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
+            last_read_status = status;
+            return inval;
+        }
+        last_read_status = status;
         simtime = simtime > inval[0] ? simtime : inval[0];
         s += port_name;
         inval.erase(inval.begin());
@@ -734,6 +795,13 @@ private:
      */
     vector<double> read(string port_name, string name, string initstr) {
         return read_ZMQ(port_name, name, initstr);
+    }
+
+    ReadResult read_result(string port_name, string name, string initstr) {
+        ReadResult result;
+        result.data = read(port_name, name, initstr);
+        result.status = last_read_status;
+        return result;
     }
 
     /**
