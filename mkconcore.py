@@ -156,6 +156,10 @@ MATLABEXE = os.environ.get("CONCORE_MATLABEXE", "matlab")    #Ubuntu/macOS matla
 MATLABWIN = os.environ.get("CONCORE_MATLABWIN", "matlab")    #Windows matlab
 OCTAVEEXE = os.environ.get("CONCORE_OCTAVEEXE", "octave")    #Ubuntu/macOS octave
 OCTAVEWIN = os.environ.get("CONCORE_OCTAVEWIN", "octave")    #Windows octave
+JAVACEXE  = os.environ.get("CONCORE_JAVACEXE", "javac")      #Ubuntu/macOS javac
+JAVACWIN  = os.environ.get("CONCORE_JAVACWIN", "javac")      #Windows javac
+JAVAEXE   = os.environ.get("CONCORE_JAVAEXE", "java")        #Ubuntu/macOS java
+JAVAWIN   = os.environ.get("CONCORE_JAVAWIN", "java")        #Windows java
 M_IS_OCTAVE = False      #treat .m as octave
 MCRPATH  = "~/MATLAB/R2021a" #path to local Ubunta Matlab Compiler Runtime
 DOCKEREXE = os.environ.get("DOCKEREXE", "docker")#default to docker, allow env override
@@ -196,6 +200,10 @@ if os.path.exists(CONCOREPATH+"/concore.tools"):
     MATLABWIN = _tools.get("MATLABWIN", MATLABWIN)
     OCTAVEEXE = _tools.get("OCTAVEEXE", OCTAVEEXE)
     OCTAVEWIN = _tools.get("OCTAVEWIN", OCTAVEWIN)
+    JAVACEXE  = _tools.get("JAVACEXE", JAVACEXE)
+    JAVACWIN  = _tools.get("JAVACWIN", JAVACWIN)
+    JAVAEXE   = _tools.get("JAVAEXE", JAVAEXE)
+    JAVAWIN   = _tools.get("JAVAWIN", JAVAWIN)
 
 prefixedgenode = ""
 sourcedir = os.path.abspath(sys.argv[2])
@@ -605,6 +613,16 @@ if 'v' in required_langs:
         print(CONCOREPATH+" is not correct path to concore (missing Verilog files)")
         quit()
     with open(outdir+"/src/concore.v","w") as fcopy:
+        fcopy.write(fsource.read())
+    fsource.close()
+
+if 'java' in required_langs and concoretype != "docker":
+    try:
+        fsource = open(CONCOREPATH+"/concore.java")
+    except (FileNotFoundError, IOError):
+        print(CONCOREPATH+" is not correct path to concore (missing Java files)")
+        quit()
+    with open(outdir+"/src/concore.java","w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
 
@@ -1020,6 +1038,8 @@ for node in nodes_dict:
             elif langext == "v":
  # 6/25/21
                 fbuild.write("copy .\\src\\concore.v .\\" + containername + "\\concore.v\n")
+            elif langext == "java":
+                fbuild.write("copy .\\src\\concore.java .\\" + containername + "\\concore.java\n")
             elif langext == "m":   #  4/2/21
                 fbuild.write("copy .\\src\\concore_*.m .\\" + containername + "\\\n")
                 fbuild.write("copy .\\src\\import_concore.m .\\" + containername + "\\\n")
@@ -1037,6 +1057,8 @@ for node in nodes_dict:
                 fbuild.write("cp ./src/concore.hpp ./"+containername+"/concore.hpp\n")
             elif langext == "v":
                 fbuild.write("cp ./src/concore.v ./"+containername+"/concore.v\n")
+            elif langext == "java":
+                fbuild.write("cp ./src/concore.java ./"+containername+"/concore.java\n")
             elif langext == "m":  # 4/2/21
                 fbuild.write("cp ./src/concore_*.m ./"+containername+"/\n")
                 fbuild.write("cp ./src/import_concore.m ./"+containername+"/\n")
@@ -1127,6 +1149,16 @@ for node in nodes_dict:
               fdebug.write('cd ..\n')
               fdebug.write('start /D '+q_container+' cmd /K vvp a.out\n')
               #fdebug.write('start /D '+containername+' cmd /K "'+CPPWIN+' '+sourcecode+'|a"\n')
+          elif langext=="java":
+              javaclass = os.path.splitext(os.path.basename(sourcecode))[0]
+              frun.write('cd '+q_container+'\n')
+              frun.write(JAVACWIN+' '+q_source+'\n')
+              frun.write('cd ..\n')
+              frun.write('start /B /D '+q_container+' cmd /c '+JAVAWIN+' -cp .;..\\src\\jeromq.jar '+javaclass+' >'+q_container+'\\concoreout.txt\n')
+              fdebug.write('cd '+q_container+'\n')
+              fdebug.write(JAVACWIN+' '+q_source+'\n')
+              fdebug.write('cd ..\n')
+              fdebug.write('start /D '+q_container+' cmd /K '+JAVAWIN+' -cp .;..\\src\\jeromq.jar '+javaclass+'\n')
           elif langext=="m":  #3/23/21
               # Use q_source in Windows commands to ensure quoting consistency
               if M_IS_OCTAVE:   
@@ -1167,6 +1199,17 @@ for node in nodes_dict:
                 else:
                     fdebug.write('concorewd="$(pwd)"\n')
                     fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\"; ' + VEXE + ' ' + safe_source + '; vvp a.out\\"" \n')
+
+            elif langext == "java":
+                javaclass = os.path.splitext(os.path.basename(sourcecode))[0]
+                safe_javaclass = shlex.quote(javaclass)
+                frun.write('(cd ' + safe_container + '; ' + JAVACEXE + ' ' + safe_source + '; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + ' >concoreout.txt & echo $! >concorepid) &\n')
+                if ubuntu:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + safe_container + '\\"; ' + JAVACEXE + ' ' + safe_source + '; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + '; bash" &\n')
+                else:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\\"; ' + JAVACEXE + ' ' + safe_source + '; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + '\\"" \n')
 
             elif langext == "sh":   # 5/19/21
                 # FIX: Escape MCRPATH to prevent shell injection
