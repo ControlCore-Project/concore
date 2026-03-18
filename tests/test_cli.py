@@ -2,6 +2,7 @@ import unittest
 import tempfile
 import shutil
 import os
+import json
 from pathlib import Path
 from click.testing import CliRunner
 from concore_cli.cli import cli
@@ -38,6 +39,13 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertTrue((project_path / "src").exists())
             self.assertTrue((project_path / "README.md").exists())
             self.assertTrue((project_path / "src" / "script.py").exists())
+            self.assertTrue((project_path / "STUDY.json").exists())
+
+            metadata = json.loads((project_path / "STUDY.json").read_text())
+            self.assertEqual(metadata["generated_by"], "concore init")
+            self.assertEqual(metadata["study_name"], "test-project")
+            self.assertEqual(metadata["schema_version"], 1)
+            self.assertIn("workflow.graphml", metadata["checksums"])
 
     def test_init_existing_directory(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
@@ -108,6 +116,13 @@ class TestConcoreCLI(unittest.TestCase):
             )
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(Path("out/src/concore.py").exists())
+            self.assertTrue(Path("out/STUDY.json").exists())
+
+            metadata = json.loads(Path("out/STUDY.json").read_text())
+            self.assertEqual(metadata["generated_by"], "concore run")
+            self.assertEqual(metadata["study_name"], "out")
+            self.assertEqual(metadata["schema_version"], 1)
+            self.assertIn("workflow.graphml", metadata["checksums"])
 
     def test_run_command_default_type(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
