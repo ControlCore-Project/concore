@@ -34,6 +34,19 @@ private:
     int communication_oport = 0;  // oport refers to output port
 
 public:
+    enum class ReadStatus {
+        SUCCESS,
+        TIMEOUT,
+        PARSE_ERROR,
+        FILE_NOT_FOUND,
+        RETRIES_EXCEEDED
+    };
+
+    struct ReadResult {
+        ReadStatus status;
+        std::vector<double> data;
+    };
+
     std::unordered_map<std::string, std::string> iport;
     std::unordered_map<std::string, std::string> oport;
     std::string s, olds;
@@ -44,6 +57,7 @@ public:
     double simtime = 0;
     double maxtime = 100;
     std::unordered_map<std::string, std::string> params;
+    ReadStatus last_read_status = ReadStatus::SUCCESS;
 #ifdef CONCORE_USE_ZMQ
     std::map<std::string, concore_base::ZeroMQPort*> zmq_ports;
 #endif
@@ -268,6 +282,7 @@ public:
         if (communication_iport == 1)
             return read_SM(port, name, initstr);
 #endif
+        ReadStatus status = ReadStatus::SUCCESS;
         std::this_thread::sleep_for(std::chrono::seconds(delay));
         std::string file_path = inpath + "/" + std::to_string(port) + "/" + name;
         std::ifstream infile(file_path);
@@ -275,7 +290,10 @@ public:
 
         if (!infile) {
             std::cerr << "File " << file_path << " not found, using default value.\n";
-            return concore_base::parselist_double(initstr);
+            status = ReadStatus::FILE_NOT_FOUND;
+            std::vector<double> fallback = concore_base::parselist_double(initstr);
+            last_read_status = status;
+            return fallback;
         }
         std::getline(infile, ins);
 
@@ -291,22 +309,38 @@ public:
 
         if (ins.empty()) {
             std::cerr << "Max retries reached for " << file_path << ", using default value.\n";
-            return concore_base::parselist_double(initstr);
+            status = ReadStatus::RETRIES_EXCEEDED;
+            std::vector<double> fallback = concore_base::parselist_double(initstr);
+            last_read_status = status;
+            return fallback;
         }
 
         s += ins;
         std::vector<double> inval = concore_base::parselist_double(ins);
-        if (inval.empty())
+        if (inval.empty()) {
+            status = ReadStatus::PARSE_ERROR;
             inval = concore_base::parselist_double(initstr);
-        if (inval.empty())
+        }
+        if (inval.empty()) {
+            last_read_status = status;
             return inval;
+        }
+        last_read_status = status;
         simtime = simtime > inval[0] ? simtime : inval[0];
         inval.erase(inval.begin());
         return inval;
     }
 
+    ReadResult read_result(int port, const std::string& name, const std::string& initstr) {
+        ReadResult result;
+        result.data = read(port, name, initstr);
+        result.status = last_read_status;
+        return result;
+    }
+
 #ifdef __linux__
     std::vector<double> read_SM(int port, const std::string& name, const std::string& initstr) {
+        ReadStatus status = ReadStatus::SUCCESS;
         std::this_thread::sleep_for(std::chrono::seconds(delay));
         std::string ins;
         try {
@@ -315,6 +349,7 @@ public:
             else
                 throw 505;
         } catch (...) {
+            status = ReadStatus::FILE_NOT_FOUND;
             ins = initstr;
         }
 
@@ -335,13 +370,21 @@ public:
             }
             retry++;
         }
+        if ((int)ins.length() == 0)
+            status = ReadStatus::RETRIES_EXCEEDED;
 
         s += ins;
         std::vector<double> inval = concore_base::parselist_double(ins);
-        if (inval.empty())
+        if (inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
             inval = concore_base::parselist_double(initstr);
-        if (inval.empty())
+        }
+        if (inval.empty()) {
+            last_read_status = status;
             return inval;
+        }
+        last_read_status = status;
         simtime = simtime > inval[0] ? simtime : inval[0];
         inval.erase(inval.begin());
         return inval;
@@ -403,15 +446,26 @@ public:
     }
 
     std::vector<double> read_ZMQ(const std::string& port_name, const std::string& name, const std::string& initstr) {
+        ReadStatus status = ReadStatus::SUCCESS;
         auto it = zmq_ports.find(port_name);
         if (it == zmq_ports.end()) {
             std::cerr << "read_ZMQ: port '" << port_name << "' not initialized\n";
+            status = ReadStatus::FILE_NOT_FOUND;
+            last_read_status = status;
             return concore_base::parselist_double(initstr);
         }
         std::vector<double> inval = it->second->recv_with_retry();
-        if (inval.empty())
+        if (inval.empty()) {
+            status = ReadStatus::TIMEOUT;
             inval = concore_base::parselist_double(initstr);
-        if (inval.empty()) return inval;
+        }
+        if (inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
+            last_read_status = status;
+            return inval;
+        }
+        last_read_status = status;
         simtime = simtime > inval[0] ? simtime : inval[0];
         s += port_name;
         inval.erase(inval.begin());
@@ -431,6 +485,13 @@ public:
 
     std::vector<double> read(const std::string& port_name, const std::string& name, const std::string& initstr) {
         return read_ZMQ(port_name, name, initstr);
+    }
+
+    ReadResult read_result(const std::string& port_name, const std::string& name, const std::string& initstr) {
+        ReadResult result;
+        result.data = read(port_name, name, initstr);
+        result.status = last_read_status;
+        return result;
     }
 
     void write(const std::string& port_name, const std::string& name, std::vector<double> val, int delta = 0) {

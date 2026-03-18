@@ -97,6 +97,20 @@ static void test_read_FM_missing_file_uses_initstr() {
     check("missing_file fallback val==3.0", approx(v[0], 3.0));
 }
 
+static void test_read_result_missing_file_status() {
+    setup_dirs();
+    rm("in1/no_port_status");
+
+    Concore c;
+    c.delay = 0;
+    c.simtime = 0.0;
+
+    Concore::ReadResult r = c.read_result(1, "no_port_status", "[9.0,3.0]");
+    check("read_result missing status FILE_NOT_FOUND",
+          r.status == Concore::ReadStatus::FILE_NOT_FOUND);
+    check("read_result missing uses initstr", r.data.size() == 1 && approx(r.data[0], 3.0));
+}
+
 // ------------- write_FM --------------------------------------------------
 
 static void test_write_FM_creates_file() {
@@ -274,6 +288,20 @@ static void test_tryparam_missing_key_uses_default() {
           c.tryparam("no_key", "def_val") == "def_val");
 }
 
+static void test_load_params_semicolon_format() {
+    setup_dirs();
+    write_file("in/1/concore.params", "a=1;b=2");
+
+    Concore c;
+    c.delay = 0;
+    c.load_params();
+
+    check("load_params semicolon parses a", c.tryparam("a", "") == "1");
+    check("load_params semicolon parses b", c.tryparam("b", "") == "2");
+
+    rm("in/1/concore.params");
+}
+
 // ------------- main -------------------------------------------------------
 
 int main() {
@@ -282,6 +310,7 @@ int main() {
     // read_FM / write_FM
     test_read_FM_file();
     test_read_FM_missing_file_uses_initstr();
+    test_read_result_missing_file_status();
     test_write_FM_creates_file();
 
     // unchanged()
@@ -307,6 +336,7 @@ int main() {
     // tryparam()
     test_tryparam_found();
     test_tryparam_missing_key_uses_default();
+    test_load_params_semicolon_format();
 
     std::cout << "\n=== Results: " << passed << " passed, " << failed
               << " failed out of " << (passed + failed) << " tests ===\n";

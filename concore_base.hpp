@@ -345,10 +345,11 @@ inline std::map<std::string, std::string> load_params(const std::string& params_
 
     // Otherwise convert semicolon-separated key=value to dict format
     // e.g. "a=1;b=2" -> {"a":"1","b":"2"}
+    std::string normalized = std::regex_replace(sparams, std::regex(";"), ",");
     std::string converted = "{\"" +
         std::regex_replace(
             std::regex_replace(
-                std::regex_replace(sparams, std::regex(","), ",\""),
+                std::regex_replace(normalized, std::regex(","), ",\""),
                 std::regex("="), "\":"),
             std::regex(" "), "") +
         "}";
