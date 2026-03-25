@@ -1,4 +1,5 @@
 from pathlib import Path
+from xml.sax.saxutils import quoteattr
 from rich.panel import Panel
 
 from .metadata import write_study_metadata
@@ -14,7 +15,7 @@ GRAPHML_HEADER = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
          xmlns:y="http://www.yworks.com/xml/graphml">
   <key for="node" id="d6" yfiles.type="nodegraphics"/>
   <key for="edge" id="d10" yfiles.type="edgegraphics"/>
-  <graph edgedefault="directed" id="1">
+  <graph edgedefault="directed" id="1" projectName={project_name}>
 {nodes}
   </graph>
 </graphml>
@@ -245,7 +246,7 @@ def _build_graphml(project_name, selected_langs):
             )
         )
     return GRAPHML_HEADER.format(
-        project_name=project_name,
+        project_name=quoteattr(project_name),
         nodes="\n".join(node_blocks),
     )
 
@@ -270,6 +271,11 @@ def init_project_interactive(name, selected_langs, console):
     console.print(f"[cyan]Creating project:[/cyan] {name}")
 
     project_path.mkdir()
+    src_path = project_path / "src"
+    src_path.mkdir()
+
+    # workflow.graphml
+    workflow_file = project_path / "workflow.graphml"
     workflow_file.write_text(_build_graphml(name, selected_langs), encoding="utf-8")
 
     # one source stub per selected language
@@ -279,12 +285,8 @@ def init_project_interactive(name, selected_langs, console):
 
     # README
     (project_path / "README.md").write_text(
-        README_TEMPLATE.format(project_name=name),
-        encoding="utf-8",
-        (src_path / info["filename"]).write_text(info["stub"])
-
-    # README
-    (project_path / "README.md").write_text(README_TEMPLATE.format(project_name=name))
+        README_TEMPLATE.format(project_name=name), encoding="utf-8"
+    )
 
     # Metadata
     metadata_info = ""
@@ -334,12 +336,16 @@ def init_project(name, template, console):
     (project_path / "src").mkdir()
 
     workflow_file = project_path / "workflow.graphml"
-    with open(workflow_file, "w") as f:
+    with open(workflow_file, "w", encoding="utf-8") as f:
         f.write(SAMPLE_GRAPHML)
 
-    (project_path / "src" / "script.py").write_text(LANGUAGE_NODES["python"]["stub"])
+    (project_path / "src" / "script.py").write_text(
+        LANGUAGE_NODES["python"]["stub"], encoding="utf-8"
+    )
 
-    (project_path / "README.md").write_text(README_TEMPLATE.format(project_name=name))
+    (project_path / "README.md").write_text(
+        README_TEMPLATE.format(project_name=name), encoding="utf-8"
+    )
 
     metadata_info = ""
     try:
