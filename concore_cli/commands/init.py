@@ -93,6 +93,7 @@ LANGUAGE_NODES = {
             "        while (concore.unchanged()) {\n"
             '            val = concore.read(1, "data", init_val);\n'
             "        }\n"
+            "        // TODO: process val (e.g. multiply by 2)\n"
             '        concore.write(1, "result", val, 0);\n'
             "    }\n"
             "    return 0;\n"
