@@ -270,16 +270,17 @@ def init_project_interactive(name, selected_langs, console):
     console.print(f"[cyan]Creating project:[/cyan] {name}")
 
     project_path.mkdir()
-    src_path = project_path / "src"
-    src_path.mkdir()
-
-    # workflow.graphml
-    workflow_file = project_path / "workflow.graphml"
-    workflow_file.write_text(_build_graphml(name, selected_langs))
+    workflow_file.write_text(_build_graphml(name, selected_langs), encoding="utf-8")
 
     # one source stub per selected language
     for lang_key in selected_langs:
         info = LANGUAGE_NODES[lang_key]
+        (src_path / info["filename"]).write_text(info["stub"], encoding="utf-8")
+
+    # README
+    (project_path / "README.md").write_text(
+        README_TEMPLATE.format(project_name=name),
+        encoding="utf-8",
         (src_path / info["filename"]).write_text(info["stub"])
 
     # README
