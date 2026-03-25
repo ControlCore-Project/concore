@@ -3,7 +3,7 @@ from rich.console import Console
 import os
 import sys
 
-from .commands.init import init_project
+from .commands.init import init_project, init_project_interactive, run_wizard
 from .commands.run import run_workflow
 from .commands.validate import validate_workflow
 from .commands.status import show_status
@@ -24,12 +24,29 @@ def cli():
 
 
 @cli.command()
-@click.argument("name", required=True)
+@click.argument("name", required=False, default=None)
 @click.option("--template", default="basic", help="Template type to use")
-def init(name, template):
+@click.option(
+    "--interactive", "-i",
+    is_flag=True,
+    help="Launch guided wizard to select node types",
+)
+def init(name, template, interactive):
     """Create a new concore project"""
     try:
-        init_project(name, template, console)
+        if interactive:
+            if not name:
+                name = console.input("[cyan]Project name:[/cyan] ").strip()
+            if not name:
+                console.print("[red]Error:[/red] Project name is required.")
+                sys.exit(1)
+            selected = run_wizard(console)
+            init_project_interactive(name, selected, console)
+        else:
+            if not name:
+                console.print("[red]Error:[/red] Provide a project name or use --interactive.")
+                sys.exit(1)
+            init_project(name, template, console)
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
