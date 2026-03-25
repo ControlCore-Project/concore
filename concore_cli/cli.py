@@ -27,7 +27,8 @@ def cli():
 @click.argument("name", required=False, default=None)
 @click.option("--template", default="basic", help="Template type to use")
 @click.option(
-    "--interactive", "-i",
+    "--interactive",
+    "-i",
     is_flag=True,
     help="Launch guided wizard to select node types",
 )
@@ -44,7 +45,9 @@ def init(name, template, interactive):
             init_project_interactive(name, selected, console)
         else:
             if not name:
-                console.print("[red]Error:[/red] Provide a project name or use --interactive.")
+                console.print(
+                    "[red]Error:[/red] Provide a project name or use --interactive."
+                )
                 sys.exit(1)
             init_project(name, template, console)
     except Exception as e:

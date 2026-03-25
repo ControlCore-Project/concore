@@ -133,7 +133,7 @@ LANGUAGE_NODES = {
             "    concore.simtime = 0;\n"
             "    // set your maxtime (or let concore.maxtime file override)\n\n"
             "    while (concore.simtime < 100) begin\n"
-            '      while (concore.unchanged(0)) begin\n'
+            "      while (concore.unchanged(0)) begin\n"
             "        // readdata fills concore.data[] and updates concore.simtime\n"
             '        concore.readdata(1, "data", "[0.0,0.0]");\n'
             "      end\n"
@@ -203,6 +203,7 @@ A concore workflow project.
 # Interactive wizard
 # ---------------------------------------------------------------------------
 
+
 def run_wizard(console):
     """Ask y/n for each supported language. Returns list of selected lang keys."""
     console.print()
@@ -214,9 +215,11 @@ def run_wizard(console):
 
     selected = []
     for key, info in LANGUAGE_NODES.items():
-        raw = console.input(
-            f"  Include [bold]{info['label']}[/bold] node? [Y/n] "
-        ).strip().lower()
+        raw = (
+            console.input(f"  Include [bold]{info['label']}[/bold] node? [Y/n] ")
+            .strip()
+            .lower()
+        )
         if raw in ("", "y", "yes"):
             selected.append(key)
 
@@ -227,6 +230,7 @@ def run_wizard(console):
 # GraphML builder
 # ---------------------------------------------------------------------------
 
+
 def _build_graphml(project_name, selected_langs):
     """Return a GraphML string with one unconnected node per selected language."""
     node_blocks = []
@@ -235,7 +239,7 @@ def _build_graphml(project_name, selected_langs):
         node_blocks.append(
             GRAPHML_NODE.format(
                 idx=idx,
-                y=100 + (idx - 1) * 100,   # stack vertically, 100 px apart
+                y=100 + (idx - 1) * 100,  # stack vertically, 100 px apart
                 color=info["color"],
                 filename=info["filename"],
             )
@@ -249,6 +253,7 @@ def _build_graphml(project_name, selected_langs):
 # ---------------------------------------------------------------------------
 # Public entry points
 # ---------------------------------------------------------------------------
+
 
 def init_project_interactive(name, selected_langs, console):
     """Create a project with one node per selected language (no edges)."""
@@ -278,9 +283,7 @@ def init_project_interactive(name, selected_langs, console):
         (src_path / info["filename"]).write_text(info["stub"])
 
     # README
-    (project_path / "README.md").write_text(
-        README_TEMPLATE.format(project_name=name)
-    )
+    (project_path / "README.md").write_text(README_TEMPLATE.format(project_name=name))
 
     # Metadata
     metadata_info = ""
@@ -333,13 +336,9 @@ def init_project(name, template, console):
     with open(workflow_file, "w") as f:
         f.write(SAMPLE_GRAPHML)
 
-    (project_path / "src" / "script.py").write_text(
-        LANGUAGE_NODES["python"]["stub"]
-    )
+    (project_path / "src" / "script.py").write_text(LANGUAGE_NODES["python"]["stub"])
 
-    (project_path / "README.md").write_text(
-        README_TEMPLATE.format(project_name=name)
-    )
+    (project_path / "README.md").write_text(README_TEMPLATE.format(project_name=name))
 
     metadata_info = ""
     try:
