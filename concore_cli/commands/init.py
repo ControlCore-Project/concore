@@ -14,7 +14,7 @@ GRAPHML_HEADER = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
          xmlns:y="http://www.yworks.com/xml/graphml">
   <key for="node" id="d6" yfiles.type="nodegraphics"/>
   <key for="edge" id="d10" yfiles.type="edgegraphics"/>
-  <graph edgedefault="directed" id="1" projectName="{project_name}">
+  <graph edgedefault="directed" id="1">
 {nodes}
   </graph>
 </graphml>
