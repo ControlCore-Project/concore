@@ -1,8 +1,39 @@
 from pathlib import Path
+from xml.sax.saxutils import quoteattr
 from rich.panel import Panel
 
 from .metadata import write_study_metadata
 
+# ---------------------------------------------------------------------------
+# GraphML templates
+# ---------------------------------------------------------------------------
+
+GRAPHML_HEADER = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd"
+         xmlns:y="http://www.yworks.com/xml/graphml">
+  <key for="node" id="d6" yfiles.type="nodegraphics"/>
+  <key for="edge" id="d10" yfiles.type="edgegraphics"/>
+  <graph edgedefault="directed" id="1" projectName={project_name}>
+{nodes}
+  </graph>
+</graphml>
+"""
+
+GRAPHML_NODE = """    <node id="n{idx}">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="50" width="150" x="100" y="{y}"/>
+          <y:Fill color="{color}" opacity="1"/>
+          <y:BorderStyle color="#000000" width="1"/>
+          <y:NodeLabel>N{idx}:{filename}</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>"""
+
+# Single-node fallback used by non-interactive init
 SAMPLE_GRAPHML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd" xmlns:y="http://www.yworks.com/xml/graphml">
   <key for="node" id="d6" yfiles.type="nodegraphics"/>
@@ -23,20 +54,126 @@ SAMPLE_GRAPHML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </graphml>
 """
 
-SAMPLE_PYTHON = """import concore
+# ---------------------------------------------------------------------------
+# Per-language metadata: label, filename, node colour, source stub
+# ---------------------------------------------------------------------------
 
-concore.default_maxtime(100)
-concore.delay = 0.02
-
-init_simtime_val = "[0.0, 0.0]"
-val = concore.initval(init_simtime_val)
-
-while(concore.simtime<concore.maxtime):
-    while concore.unchanged():
-        val = concore.read(1,"data",init_simtime_val)
-    result = [v * 2 for v in val]
-    concore.write(1,"result",result,delta=0)
-"""
+LANGUAGE_NODES = {
+    "python": {
+        "label": "Python",
+        "filename": "script.py",
+        "color": "#ffcc00",
+        "stub": (
+            "import concore\n\n"
+            "concore.default_maxtime(100)\n"
+            "concore.delay = 0.02\n\n"
+            'init_val = "[0.0, 0.0]"\n'
+            "val = concore.initval(init_val)\n\n"
+            "while concore.simtime < concore.maxtime:\n"
+            "    while concore.unchanged():\n"
+            '        val = concore.read(1, "data", init_val)\n'
+            "    result = [v * 2 for v in val]\n"
+            '    concore.write(1, "result", result, delta=0)\n'
+        ),
+    },
+    "cpp": {
+        "label": "C++",
+        "filename": "script.cpp",
+        "color": "#ae85ca",
+        "stub": (
+            '#include "concore.hpp"\n'
+            "#include <vector>\n\n"
+            "int main() {\n"
+            "    Concore concore;\n"
+            "    concore.default_maxtime(100);\n"
+            "    concore.delay = 0.02;\n\n"
+            '    std::string init_val = "[0.0, 0.0]";\n'
+            "    std::vector<double> val = concore.initval(init_val);\n\n"
+            "    while (concore.simtime < concore.maxtime) {\n"
+            "        while (concore.unchanged()) {\n"
+            '            val = concore.read(1, "data", init_val);\n'
+            "        }\n"
+            "        // TODO: process val (e.g. multiply by 2)\n"
+            '        concore.write(1, "result", val, 0);\n'
+            "    }\n"
+            "    return 0;\n"
+            "}\n"
+        ),
+    },
+    "octave": {
+        "label": "Octave/MATLAB",
+        "filename": "script.m",
+        "color": "#6db3f2",
+        "stub": (
+            "global concore;\n"
+            "import_concore;\n\n"
+            "concore.delay = 0.02;\n"
+            "concore_default_maxtime(100);\n\n"
+            "init_val = '[0.0, 0.0]';\n"
+            "val = concore_initval(init_val);\n\n"
+            "while concore.simtime < concore.maxtime\n"
+            "    while concore_unchanged()\n"
+            "        val = concore_read(1, 'data', init_val);\n"
+            "    end\n"
+            "    result = val * 2;\n"
+            "    concore_write(1, 'result', result, 0);\n"
+            "end\n"
+        ),
+    },
+    "verilog": {
+        "label": "Verilog",
+        "filename": "script.v",
+        "color": "#f28c8c",
+        "stub": (
+            '`include "concore.v"\n\n'
+            "module script;\n"
+            "  // concore module provides: simtime, maxtime, readdata, writedata, unchanged\n"
+            "  // data[] and datasize are global arrays filled by readdata\n\n"
+            "  real init_val[1:0];  // [simtime, value]\n"
+            "  integer i;\n\n"
+            "  initial begin\n"
+            "    concore.simtime = 0;\n"
+            "    // set your maxtime (or let concore.maxtime file override)\n\n"
+            "    while (concore.simtime < 100) begin\n"
+            "      while (concore.unchanged(0)) begin\n"
+            "        // readdata fills concore.data[] and updates concore.simtime\n"
+            '        concore.readdata(1, "data", "[0.0,0.0]");\n'
+            "      end\n"
+            "      // TODO: process concore.data[0..datasize-1]\n"
+            "      concore.data[0] = concore.data[0] * 2;\n"
+            "      concore.datasize = 1;\n"
+            '      concore.writedata(1, "result", 0);  // delta=0\n'
+            "    end\n"
+            "    $finish;\n"
+            "  end\n"
+            "endmodule\n"
+        ),
+    },
+    "java": {
+        "label": "Java",
+        "filename": "Script.java",
+        "color": "#a8d8a8",
+        "stub": (
+            "import java.util.List;\n\n"
+            "public class Script {\n"
+            "    public static void main(String[] args) throws Exception {\n"
+            "        double maxtime = 100;\n"
+            '        String init_val = "[0.0, 0.0]";\n\n'
+            "        // All concore methods are static\n"
+            "        List<Object> val = concore.initVal(init_val);\n"
+            "        while (concore.getSimtime() < maxtime) {\n"
+            "            while (concore.unchanged()) {\n"
+            '                concore.ReadResult r = concore.read(1, "data", init_val);\n'
+            "                val = r.data;\n"
+            "            }\n"
+            "            // TODO: process val (List<Object>)\n"
+            '            concore.write(1, "result", val, 0);\n'
+            "        }\n"
+            "    }\n"
+            "}\n"
+        ),
+    },
+}
 
 README_TEMPLATE = """# {project_name}
 
@@ -59,14 +196,137 @@ A concore workflow project.
 
 ## Next Steps
 
-- Modify `workflow.graphml` to define your processing pipeline
-- Add Python/C++/MATLAB scripts to `src/`
+- Open `workflow.graphml` in yEd and connect the nodes with edges
 - Use `concore validate workflow.graphml` to check your workflow
 - Use `concore status` to monitor running processes
 """
 
 
+# ---------------------------------------------------------------------------
+# Interactive wizard
+# ---------------------------------------------------------------------------
+
+
+def run_wizard(console):
+    """Ask y/n for each supported language. Returns list of selected lang keys."""
+    console.print()
+    console.print(
+        "[bold cyan]Select the node types to include[/bold cyan]  "
+        "[dim](Enter = yes)[/dim]"
+    )
+    console.print()
+
+    selected = []
+    for key, info in LANGUAGE_NODES.items():
+        raw = (
+            console.input(f"  Include [bold]{info['label']}[/bold] node? [Y/n] ")
+            .strip()
+            .lower()
+        )
+        if raw in ("", "y", "yes"):
+            selected.append(key)
+
+    return selected
+
+
+# ---------------------------------------------------------------------------
+# GraphML builder
+# ---------------------------------------------------------------------------
+
+
+def _build_graphml(project_name, selected_langs):
+    """Return a GraphML string with one unconnected node per selected language."""
+    node_blocks = []
+    for idx, lang_key in enumerate(selected_langs, start=1):
+        info = LANGUAGE_NODES[lang_key]
+        node_blocks.append(
+            GRAPHML_NODE.format(
+                idx=idx,
+                y=100 + (idx - 1) * 100,  # stack vertically, 100 px apart
+                color=info["color"],
+                filename=info["filename"],
+            )
+        )
+    return GRAPHML_HEADER.format(
+        project_name=quoteattr(project_name),
+        nodes="\n".join(node_blocks),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Public entry points
+# ---------------------------------------------------------------------------
+
+
+def init_project_interactive(name, selected_langs, console):
+    """Create a project with one node per selected language (no edges)."""
+    project_path = Path(name)
+
+    if project_path.exists():
+        raise FileExistsError(f"Directory '{name}' already exists")
+
+    if not selected_langs:
+        console.print("[yellow]No languages selected — nothing to create.[/yellow]")
+        return
+
+    console.print()
+    console.print(f"[cyan]Creating project:[/cyan] {name}")
+
+    project_path.mkdir()
+    src_path = project_path / "src"
+    src_path.mkdir()
+
+    # workflow.graphml
+    workflow_file = project_path / "workflow.graphml"
+    workflow_file.write_text(_build_graphml(name, selected_langs), encoding="utf-8")
+
+    # one source stub per selected language
+    for lang_key in selected_langs:
+        info = LANGUAGE_NODES[lang_key]
+        (src_path / info["filename"]).write_text(info["stub"], encoding="utf-8")
+
+    # README
+    (project_path / "README.md").write_text(
+        README_TEMPLATE.format(project_name=name), encoding="utf-8"
+    )
+
+    # Metadata
+    metadata_info = ""
+    try:
+        metadata_path = write_study_metadata(
+            project_path,
+            generated_by="concore init --interactive",
+            workflow_file=workflow_file,
+        )
+        metadata_info = f"Metadata:\n  {metadata_path.name}\n\n"
+    except Exception as exc:
+        console.print(
+            f"[yellow]Warning:[/yellow] Failed to write study metadata: {exc}"
+        )
+
+    node_lines = "\n".join(
+        f"    N{i}: {LANGUAGE_NODES[k]['filename']}"
+        for i, k in enumerate(selected_langs, 1)
+    )
+
+    console.print()
+    console.print(
+        Panel.fit(
+            f"[green]✓[/green] Project created with {len(selected_langs)} node(s)!\n\n"
+            f"{metadata_info}"
+            f"Nodes (unconnected — connect them in yEd):\n{node_lines}\n\n"
+            f"Next steps:\n"
+            f"  cd {name}\n"
+            f"  concore validate workflow.graphml\n"
+            f"  concore run workflow.graphml",
+            title="Success",
+            border_style="green",
+        )
+    )
+
+
 def init_project(name, template, console):
+    """Non-interactive init — single Python node skeleton."""
     project_path = Path(name)
 
     if project_path.exists():
@@ -78,16 +338,16 @@ def init_project(name, template, console):
     (project_path / "src").mkdir()
 
     workflow_file = project_path / "workflow.graphml"
-    with open(workflow_file, "w") as f:
+    with open(workflow_file, "w", encoding="utf-8") as f:
         f.write(SAMPLE_GRAPHML)
 
-    sample_script = project_path / "src" / "script.py"
-    with open(sample_script, "w") as f:
-        f.write(SAMPLE_PYTHON)
+    (project_path / "src" / "script.py").write_text(
+        LANGUAGE_NODES["python"]["stub"], encoding="utf-8"
+    )
 
-    readme_file = project_path / "README.md"
-    with open(readme_file, "w") as f:
-        f.write(README_TEMPLATE.format(project_name=name))
+    (project_path / "README.md").write_text(
+        README_TEMPLATE.format(project_name=name), encoding="utf-8"
+    )
 
     metadata_info = ""
     try:
