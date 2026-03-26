@@ -11,6 +11,7 @@ from .commands.stop import stop_all
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
 from .commands.doctor import doctor_check
+from .commands.setup import setup_concore
 from . import __version__
 
 console = Console()
@@ -144,6 +145,22 @@ def doctor():
     """Check system readiness for running concore studies"""
     try:
         ok = doctor_check(console)
+        if not ok:
+            sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.option(
+    "--dry-run", is_flag=True, help="Preview detected config without writing"
+)
+@click.option("--force", is_flag=True, help="Overwrite existing config files")
+def setup(dry_run, force):
+    """Auto-detect tools and write concore config files"""
+    try:
+        ok = setup_concore(console, dry_run=dry_run, force=force)
         if not ok:
             sys.exit(1)
     except Exception as e:
