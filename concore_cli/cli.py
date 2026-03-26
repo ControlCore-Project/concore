@@ -153,9 +153,7 @@ def doctor():
 
 
 @cli.command()
-@click.option(
-    "--dry-run", is_flag=True, help="Preview detected config without writing"
-)
+@click.option("--dry-run", is_flag=True, help="Preview detected config without writing")
 @click.option("--force", is_flag=True, help="Overwrite existing config files")
 def setup(dry_run, force):
     """Auto-detect tools and write concore config files"""

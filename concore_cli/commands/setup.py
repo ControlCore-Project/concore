@@ -39,8 +39,7 @@ def _detect_tool_overrides(plat_key):
 def _write_text(path, content, dry_run, force, console):
     if path.exists() and not force:
         console.print(
-            f"[yellow]![/yellow] Skipping {path.name} "
-            "(already exists; use --force)"
+            f"[yellow]![/yellow] Skipping {path.name} (already exists; use --force)"
         )
         return True
     if dry_run:
@@ -71,8 +70,7 @@ def setup_concore(console, dry_run=False, force=False):
     if tool_overrides:
         tools_content = "\n".join(f"{k}={v}" for k, v in tool_overrides) + "\n"
         wrote_any = (
-            _write_text(tools_file, tools_content, dry_run, force, console)
-            or wrote_any
+            _write_text(tools_file, tools_content, dry_run, force, console) or wrote_any
         )
     else:
         console.print("[yellow]![/yellow] No tool paths detected for concore.tools")
@@ -81,18 +79,16 @@ def setup_concore(console, dry_run=False, force=False):
     if docker_command:
         sudo_content = f"{docker_command}\n"
         wrote_any = (
-            _write_text(sudo_file, sudo_content, dry_run, force, console)
-            or wrote_any
+            _write_text(sudo_file, sudo_content, dry_run, force, console) or wrote_any
         )
     else:
-        console.print("[yellow]![/yellow] Docker/Podman not detected; not writing concore.sudo")
+        console.print(
+            "[yellow]![/yellow] Docker/Podman not detected; not writing concore.sudo"
+        )
 
     octave_file = Path(concore_path) / "concore.octave"
     if octave_found:
-        wrote_any = (
-            _write_text(octave_file, "", dry_run, force, console)
-            or wrote_any
-        )
+        wrote_any = _write_text(octave_file, "", dry_run, force, console) or wrote_any
     else:
         console.print("[dim]-[/dim] Octave not detected; not writing concore.octave")
 
