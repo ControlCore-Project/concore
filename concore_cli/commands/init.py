@@ -154,19 +154,20 @@ LANGUAGE_NODES = {
         "filename": "Script.java",
         "color": "#a8d8a8",
         "stub": (
+            "import java.util.List;\n\n"
             "public class Script {\n"
             "    public static void main(String[] args) throws Exception {\n"
-            "        concoredocker cd = new concoredocker();\n"
             "        double maxtime = 100;\n"
-            "        double delay   = 0.02;\n"
             '        String init_val = "[0.0, 0.0]";\n\n'
-            "        String val = cd.initval(init_val);\n"
-            "        while (cd.simtime() < maxtime) {\n"
-            "            while (cd.unchanged()) {\n"
-            '                val = cd.read(1, "data", init_val);\n'
+            "        // All concore methods are static\n"
+            "        List<Object> val = concore.initVal(init_val);\n"
+            "        while (concore.getSimtime() < maxtime) {\n"
+            "            while (concore.unchanged()) {\n"
+            '                concore.ReadResult r = concore.read(1, "data", init_val);\n'
+            "                val = r.data;\n"
             "            }\n"
-            "            // TODO: process val\n"
-            '            cd.write(1, "result", val, 0);\n'
+            "            // TODO: process val (List<Object>)\n"
+            '            concore.write(1, "result", val, 0);\n'
             "        }\n"
             "    }\n"
             "}\n"
