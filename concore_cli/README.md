@@ -62,10 +62,19 @@ Generates and optionally builds a workflow from a GraphML file.
 - `-o, --output <dir>` - Output directory (default: out)
 - `-t, --type <type>` - Execution type: windows, posix, or docker (default: windows)
 - `--auto-build` - Automatically run build script after generation
+- `--compose` - Generate `docker-compose.yml` (only valid with `--type docker`)
 
 **Example:**
 ```bash
 concore run workflow.graphml --source ./src --output ./build --auto-build
+```
+
+Docker compose example:
+
+```bash
+concore run workflow.graphml --source ./src --output ./out --type docker --compose
+cd out
+docker compose up
 ```
 
 ### `concore validate <workflow_file>`

@@ -233,6 +233,105 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("cp ../src/subdir/script.iport concore.iport", build_script)
             self.assertIn("cd ..", build_script)
 
+    def test_run_command_compose_requires_docker_type(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "run",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                    "--compose",
+                ],
+            )
+            self.assertNotEqual(result.exit_code, 0)
+            self.assertIn(
+                "--compose can only be used with --type docker", result.output
+            )
+
+    def test_run_command_docker_compose_single_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "run",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "docker",
+                    "--compose",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            compose_path = Path("out/docker-compose.yml")
+            self.assertTrue(compose_path.exists())
+            compose_content = compose_path.read_text()
+            self.assertIn("services:", compose_content)
+            self.assertIn("container_name: 'N1'", compose_content)
+            self.assertIn("image: 'docker-script'", compose_content)
+
+            metadata = json.loads(Path("out/STUDY.json").read_text())
+            self.assertIn("docker-compose.yml", metadata["checksums"])
+
+    def test_run_command_docker_compose_multi_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("src").mkdir()
+            Path("src/common.py").write_text(
+                "import concore\n\ndef step():\n    return None\n"
+            )
+
+            workflow = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd" xmlns:y="http://www.yworks.com/xml/graphml">
+  <key for="node" id="d6" yfiles.type="nodegraphics"/>
+  <key for="edge" id="d10" yfiles.type="edgegraphics"/>
+  <graph edgedefault="directed" id="G">
+        <node id="n1"><data key="d6"><y:ShapeNode><y:NodeLabel>A:common.py</y:NodeLabel></y:ShapeNode></data></node>
+        <node id="n2"><data key="d6"><y:ShapeNode><y:NodeLabel>B:common.py</y:NodeLabel></y:ShapeNode></data></node>
+        <node id="n3"><data key="d6"><y:ShapeNode><y:NodeLabel>C:common.py</y:NodeLabel></y:ShapeNode></data></node>
+        <edge source="n1" target="n2"><data key="d10"><y:PolyLineEdge><y:EdgeLabel>0x1000_AB</y:EdgeLabel></y:PolyLineEdge></data></edge>
+        <edge source="n2" target="n3"><data key="d10"><y:PolyLineEdge><y:EdgeLabel>0x1001_BC</y:EdgeLabel></y:PolyLineEdge></data></edge>
+  </graph>
+</graphml>
+"""
+            Path("workflow.graphml").write_text(workflow)
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "run",
+                    "workflow.graphml",
+                    "--source",
+                    "src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "docker",
+                    "--compose",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            compose_content = Path("out/docker-compose.yml").read_text()
+            self.assertIn("container_name: 'A'", compose_content)
+            self.assertIn("container_name: 'B'", compose_content)
+            self.assertIn("container_name: 'C'", compose_content)
+            self.assertIn("image: 'docker-common'", compose_content)
+
     def test_run_command_shared_source_specialization_merges_edge_params(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             Path("src").mkdir()
