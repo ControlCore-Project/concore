@@ -240,6 +240,20 @@ public:
             std::cerr << "Failed to create shared memory segment.\n";
             return;
         }
+
+        // Verify the segment is large enough (shmget won't resize an existing segment)
+        struct shmid_ds shm_info;
+        if (shmctl(shmId_create, IPC_STAT, &shm_info) == 0 && shm_info.shm_segsz < SHM_SIZE) {
+            std::cerr << "Shared memory segment too small (" << shm_info.shm_segsz
+                      << " bytes, need " << SHM_SIZE << "). Removing and recreating.\n";
+            shmctl(shmId_create, IPC_RMID, nullptr);
+            shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
+            if (shmId_create == -1) {
+                std::cerr << "Failed to recreate shared memory segment.\n";
+                return;
+            }
+        }
+
         sharedData_create = static_cast<char*>(shmat(shmId_create, NULL, 0));
         if (sharedData_create == reinterpret_cast<char*>(-1)) {
             std::cerr << "Failed to attach shared memory segment.\n";
@@ -421,6 +435,8 @@ public:
         try {
             if (shmId_create == -1)
                 throw 505;
+            if (sharedData_create == nullptr)
+                throw 506;
             val.insert(val.begin(), simtime + delta);
             std::ostringstream outfile;
             outfile << '[';

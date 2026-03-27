@@ -265,6 +265,20 @@ private:
 
         if (shmId_create == -1) {
             std::cerr << "Failed to create shared memory segment." << std::endl;
+            return;
+        }
+
+        // Verify the segment is large enough (shmget won't resize an existing segment)
+        struct shmid_ds shm_info;
+        if (shmctl(shmId_create, IPC_STAT, &shm_info) == 0 && shm_info.shm_segsz < SHM_SIZE) {
+            std::cerr << "Shared memory segment too small (" << shm_info.shm_segsz
+                      << " bytes, need " << SHM_SIZE << "). Removing and recreating." << std::endl;
+            shmctl(shmId_create, IPC_RMID, nullptr);
+            shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
+            if (shmId_create == -1) {
+                std::cerr << "Failed to recreate shared memory segment." << std::endl;
+                return;
+            }
         }
 
         // Attach the shared memory segment to the process's address space
@@ -660,6 +674,8 @@ private:
         try {
             std::ostringstream outfile;
             if(shmId_create != -1){
+                if (sharedData_create == nullptr)
+                    throw 506;
                 val.insert(val.begin(),simtime+delta);
                 outfile<<'[';
                 for(int i=0;i<val.size()-1;i++)
@@ -697,6 +713,8 @@ private:
         this_thread::sleep_for(timespan);
         try {
             if(shmId_create != -1){
+                if (sharedData_create == nullptr)
+                    throw 506;
                 if (val.size() >= SHM_SIZE) {
                     std::cerr << "ERROR: write_SM payload (" << val.size()
                               << " bytes) exceeds " << SHM_SIZE - 1
