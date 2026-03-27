@@ -171,6 +171,7 @@ def editor():
     """Launch concore-editor"""
     try:
         from .commands.editor import launch_editor
+
         launch_editor()
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")

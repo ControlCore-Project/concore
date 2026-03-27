@@ -1,14 +1,12 @@
-import click
 import os
 import sys
 import shutil
 import subprocess
-import urllib.parse
-from pathlib import Path
 from rich.console import Console
 
 console = Console()
 EDITOR_URL = "https://controlcore-project.github.io/concore-editor/"
+
 
 def open_editor_url(url):
     try:
@@ -27,6 +25,7 @@ def open_editor_url(url):
                     console.print("unable to open browser for the concore editor.")
     except Exception as e:
         console.print(f"unable to open browser for the concore editor. ({e})")
+
 
 def launch_editor():
     console.print("[cyan]Opening concore-editor...[/cyan]")
