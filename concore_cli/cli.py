@@ -166,5 +166,16 @@ def setup(dry_run, force):
         sys.exit(1)
 
 
+@cli.command()
+def editor():
+    """Launch concore-editor"""
+    try:
+        from .commands.editor import launch_editor
+        launch_editor()
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     cli()
