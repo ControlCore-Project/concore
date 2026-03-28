@@ -6,7 +6,7 @@ FIXTURE_DIR = Path(__file__).parent / "protocol_fixtures"
 PHASE1_CASES_PATH = FIXTURE_DIR / "python_phase1_cases.json"
 PHASE2_MATRIX_PATH = FIXTURE_DIR / "cross_runtime_matrix.phase2.json"
 
-EXPECTED_RUNTIMES = {"python", "cpp", "matlab", "octave", "verilog"}
+EXPECTED_RUNTIMES = {"python", "cpp", "java", "matlab", "octave", "verilog"}
 EXPECTED_CLASSIFICATIONS = {"required", "implementation_defined", "known_deviation"}
 EXPECTED_STATUSES = {"observed_pass", "observed_fail", "not_audited"}
 
@@ -30,6 +30,8 @@ def test_phase2_matrix_metadata_and_enums():
     assert doc["phase"] == "2"
     assert doc["mode"] == "report_only"
     assert doc["source_fixture"] == "python_phase1_cases.json"
+    assert "java" in doc["runtimes"]
+    assert len(doc["runtimes"]) == len(set(doc["runtimes"]))
     assert set(doc["runtimes"]) == EXPECTED_RUNTIMES
     assert set(doc["classifications"]) == EXPECTED_CLASSIFICATIONS
     assert set(doc["statuses"]) == EXPECTED_STATUSES
@@ -55,3 +57,12 @@ def test_phase2_matrix_rows_have_consistent_shape():
             assert isinstance(result["note"], str) and result["note"].strip()
             if runtime == "python":
                 assert result["status"] == "observed_pass"
+
+
+def test_phase2_matrix_java_status_is_recorded_for_each_case():
+    for row in _phase2_matrix()["cases"]:
+        java_result = row["runtime_results"]["java"]
+        assert java_result["status"] in EXPECTED_STATUSES
+        assert java_result["classification"] in EXPECTED_CLASSIFICATIONS
+        assert isinstance(java_result["note"], str) and java_result["note"].strip()
+        assert java_result["status"] == "observed_pass"
