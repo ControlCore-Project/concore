@@ -1,5 +1,7 @@
-import sys
+import re
+import shlex
 import subprocess
+import sys
 from pathlib import Path
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -15,7 +17,113 @@ def _find_mkconcore_path():
     return None
 
 
-def run_workflow(workflow_file, source, output, exec_type, auto_build, console):
+def _yaml_quote(value):
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _parse_docker_run_line(line):
+    text = line.strip()
+    if not text or text.startswith("#"):
+        return None
+
+    if text.endswith("&"):
+        text = text[:-1].strip()
+
+    try:
+        tokens = shlex.split(text)
+    except ValueError:
+        return None
+
+    if "run" not in tokens:
+        return None
+
+    run_index = tokens.index("run")
+    args = tokens[run_index + 1 :]
+
+    container_name = None
+    volumes = []
+    image = None
+
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token.startswith("--name="):
+            container_name = token.split("=", 1)[1]
+        elif token == "--name" and i + 1 < len(args):
+            container_name = args[i + 1]
+            i += 1
+        elif token in ("-v", "--volume") and i + 1 < len(args):
+            volumes.append(args[i + 1])
+            i += 1
+        elif token.startswith("--volume="):
+            volumes.append(token.split("=", 1)[1])
+        elif token.startswith("-"):
+            pass
+        else:
+            image = token
+            break
+        i += 1
+
+    if not container_name or not image:
+        return None
+
+    return {
+        "container_name": container_name,
+        "volumes": volumes,
+        "image": image,
+    }
+
+
+def _write_docker_compose(output_path):
+    run_script = output_path / "run"
+    if not run_script.exists():
+        return None
+
+    services = []
+    for line in run_script.read_text(encoding="utf-8").splitlines():
+        parsed = _parse_docker_run_line(line)
+        if parsed is not None:
+            services.append(parsed)
+
+    if not services:
+        return None
+
+    compose_lines = ["services:"]
+
+    for index, service in enumerate(services, start=1):
+        service_name = re.sub(r"[^A-Za-z0-9_.-]", "-", service["container_name"]).strip(
+            "-."
+        )
+        if not service_name:
+            service_name = f"service-{index}"
+        elif not service_name[0].isalnum():
+            service_name = f"service-{service_name}"
+
+        compose_lines.append(f"  {service_name}:")
+        compose_lines.append(f"    image: {_yaml_quote(service['image'])}")
+        compose_lines.append(
+            f"    container_name: {_yaml_quote(service['container_name'])}"
+        )
+        if service["volumes"]:
+            compose_lines.append("    volumes:")
+            for volume_spec in service["volumes"]:
+                compose_lines.append(f"      - {_yaml_quote(volume_spec)}")
+
+    compose_lines.append("")
+    compose_path = output_path / "docker-compose.yml"
+    compose_path.write_text("\n".join(compose_lines), encoding="utf-8")
+    return compose_path
+
+
+def run_workflow(
+    workflow_file,
+    source,
+    output,
+    exec_type,
+    auto_build,
+    console,
+    compose=False,
+):
     workflow_path = Path(workflow_file).resolve()
     source_path = Path(source).resolve()
     output_path = Path(output).resolve()
@@ -34,7 +142,12 @@ def run_workflow(workflow_file, source, output, exec_type, auto_build, console):
     console.print(f"[cyan]Source:[/cyan] {source_path}")
     console.print(f"[cyan]Output:[/cyan] {output_path}")
     console.print(f"[cyan]Type:[/cyan] {exec_type}")
+    if compose:
+        console.print("[cyan]Compose:[/cyan] enabled")
     console.print()
+
+    if compose and exec_type != "docker":
+        raise ValueError("--compose can only be used with --type docker")
 
     mkconcore_path = _find_mkconcore_path()
     if mkconcore_path is None:
@@ -73,6 +186,18 @@ def run_workflow(workflow_file, source, output, exec_type, auto_build, console):
             console.print(
                 f"[green]✓[/green] Workflow generated in [cyan]{output_path}[/cyan]"
             )
+
+            if compose:
+                compose_path = _write_docker_compose(output_path)
+                if compose_path is not None:
+                    console.print(
+                        f"[green]✓[/green] Compose file written to [cyan]{compose_path}[/cyan]"
+                    )
+                else:
+                    console.print(
+                        "[yellow]Warning:[/yellow] Could not generate docker-compose.yml from run script"
+                    )
+
             try:
                 metadata_path = write_study_metadata(
                     output_path,
@@ -128,6 +253,10 @@ def run_workflow(workflow_file, source, output, exec_type, auto_build, console):
                     if e.stderr:
                         console.print(e.stderr)
 
+    run_command = "docker compose up" if compose else "./run"
+    if exec_type == "windows":
+        run_command = "run.bat"
+
     console.print()
     console.print(
         Panel.fit(
@@ -135,7 +264,7 @@ def run_workflow(workflow_file, source, output, exec_type, auto_build, console):
             f"To run your workflow:\n"
             f"  cd {output_path}\n"
             f"  {'build.bat' if exec_type == 'windows' else './build'}\n"
-            f"  {'run.bat' if exec_type == 'windows' else './run'}",
+            f"  {run_command}",
             title="Next Steps",
             border_style="green",
         )

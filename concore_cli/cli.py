@@ -70,10 +70,23 @@ def init(name, template, interactive):
 @click.option(
     "--auto-build", is_flag=True, help="Automatically run build after generation"
 )
-def run(workflow_file, source, output, type, auto_build):
+@click.option(
+    "--compose",
+    is_flag=True,
+    help="Generate docker-compose.yml in output directory (docker type only)",
+)
+def run(workflow_file, source, output, type, auto_build, compose):
     """Run a concore workflow"""
     try:
-        run_workflow(workflow_file, source, output, type, auto_build, console)
+        run_workflow(
+            workflow_file,
+            source,
+            output,
+            type,
+            auto_build,
+            console,
+            compose=compose,
+        )
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
