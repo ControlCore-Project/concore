@@ -40,6 +40,8 @@ private:
     string inpath = "./in";
     string outpath = "./out";
 
+    static constexpr size_t SHM_SIZE = 4096;
+
     int shmId_create = -1;
     int shmId_get = -1;
 
@@ -259,10 +261,24 @@ private:
      */
     void createSharedMemory(key_t key)
     {
-        shmId_create = shmget(key, 256, IPC_CREAT | 0666);
+        shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
 
         if (shmId_create == -1) {
             std::cerr << "Failed to create shared memory segment." << std::endl;
+            return;
+        }
+
+        // Verify the segment is large enough (shmget won't resize an existing segment)
+        struct shmid_ds shm_info;
+        if (shmctl(shmId_create, IPC_STAT, &shm_info) == 0 && shm_info.shm_segsz < SHM_SIZE) {
+            std::cerr << "Shared memory segment too small (" << shm_info.shm_segsz
+                      << " bytes, need " << SHM_SIZE << "). Removing and recreating." << std::endl;
+            shmctl(shmId_create, IPC_RMID, nullptr);
+            shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
+            if (shmId_create == -1) {
+                std::cerr << "Failed to recreate shared memory segment." << std::endl;
+                return;
+            }
         }
 
         // Attach the shared memory segment to the process's address space
@@ -284,7 +300,7 @@ private:
         const int MAX_RETRY = 100;
         while (retry < MAX_RETRY) {
             // Get the shared memory segment created by Writer
-            shmId_get = shmget(key, 256, 0666);
+            shmId_get = shmget(key, SHM_SIZE, 0666);
             // Check if shared memory exists
             if (shmId_get != -1) {
                 break; // Break the loop if shared memory exists
@@ -490,7 +506,7 @@ private:
         try {
         if (shmId_get != -1) {
             if (sharedData_get && sharedData_get[0] != '\0') {
-                std::string message(sharedData_get, strnlen(sharedData_get, 256));
+                std::string message(sharedData_get, strnlen(sharedData_get, SHM_SIZE));
                 ins = message;
             } 
             else 
@@ -515,7 +531,7 @@ private:
             this_thread::sleep_for(timespan);
             try{
                 if(shmId_get != -1) {
-                    std::string message(sharedData_get, strnlen(sharedData_get, 256));
+                    std::string message(sharedData_get, strnlen(sharedData_get, SHM_SIZE));
                     ins = message;
                     retrycount++;
                 }
@@ -658,13 +674,21 @@ private:
         try {
             std::ostringstream outfile;
             if(shmId_create != -1){
+                if (sharedData_create == nullptr)
+                    throw 506;
                 val.insert(val.begin(),simtime+delta);
                 outfile<<'[';
                 for(int i=0;i<val.size()-1;i++)
                     outfile<<val[i]<<',';
                 outfile<<val[val.size()-1]<<']';
                 std::string result = outfile.str();
-                std::strncpy(sharedData_create, result.c_str(), 256 - 1);
+                if (result.size() >= SHM_SIZE) {
+                    std::cerr << "ERROR: write_SM payload (" << result.size()
+                              << " bytes) exceeds " << SHM_SIZE - 1
+                              << "-byte shared memory limit. Data truncated!" << std::endl;
+                }
+                std::strncpy(sharedData_create, result.c_str(), SHM_SIZE - 1);
+                sharedData_create[SHM_SIZE - 1] = '\0';
                 // simtime must not be mutated here (issue #385).
                 }
             else{
@@ -689,7 +713,15 @@ private:
         this_thread::sleep_for(timespan);
         try {
             if(shmId_create != -1){
-                std::strncpy(sharedData_create, val.c_str(), 256 - 1);
+                if (sharedData_create == nullptr)
+                    throw 506;
+                if (val.size() >= SHM_SIZE) {
+                    std::cerr << "ERROR: write_SM payload (" << val.size()
+                              << " bytes) exceeds " << SHM_SIZE - 1
+                              << "-byte shared memory limit. Data truncated!" << std::endl;
+                }
+                std::strncpy(sharedData_create, val.c_str(), SHM_SIZE - 1);
+                sharedData_create[SHM_SIZE - 1] = '\0';
             }
             else throw 505;
         }

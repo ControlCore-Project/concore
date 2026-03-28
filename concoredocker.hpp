@@ -26,6 +26,8 @@
 
 class Concore {
 private:
+    static constexpr size_t SHM_SIZE = 4096;
+
     int shmId_create = -1;
     int shmId_get = -1;
     char* sharedData_create = nullptr;
@@ -233,11 +235,25 @@ public:
 
 #ifdef __linux__
     void createSharedMemory(key_t key) {
-        shmId_create = shmget(key, 256, IPC_CREAT | 0666);
+        shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
         if (shmId_create == -1) {
             std::cerr << "Failed to create shared memory segment.\n";
             return;
         }
+
+        // Verify the segment is large enough (shmget won't resize an existing segment)
+        struct shmid_ds shm_info;
+        if (shmctl(shmId_create, IPC_STAT, &shm_info) == 0 && shm_info.shm_segsz < SHM_SIZE) {
+            std::cerr << "Shared memory segment too small (" << shm_info.shm_segsz
+                      << " bytes, need " << SHM_SIZE << "). Removing and recreating.\n";
+            shmctl(shmId_create, IPC_RMID, nullptr);
+            shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
+            if (shmId_create == -1) {
+                std::cerr << "Failed to recreate shared memory segment.\n";
+                return;
+            }
+        }
+
         sharedData_create = static_cast<char*>(shmat(shmId_create, NULL, 0));
         if (sharedData_create == reinterpret_cast<char*>(-1)) {
             std::cerr << "Failed to attach shared memory segment.\n";
@@ -249,7 +265,7 @@ public:
         int retry = 0;
         const int MAX_RETRY = 100;
         while (retry < MAX_RETRY) {
-            shmId_get = shmget(key, 256, 0666);
+            shmId_get = shmget(key, SHM_SIZE, 0666);
             if (shmId_get != -1)
                 break;
             std::cout << "Shared memory does not exist. Make sure the writer process is running.\n";
@@ -345,7 +361,7 @@ public:
         std::string ins;
         try {
             if (shmId_get != -1 && sharedData_get && sharedData_get[0] != '\0')
-                ins = std::string(sharedData_get, strnlen(sharedData_get, 256));
+                ins = std::string(sharedData_get, strnlen(sharedData_get, SHM_SIZE));
             else
                 throw 505;
         } catch (...) {
@@ -359,7 +375,7 @@ public:
             std::this_thread::sleep_for(std::chrono::seconds(delay));
             try {
                 if (shmId_get != -1 && sharedData_get) {
-                    ins = std::string(sharedData_get, strnlen(sharedData_get, 256));
+                    ins = std::string(sharedData_get, strnlen(sharedData_get, SHM_SIZE));
                     retrycount++;
                 } else {
                     retrycount++;
@@ -419,6 +435,8 @@ public:
         try {
             if (shmId_create == -1)
                 throw 505;
+            if (sharedData_create == nullptr)
+                throw 506;
             val.insert(val.begin(), simtime + delta);
             std::ostringstream outfile;
             outfile << '[';
@@ -426,7 +444,13 @@ public:
                 outfile << val[i] << ',';
             outfile << val[val.size() - 1] << ']';
             std::string result = outfile.str();
-            std::strncpy(sharedData_create, result.c_str(), 256 - 1);
+            if (result.size() >= SHM_SIZE) {
+                std::cerr << "ERROR: write_SM payload (" << result.size()
+                          << " bytes) exceeds " << SHM_SIZE - 1
+                          << "-byte shared memory limit. Data truncated!" << std::endl;
+            }
+            std::strncpy(sharedData_create, result.c_str(), SHM_SIZE - 1);
+            sharedData_create[SHM_SIZE - 1] = '\0';
         } catch (...) {
             std::cerr << "skipping +" << outpath << port << "/" << name << "\n";
         }
