@@ -6,6 +6,7 @@
   "runtimes": [
     "python",
     "cpp",
+    "java",
     "matlab",
     "octave",
     "verilog"
@@ -34,6 +35,11 @@
           "status": "not_audited",
           "classification": "required",
           "note": "Audit planned in phase 2."
+        },
+        "java": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Validated by TestLiteralEval.java and TestConcoredockerApi.java."
         },
         "matlab": {
           "status": "not_audited",
@@ -66,6 +72,11 @@
           "classification": "required",
           "note": "Audit planned in phase 2."
         },
+        "java": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Validated by TestLiteralEval.java and TestConcoredockerApi.java."
+        },
         "matlab": {
           "status": "not_audited",
           "classification": "required",
@@ -96,6 +107,11 @@
           "status": "not_audited",
           "classification": "required",
           "note": "Audit planned in phase 2."
+        },
+        "java": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Validated by TestLiteralEval.java and TestConcoredockerApi.java."
         },
         "matlab": {
           "status": "not_audited",
@@ -128,6 +144,11 @@
           "classification": "required",
           "note": "Audit planned in phase 2."
         },
+        "java": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Validated by TestLiteralEval.java and TestConcoredockerApi.java."
+        },
         "matlab": {
           "status": "not_audited",
           "classification": "required",
@@ -159,6 +180,11 @@
           "classification": "required",
           "note": "Audit planned in phase 2."
         },
+        "java": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Validated by TestLiteralEval.java and TestConcoredockerApi.java."
+        },
         "matlab": {
           "status": "not_audited",
           "classification": "required",
@@ -189,6 +215,11 @@
           "status": "not_audited",
           "classification": "required",
           "note": "Audit planned in phase 2."
+        },
+        "java": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Validated by TestLiteralEval.java and TestConcoredockerApi.java."
         },
         "matlab": {
           "status": "not_audited",

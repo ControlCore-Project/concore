@@ -16,4 +16,12 @@ Phase-2 scope (mapping only):
 
 - No runtime behavior changes.
 - Adds a cross-runtime matrix to track per-case audit status and classification.
-- Keeps CI non-blocking for non-Python runtimes by marking them as `not_audited` until adapters are added.
+- Java runtime entries are tracked with observed status from the Java regression suite (`TestLiteralEval.java`, `TestConcoredockerApi.java`).
+- Current baseline records Java as `observed_pass` for the listed phase-2 cases.
+- Keeps CI non-blocking for non-Python runtimes that are not yet audited by marking them as `not_audited`.
+
+Java conformance execution in CI:
+
+- The `java-test` job in `.github/workflows/ci.yml` downloads `jeromq` for classpath compatibility.
+- It compiles `concoredocker.java`, `TestLiteralEval.java`, and `TestConcoredockerApi.java`.
+- It runs both Java test classes and records initial phase-2 matrix status as observed in CI.
