@@ -55,8 +55,8 @@ concore init my-project
 # Validate your workflow
 concore validate workflow.graphml
 
-# Run your workflow
-concore run workflow.graphml --auto-build
+# Compile your workflow
+concore build workflow.graphml --auto-build
 
 # Monitor running processes
 concore status

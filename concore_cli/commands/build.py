@@ -115,7 +115,7 @@ def _write_docker_compose(output_path):
     return compose_path
 
 
-def run_workflow(
+def build_workflow(
     workflow_file,
     source,
     output,
@@ -201,7 +201,7 @@ def run_workflow(
             try:
                 metadata_path = write_study_metadata(
                     output_path,
-                    generated_by="concore run",
+                    generated_by="concore build",
                     workflow_file=workflow_path,
                 )
                 console.print(

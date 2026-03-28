@@ -1,5 +1,5 @@
 from .init import init_project
-from .run import run_workflow
+from .build import build_workflow
 from .validate import validate_workflow
 from .status import show_status
 from .stop import stop_all
@@ -8,7 +8,7 @@ from .doctor import doctor_check
 
 __all__ = [
     "init_project",
-    "run_workflow",
+    "build_workflow",
     "validate_workflow",
     "show_status",
     "stop_all",

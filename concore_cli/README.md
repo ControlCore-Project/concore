@@ -20,8 +20,8 @@ cd my-project
 # Validate your workflow
 concore validate workflow.graphml
 
-# Run your workflow
-concore run workflow.graphml
+# Build your workflow
+concore build workflow.graphml
 
 # Check running processes
 concore status
@@ -53,9 +53,9 @@ my-workflow/
 └── README.md          # Project documentation
 ```
 
-### `concore run <workflow_file>`
+### `concore build <workflow_file>`
 
-Generates and optionally builds a workflow from a GraphML file.
+Compiles a concore workflow GraphML file into executable scripts (POSIX, Windows, or Docker).
 
 **Options:**
 - `-s, --source <dir>` - Source directory (default: src)
@@ -66,13 +66,13 @@ Generates and optionally builds a workflow from a GraphML file.
 
 **Example:**
 ```bash
-concore run workflow.graphml --source ./src --output ./build --auto-build
+concore build workflow.graphml --source ./src --output ./build --auto-build
 ```
 
 Docker compose example:
 
 ```bash
-concore run workflow.graphml --source ./src --output ./out --type docker --compose
+concore build workflow.graphml --source ./src --output ./out --type docker --compose
 cd out
 docker compose up
 ```
@@ -150,7 +150,7 @@ concore stop
 
 5. **Generate and run**
    ```bash
-   concore run workflow.graphml --auto-build
+   concore build workflow.graphml --auto-build
    cd out
    ./run.bat  # or ./run on Linux/Mac
    ```

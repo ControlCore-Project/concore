@@ -183,9 +183,9 @@ A concore workflow project.
 
 1. Edit your workflow in `workflow.graphml` using yEd or similar GraphML editor
 2. Add your processing scripts to the `src/` directory
-3. Run your workflow:
+3. Build your workflow:
    ```
-   concore run workflow.graphml
+   concore build workflow.graphml
    ```
 
 ## Project Structure
@@ -318,7 +318,7 @@ def init_project_interactive(name, selected_langs, console):
             f"Next steps:\n"
             f"  cd {name}\n"
             f"  concore validate workflow.graphml\n"
-            f"  concore run workflow.graphml",
+            f"  concore build workflow.graphml",
             title="Success",
             border_style="green",
         )
@@ -371,7 +371,7 @@ def init_project(name, template, console):
             f"Next steps:\n"
             f"  cd {name}\n"
             f"  concore validate workflow.graphml\n"
-            f"  concore run workflow.graphml",
+            f"  concore build workflow.graphml",
             title="Success",
             border_style="green",
         )

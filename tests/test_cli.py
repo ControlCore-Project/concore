@@ -88,15 +88,16 @@ class TestConcoreCLI(unittest.TestCase):
         result = self.runner.invoke(cli, ["status"])
         self.assertEqual(result.exit_code, 0)
 
-    def test_run_command_missing_source(self):
+    def test_build_command_missing_source(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
             result = self.runner.invoke(
-                cli, ["run", "test-project/workflow.graphml", "--source", "nonexistent"]
+                cli,
+                ["build", "test-project/workflow.graphml", "--source", "nonexistent"],
             )
             self.assertNotEqual(result.exit_code, 0)
 
-    def test_run_command_from_project_dir(self):
+    def test_build_command_from_project_dir(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
             self.assertEqual(result.exit_code, 0)
@@ -104,7 +105,7 @@ class TestConcoreCLI(unittest.TestCase):
             result = self.runner.invoke(
                 cli,
                 [
-                    "run",
+                    "build",
                     "test-project/workflow.graphml",
                     "--source",
                     "test-project/src",
@@ -119,12 +120,12 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertTrue(Path("out/STUDY.json").exists())
 
             metadata = json.loads(Path("out/STUDY.json").read_text())
-            self.assertEqual(metadata["generated_by"], "concore run")
+            self.assertEqual(metadata["generated_by"], "concore build")
             self.assertEqual(metadata["study_name"], "out")
             self.assertEqual(metadata["schema_version"], 1)
             self.assertIn("workflow.graphml", metadata["checksums"])
 
-    def test_run_command_default_type(self):
+    def test_build_command_default_type(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
             self.assertEqual(result.exit_code, 0)
@@ -132,7 +133,7 @@ class TestConcoreCLI(unittest.TestCase):
             result = self.runner.invoke(
                 cli,
                 [
-                    "run",
+                    "build",
                     "test-project/workflow.graphml",
                     "--source",
                     "test-project/src",
@@ -146,7 +147,7 @@ class TestConcoreCLI(unittest.TestCase):
             else:
                 self.assertTrue(Path("out/build").exists())
 
-    def test_run_command_nested_output_path(self):
+    def test_build_command_nested_output_path(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
             self.assertEqual(result.exit_code, 0)
@@ -154,7 +155,7 @@ class TestConcoreCLI(unittest.TestCase):
             result = self.runner.invoke(
                 cli,
                 [
-                    "run",
+                    "build",
                     "test-project/workflow.graphml",
                     "--source",
                     "test-project/src",
@@ -167,7 +168,7 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(Path("build/out/src/concore.py").exists())
 
-    def test_run_command_subdir_source(self):
+    def test_build_command_subdir_source(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
             self.assertEqual(result.exit_code, 0)
@@ -184,7 +185,7 @@ class TestConcoreCLI(unittest.TestCase):
             result = self.runner.invoke(
                 cli,
                 [
-                    "run",
+                    "build",
                     "test-project/workflow.graphml",
                     "--source",
                     "test-project/src",
@@ -197,7 +198,7 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(Path("out/src/subdir/script.py").exists())
 
-    def test_run_command_docker_subdir_source_build_paths(self):
+    def test_build_command_docker_subdir_source_build_paths(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
             self.assertEqual(result.exit_code, 0)
@@ -214,7 +215,7 @@ class TestConcoreCLI(unittest.TestCase):
             result = self.runner.invoke(
                 cli,
                 [
-                    "run",
+                    "build",
                     "test-project/workflow.graphml",
                     "--source",
                     "test-project/src",
@@ -233,7 +234,7 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("cp ../src/subdir/script.iport concore.iport", build_script)
             self.assertIn("cd ..", build_script)
 
-    def test_run_command_compose_requires_docker_type(self):
+    def test_build_command_compose_requires_docker_type(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
             self.assertEqual(result.exit_code, 0)
@@ -241,7 +242,7 @@ class TestConcoreCLI(unittest.TestCase):
             result = self.runner.invoke(
                 cli,
                 [
-                    "run",
+                    "build",
                     "test-project/workflow.graphml",
                     "--source",
                     "test-project/src",
@@ -257,7 +258,7 @@ class TestConcoreCLI(unittest.TestCase):
                 "--compose can only be used with --type docker", result.output
             )
 
-    def test_run_command_docker_compose_single_node(self):
+    def test_build_command_docker_compose_single_node(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
             self.assertEqual(result.exit_code, 0)
@@ -265,7 +266,7 @@ class TestConcoreCLI(unittest.TestCase):
             result = self.runner.invoke(
                 cli,
                 [
-                    "run",
+                    "build",
                     "test-project/workflow.graphml",
                     "--source",
                     "test-project/src",
@@ -288,7 +289,7 @@ class TestConcoreCLI(unittest.TestCase):
             metadata = json.loads(Path("out/STUDY.json").read_text())
             self.assertIn("docker-compose.yml", metadata["checksums"])
 
-    def test_run_command_docker_compose_multi_node(self):
+    def test_build_command_docker_compose_multi_node(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             Path("src").mkdir()
             Path("src/common.py").write_text(
@@ -313,7 +314,7 @@ class TestConcoreCLI(unittest.TestCase):
             result = self.runner.invoke(
                 cli,
                 [
-                    "run",
+                    "build",
                     "workflow.graphml",
                     "--source",
                     "src",
@@ -332,7 +333,7 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("container_name: 'C'", compose_content)
             self.assertIn("image: 'docker-common'", compose_content)
 
-    def test_run_command_shared_source_specialization_merges_edge_params(self):
+    def test_build_command_shared_source_specialization_merges_edge_params(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             Path("src").mkdir()
             Path("src/common.py").write_text(
@@ -357,7 +358,7 @@ class TestConcoreCLI(unittest.TestCase):
             result = self.runner.invoke(
                 cli,
                 [
-                    "run",
+                    "build",
                     "workflow.graphml",
                     "--source",
                     "src",
@@ -377,7 +378,7 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("PORT_NAME_B_C", content)
             self.assertIn("PORT_B_C", content)
 
-    def test_run_command_existing_output(self):
+    def test_build_command_existing_output(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
             Path("output").mkdir()
@@ -385,7 +386,7 @@ class TestConcoreCLI(unittest.TestCase):
             result = self.runner.invoke(
                 cli,
                 [
-                    "run",
+                    "build",
                     "test-project/workflow.graphml",
                     "--source",
                     "test-project/src",

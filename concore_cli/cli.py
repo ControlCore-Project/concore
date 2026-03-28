@@ -4,7 +4,7 @@ import os
 import sys
 
 from .commands.init import init_project, init_project_interactive, run_wizard
-from .commands.run import run_workflow
+from .commands.build import build_workflow
 from .commands.validate import validate_workflow
 from .commands.status import show_status
 from .commands.stop import stop_all
@@ -68,17 +68,17 @@ def init(name, template, interactive):
     help="Execution type",
 )
 @click.option(
-    "--auto-build", is_flag=True, help="Automatically run build after generation"
+    "--auto-build", is_flag=True, help="Automatically run build script after generation"
 )
 @click.option(
     "--compose",
     is_flag=True,
     help="Generate docker-compose.yml in output directory (docker type only)",
 )
-def run(workflow_file, source, output, type, auto_build, compose):
-    """Run a concore workflow"""
+def build(workflow_file, source, output, type, auto_build, compose):
+    """Compile a concore workflow into executable scripts"""
     try:
-        run_workflow(
+        build_workflow(
             workflow_file,
             source,
             output,
