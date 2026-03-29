@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd" xmlns:y="http://www.yworks.com/xml/graphml">
+  <key for="node" id="d6" yfiles.type="nodegraphics"/>
+  <key for="edge" id="d10" yfiles.type="edgegraphics"/>
+  <graph edgedefault="directed" id="java-e2e" projectName="java-e2e">
+    <node id="controller-node">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="50" width="150" x="80" y="80"/>
+          <y:Fill color="#ffcc00" opacity="1"/>
+          <y:BorderStyle color="#000" width="1"/>
+          <y:NodeLabel>CJ:example/java_e2e/controller.py</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="pm-node">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="50" width="170" x="80" y="240"/>
+          <y:Fill color="#ffcc00" opacity="1"/>
+          <y:BorderStyle color="#000" width="1"/>
+          <y:NodeLabel>PJ:example/java_e2e/pm_java.java</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <edge id="edge-cu" source="controller-node" target="pm-node">
+      <data key="d10">
+        <y:GenericEdge configuration="com.yworks.bpmn.Connection">
+          <y:LineStyle color="#f44336" width="1" type="solid"/>
+          <y:Arrows source="none" target="delta"/>
+          <y:EdgeLabel>CU</y:EdgeLabel>
+        </y:GenericEdge>
+      </data>
+    </edge>
+    <edge id="edge-pym" source="pm-node" target="controller-node">
+      <data key="d10">
+        <y:GenericEdge configuration="com.yworks.bpmn.Connection">
+          <y:LineStyle color="#827717" width="1" type="solid"/>
+          <y:Arrows source="none" target="delta"/>
+          <y:EdgeLabel>PYM</y:EdgeLabel>
+        </y:GenericEdge>
+      </data>
+    </edge>
+  </graph>
+</graphml>
