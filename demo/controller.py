@@ -27,6 +27,8 @@ while(concore.simtime<concore.maxtime):
     u = controller(ym)
     #####
     print(str(concore.simtime) + ". u="+str(u) + "ym="+str(ym))
-    concore.write(1,"u",list(u.T[0]),delta=0)
+    # Convert numpy arrays to standard Python lists for writing
+    u_list = [float(x) for x in u.T[0]]
+    concore.write(1,"u",u_list,delta=0)
 
 print("retry="+str(concore.retrycount))

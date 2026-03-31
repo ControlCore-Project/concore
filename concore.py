@@ -4,6 +4,7 @@ from ast import literal_eval
 import sys
 import re
 import zmq # Added for ZeroMQ
+import numpy as np
 
 # if windows, create script to kill this process 
 # because batch files don't provide easy way to know pid of last command
@@ -112,6 +113,41 @@ def safe_literal_eval(filename, defaultValue):
         # print(f"Info: Error reading {filename} or file not found, using default: {e}")
         return defaultValue
 
+def safe_eval_with_numpy(content_str):
+    """
+    Safely evaluate string content that may contain numpy data types.
+    Handles both regular Python literals and numpy types like np.float64().
+    """
+    try:
+        # First try standard literal_eval
+        return literal_eval(content_str)
+    except (SyntaxError, ValueError) as e:
+        # If that fails, try to handle numpy types
+        try:
+            # Replace numpy function calls with their values
+            import re
+            
+            # Handle np.float64(value) -> float(value)
+            content_str = re.sub(r'np\.float64\(([^)]+)\)', r'float(\1)', content_str)
+            content_str = re.sub(r'np\.float32\(([^)]+)\)', r'float(\1)', content_str)
+            content_str = re.sub(r'np\.int64\(([^)]+)\)', r'int(\1)', content_str)
+            content_str = re.sub(r'np\.int32\(([^)]+)\)', r'int(\1)', content_str)
+            
+            # Try literal_eval again after numpy replacement
+            return literal_eval(content_str)
+        except Exception as e2:
+            # If all else fails, try to extract numbers manually
+            try:
+                # Extract numbers from the string using regex
+                numbers = re.findall(r'[-+]?(?:\d*\.\d+|\d+)', content_str)
+                if numbers:
+                    return [float(num) for num in numbers]
+                else:
+                    raise ValueError("No numbers found in string")
+            except Exception as e3:
+                print(f"Error parsing '{content_str}': {e3}")
+                raise e
+
 
 # Load input/output ports if present
 iport = safe_literal_eval("concore.iport", {})
@@ -195,7 +231,7 @@ def read(port_identifier, name, initstr_val):
     default_return_val = initstr_val
     if isinstance(initstr_val, str):
         try:
-            default_return_val = literal_eval(initstr_val)
+            default_return_val = safe_eval_with_numpy(initstr_val)
         except (SyntaxError, ValueError):
             pass
     
@@ -253,7 +289,7 @@ def read(port_identifier, name, initstr_val):
 
     # Try parsing
     try:
-        inval = literal_eval(ins)
+        inval = safe_eval_with_numpy(ins)
         if isinstance(inval, list) and len(inval) > 0: 
             current_simtime_from_file = inval[0]
             if isinstance(current_simtime_from_file, (int, float)):
@@ -320,7 +356,7 @@ def initval(simtime_val_str):
     """
     global simtime
     try:
-        val = literal_eval(simtime_val_str)
+        val = safe_eval_with_numpy(simtime_val_str)
         if isinstance(val, list) and len(val) > 0:
             first_element = val[0]
             if isinstance(first_element, (int, float)):
