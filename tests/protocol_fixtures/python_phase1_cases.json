@@ -100,6 +100,43 @@
         "sent_payload": "ok",
         "simtime_after": 10
       }
+    },
+    {
+      "id": "read_file/missing_file_returns_default_and_false",
+      "target": "read_file",
+      "description": "read() returns init default with ok=False when file is missing.",
+      "input": {
+        "initial_simtime": 4,
+        "port": 1,
+        "name": "missing",
+        "initstr_val": "[0.0, 5.0]"
+      },
+      "expected": {
+        "result": [
+          5.0
+        ],
+        "ok": false,
+        "simtime_after": 4
+      }
+    },
+    {
+      "id": "read_file/older_timestamp_does_not_decrease_simtime",
+      "target": "read_file",
+      "description": "read() keeps simtime monotonic when incoming file timestamp is older.",
+      "input": {
+        "initial_simtime": 10,
+        "port": 1,
+        "name": "ym",
+        "file_content": "[7.0, 3.14]",
+        "initstr_val": "[0.0, 0.0]"
+      },
+      "expected": {
+        "result": [
+          3.14
+        ],
+        "ok": true,
+        "simtime_after": 10
+      }
     }
   ]
 }

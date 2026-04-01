@@ -11,6 +11,7 @@ Phase-1 scope:
 - No runtime behavior changes.
 - Python-only execution through `tests/test_protocol_conformance.py`.
 - Fixture format is language-neutral to enable future cross-binding runners.
+- Baseline now includes `read_file` runtime-behavior checks in addition to parser/API targets.
 
 Phase-2 scope (mapping only):
 
@@ -18,6 +19,7 @@ Phase-2 scope (mapping only):
 - Adds a cross-runtime matrix to track per-case audit status and classification.
 - Java runtime entries are tracked with observed status from the Java regression suite (`TestLiteralEval.java`, `TestConcoredockerApi.java`).
 - Current baseline records Java as `observed_pass` for the listed phase-2 cases.
+- Phase-2 matrix includes `read_file` status rows for cross-runtime tracking.
 - Keeps CI non-blocking for non-Python runtimes that are not yet audited by marking them as `not_audited`.
 
 Java conformance execution in CI:
