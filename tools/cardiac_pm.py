@@ -3,7 +3,9 @@ import sys
 import os
 import logging
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cardiac_pm.dir'))
+_cardiac_pm_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cardiac_pm.dir')
+if _cardiac_pm_dir not in sys.path:
+    sys.path.insert(0, _cardiac_pm_dir)
 import pulsatile_model_functions as pmf
 import healthy_params as K
 import concore

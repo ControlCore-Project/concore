@@ -2,7 +2,9 @@ import numpy as np
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cardiac_pm.dir'))
+cardiac_pm_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cardiac_pm.dir')
+if cardiac_pm_dir not in sys.path:
+    sys.path.insert(0, cardiac_pm_dir)
 import pulsatile_model_functions as pmf
 import healthy_params as K
 import concore
