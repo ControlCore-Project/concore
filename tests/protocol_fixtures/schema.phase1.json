@@ -41,7 +41,8 @@
             "enum": [
               "parse_params",
               "initval",
-              "write_zmq"
+              "write_zmq",
+              "read_file"
             ]
           },
           "description": {

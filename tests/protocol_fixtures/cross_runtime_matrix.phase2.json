@@ -237,6 +237,78 @@
           "note": "May require binding-specific interpretation."
         }
       }
+    },
+    {
+      "id": "read_file/missing_file_returns_default_and_false",
+      "target": "read_file",
+      "runtime_results": {
+        "python": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Phase-1 baseline execution."
+        },
+        "cpp": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "java": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Validated by TestConcoredockerApi.java."
+        },
+        "matlab": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "octave": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "verilog": {
+          "status": "not_audited",
+          "classification": "implementation_defined",
+          "note": "May require binding-specific interpretation."
+        }
+      }
+    },
+    {
+      "id": "read_file/older_timestamp_does_not_decrease_simtime",
+      "target": "read_file",
+      "runtime_results": {
+        "python": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Phase-1 baseline execution."
+        },
+        "cpp": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "java": {
+          "status": "observed_pass",
+          "classification": "required",
+          "note": "Validated by TestConcoredockerApi.java simtime progression checks."
+        },
+        "matlab": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "octave": {
+          "status": "not_audited",
+          "classification": "required",
+          "note": "Audit planned in phase 2."
+        },
+        "verilog": {
+          "status": "not_audited",
+          "classification": "implementation_defined",
+          "note": "May require binding-specific interpretation."
+        }
+      }
     }
   ]
 }

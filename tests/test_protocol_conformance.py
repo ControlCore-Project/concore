@@ -1,5 +1,7 @@
 import json
+import os
 from pathlib import Path
+import tempfile
 
 import pytest
 
@@ -9,7 +11,7 @@ import concore
 FIXTURE_DIR = Path(__file__).parent / "protocol_fixtures"
 SCHEMA_PATH = FIXTURE_DIR / "schema.phase1.json"
 CASES_PATH = FIXTURE_DIR / "python_phase1_cases.json"
-SUPPORTED_TARGETS = {"parse_params", "initval", "write_zmq"}
+SUPPORTED_TARGETS = {"parse_params", "initval", "write_zmq", "read_file"}
 
 
 def _load_json(path):
@@ -93,6 +95,42 @@ def _run_write_zmq_case(case):
             concore.zmq_ports[port_name] = existing_port
 
 
+def _run_read_file_case(case):
+    old_simtime = concore.simtime
+    old_inpath = concore.inpath
+    old_delay = concore.delay
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            concore.simtime = case["input"]["initial_simtime"]
+            concore.inpath = os.path.join(temp_dir, "in")
+            concore.delay = 0
+
+            port_dir = os.path.join(temp_dir, f"in{case['input']['port']}")
+            os.makedirs(port_dir, exist_ok=True)
+
+            if "file_content" in case["input"]:
+                with open(
+                    os.path.join(port_dir, case["input"]["name"]),
+                    "w",
+                    encoding="utf-8",
+                ) as f:
+                    f.write(case["input"]["file_content"])
+
+            result, ok = concore.read(
+                case["input"]["port"],
+                case["input"]["name"],
+                case["input"]["initstr_val"],
+            )
+
+            assert result == case["expected"]["result"]
+            assert ok == case["expected"]["ok"]
+            assert concore.simtime == case["expected"]["simtime_after"]
+    finally:
+        concore.simtime = old_simtime
+        concore.inpath = old_inpath
+        concore.delay = old_delay
+
+
 def _run_case(case):
     if case["target"] == "parse_params":
         _run_parse_params_case(case)
@@ -100,6 +138,8 @@ def _run_case(case):
         _run_initval_case(case)
     elif case["target"] == "write_zmq":
         _run_write_zmq_case(case)
+    elif case["target"] == "read_file":
+        _run_read_file_case(case)
     else:
         raise AssertionError(f"Unsupported target: {case['target']}")
 
