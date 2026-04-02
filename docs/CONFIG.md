@@ -1,6 +1,6 @@
 # concore Configuration Reference
 
-This document describes the configuration files used by `mkconcore.py` to locate compilers, runtimes, and Docker settings. All config files are read from `CONCOREPATH` — the directory containing `concore.py`.
+This document describes the configuration files used by `mkconcore.py` to locate compilers, runtimes, and Docker settings. All config files are read from `CONCOREPATH` — the resolved concore install directory (usually the directory containing `concore.py`).
 
 ## How CONCOREPATH Is Resolved
 
@@ -173,7 +173,7 @@ When `mkconcore.py` resolves a tool path, the following precedence applies (high
 
 1. **`concore.tools` file** — overrides everything for compiler/runtime paths
 2. **`concore.sudo` file** — overrides `DOCKEREXE` for Docker executable
-3. **`concore.repo` file** — overrides `DOCKEREPO` for Docker repository
+3. **`concore.repo` file** — overrides the hardcoded default Docker repository prefix (for example, `markgarnold`)
 4. **Environment variables** (`CONCORE_*`, `DOCKEREXE`) — initial defaults
 5. **Hardcoded defaults** — `g++`, `python3`, `iverilog`, `octave`, `docker`, etc.
 
