@@ -3,6 +3,7 @@ import os
 from ast import literal_eval
 import sys
 import re
+import json
 import zmq # Added for ZeroMQ
 
 # if windows, create script to kill this process 
@@ -67,6 +68,52 @@ class ZeroMQPort:
 # Global ZeroMQ ports registry
 zmq_ports = {}
 
+def _normalize_zmq_address(port_type, address):
+    if not isinstance(address, str):
+        return address
+    addr = address.strip()
+    if port_type == "bind" and addr.startswith("tcp://*:"):
+        if os.environ.get("CONCORE_ALLOW_WILDCARD_BIND", "").lower() not in ("1", "true", "yes"):
+            safe_addr = "tcp://127.0.0.1:" + addr.split(":")[-1]
+            print(f"Warning: Rewriting insecure bind address '{addr}' to '{safe_addr}'.")
+            return safe_addr
+    return addr
+
+def _is_safe_name(name):
+    if not isinstance(name, str) or name == "":
+        return False
+    if os.path.basename(name) != name or "/" in name or "\\" in name:
+        return False
+    if name in (".", "..") or ".." in name:
+        return False
+    return True
+
+def _safe_channel_path(base_path_prefix, port_identifier, name):
+    if not _is_safe_name(name):
+        raise ValueError(f"Unsafe channel name: {name}")
+    port_str = str(int(port_identifier))
+    channel_dir = os.path.abspath(base_path_prefix + port_str)
+    file_path = os.path.abspath(os.path.join(channel_dir, name))
+    if os.path.commonpath([channel_dir, file_path]) != channel_dir:
+        raise ValueError(f"Path traversal detected for channel name: {name}")
+    return file_path
+
+def _parse_untrusted_value(raw_value, default_value):
+    if not isinstance(raw_value, str):
+        return raw_value
+    text = raw_value.strip()
+    if text == "":
+        return default_value
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+    try:
+        return literal_eval(text)
+    except Exception:
+        return default_value
+
+
 def init_zmq_port(port_name, port_type, address, socket_type_str):
     """
     Initializes and registers a ZeroMQ port.
@@ -82,8 +129,9 @@ def init_zmq_port(port_name, port_type, address, socket_type_str):
     try:
         # Map socket type string to actual ZMQ constant (e.g., zmq.REQ, zmq.REP)
         zmq_socket_type = getattr(zmq, socket_type_str.upper())
-        zmq_ports[port_name] = ZeroMQPort(port_type, address, zmq_socket_type)
-        print(f"Initialized ZMQ port: {port_name} ({socket_type_str}) on {address}")
+        normalized_address = _normalize_zmq_address(port_type, address)
+        zmq_ports[port_name] = ZeroMQPort(port_type, normalized_address, zmq_socket_type)
+        print(f"Initialized ZMQ port: {port_name} ({socket_type_str}) on {normalized_address}")
     except AttributeError:
         print(f"Error: Invalid ZMQ socket type string '{socket_type_str}'.")
     except zmq.error.ZMQError as e:
@@ -106,7 +154,7 @@ def terminate_zmq():
 def safe_literal_eval(filename, defaultValue):
     try:
         with open(filename, "r") as file:
-            return literal_eval(file.read())
+            return _parse_untrusted_value(file.read(), defaultValue)
     except (FileNotFoundError, SyntaxError, ValueError, Exception) as e:
         # Keep print for debugging, but can be made quieter
         # print(f"Info: Error reading {filename} or file not found, using default: {e}")
@@ -146,7 +194,8 @@ try:
                 sparams = "{'"+re.sub(';',",'",re.sub('=',"':",re.sub(' ','',sparams)))+"}"
                 print("converted sparams: " + sparams)
             try:
-                params = literal_eval(sparams)
+                parsed_params = _parse_untrusted_value(sparams, dict())
+                params = parsed_params if isinstance(parsed_params, dict) else dict()
             except Exception as e:
                 print(f"bad params content: {sparams}, error: {e}")
                 params = dict()
@@ -219,8 +268,12 @@ def read(port_identifier, name, initstr_val):
         print(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
         return default_return_val
 
-    time.sleep(delay) 
-    file_path = os.path.join(inpath+str(file_port_num), name)
+    time.sleep(delay)
+    try:
+        file_path = _safe_channel_path(inpath, file_port_num, name)
+    except ValueError as e:
+        print(f"Error: {e}")
+        return default_return_val
     ins = ""
 
     try:
@@ -253,7 +306,7 @@ def read(port_identifier, name, initstr_val):
 
     # Try parsing
     try:
-        inval = literal_eval(ins)
+        inval = _parse_untrusted_value(ins, default_return_val)
         if isinstance(inval, list) and len(inval) > 0: 
             current_simtime_from_file = inval[0]
             if isinstance(current_simtime_from_file, (int, float)):
@@ -320,7 +373,7 @@ def initval(simtime_val_str):
     """
     global simtime
     try:
-        val = literal_eval(simtime_val_str)
+        val = _parse_untrusted_value(simtime_val_str, [])
         if isinstance(val, list) and len(val) > 0:
             first_element = val[0]
             if isinstance(first_element, (int, float)):

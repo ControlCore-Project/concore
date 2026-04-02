@@ -41,6 +41,14 @@ private:
     int communication_iport = 0;  // iport refers to input port
     int communication_oport = 0;  // oport refers to input port
 
+    bool isSafeName(const std::string& name) {
+        if (name.empty()) return false;
+        if (name == "." || name == "..") return false;
+        if (name.find("..") != std::string::npos) return false;
+        if (name.find('/') != std::string::npos || name.find('\\') != std::string::npos) return false;
+        return true;
+    }
+
  public:
     double delay = 1;
     int retrycount = 0;
@@ -133,7 +141,7 @@ private:
      */
     void createSharedMemory(key_t key)
     {
-        shmId_create = shmget(key, 256, IPC_CREAT | 0666);
+        shmId_create = shmget(key, 256, IPC_CREAT | 0600);
 
         if (shmId_create == -1) {
             std::cerr << "Failed to create shared memory segment." << std::endl;
@@ -155,7 +163,7 @@ private:
     {
         while (true) {
             // Get the shared memory segment created by Writer
-            shmId_get = shmget(key, 256, 0666);
+            shmId_get = shmget(key, 256, 0600);
             // Check if shared memory exists
             if (shmId_get != -1) {
                 break; // Break the loop if shared memory exists
@@ -284,6 +292,9 @@ private:
      * @return a string of file content
      */
     vector<double> read_FM(int port, string name, string initstr){
+        if (!isSafeName(name)) {
+            return vector<double>();
+        }
         chrono::milliseconds timespan((int)(1000*delay));
         this_thread::sleep_for(timespan);
         string ins;
@@ -440,6 +451,9 @@ private:
      * @param delta The delta value (default: 0).
      */
     void write_FM(int port, string name, vector<double> val, int delta=0){
+        if (!isSafeName(name)) {
+            return;
+        }
 
         try {
             ofstream outfile;
@@ -470,6 +484,9 @@ private:
      * @param delta The delta value (default: 0).
      */
     void write_FM(int port, string name, string val, int delta=0){
+        if (!isSafeName(name)) {
+            return;
+        }
         chrono::milliseconds timespan((int)(2000*delay));
         this_thread::sleep_for(timespan);
         try {

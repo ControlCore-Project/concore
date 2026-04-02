@@ -61,7 +61,10 @@ except:
     except:
         init_simtime_ym = "[0.0, 0.0, 0.0]"
 
-print(apikey)
+if apikey:
+    print('apikey loaded')
+else:
+    print('apikey not found')
 print(yuyu)
 print(name1+'='+init_simtime_u)
 print(name2+'='+init_simtime_ym)
