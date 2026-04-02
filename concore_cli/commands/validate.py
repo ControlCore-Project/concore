@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from bs4 import BeautifulSoup
 from rich.panel import Panel
@@ -5,23 +6,160 @@ import re
 import xml.etree.ElementTree as ET
 
 
-def validate_workflow(workflow_file, source_dir, console):
+def _classify_message(message, bucket_name):
+    if bucket_name == "info":
+        if message.startswith("Found ") and "node(s)" in message:
+            return {"info_type": "node_count"}
+        if message.startswith("Found ") and "edge(s)" in message:
+            return {"info_type": "edge_count"}
+        if message.startswith("ZMQ-based edges:"):
+            return {"info_type": "zmq_edges"}
+        if message.startswith("File-based edges:"):
+            return {"info_type": "file_edges"}
+        return {"info_type": "info"}
+
+    if message == "File is empty":
+        return {"error_type": "empty_file"}
+    if message.startswith("Invalid XML:"):
+        return {"error_type": "invalid_xml"}
+    if message == "Not a valid GraphML file - missing <graphml> root element":
+        return {"error_type": "invalid_graphml"}
+    if message == "Missing <graph> element":
+        return {"error_type": "missing_graph_element"}
+    if message == "Graph missing required 'edgedefault' attribute":
+        return {"error_type": "missing_edgedefault"}
+    if message.startswith("Invalid edgedefault value"):
+        return {"error_type": "invalid_edgedefault"}
+    if message == "No nodes found in workflow":
+        return {"error_type": "no_nodes"}
+    if message == "No edges found in workflow":
+        return {"error_type": "no_edges"}
+    if message.startswith("Source directory not found:"):
+        return {"error_type": "missing_source_dir"}
+    if message == "Node missing required 'id' attribute":
+        return {"error_type": "missing_node_id"}
+    if message.startswith("Node '") and message.endswith("contains unsafe shell characters"):
+        return {"error_type": "unsafe_node_label"}
+    if message.startswith("Node '") and "missing format 'ID:filename'" in message:
+        return {"error_type": "invalid_node_label_format"}
+    if message.startswith("Node '") and message.endswith("has invalid format"):
+        return {"error_type": "invalid_node_label_format"}
+    if message.startswith("Node '") and message.endswith("has no filename"):
+        return {"error_type": "missing_node_filename"}
+    if message.startswith("Node '") and message.endswith("has unusual file extension"):
+        return {"error_type": "unusual_file_extension"}
+    if message.startswith("Missing source file:"):
+        return {"error_type": "missing_source_file"}
+    if message.startswith("Node ") and message.endswith(" has no label"):
+        return {"error_type": "missing_node_label"}
+    if message.startswith("Error parsing node:"):
+        return {"error_type": "node_parse_error"}
+    if message.startswith("Duplicate node label:"):
+        return {"error_type": "duplicate_node_label"}
+    if message == "Edge missing source or target":
+        return {"error_type": "missing_edge_endpoint"}
+    if message.startswith("Edge references non-existent source node:"):
+        return {"error_type": "missing_edge_source"}
+    if message.startswith("Edge references non-existent target node:"):
+        return {"error_type": "missing_edge_target"}
+    if message == "Workflow contains cycles (expected for control loops)":
+        return {"error_type": "cycle_detected"}
+    if message.startswith("Invalid port number:"):
+        return {"error_type": "invalid_port_number"}
+    if message.startswith("Port conflict:"):
+        return {"error_type": "port_conflict"}
+    if message.startswith("Port ") and "is in reserved range" in message:
+        return {"error_type": "reserved_port"}
+    if message.startswith("File not found:"):
+        return {"error_type": "file_not_found"}
+    if message.startswith("Validation failed:"):
+        return {"error_type": "validation_exception"}
+    return {"error_type": "validation_message"}
+
+
+def _build_entries(bucket_name, messages, source_nodes):
+    entries = []
+    for message in messages:
+        entry = {"message": message}
+        entry.update(_classify_message(message, bucket_name))
+
+        if message.startswith("Missing source file:"):
+            filename = message.split(":", 1)[1].strip()
+            node_id = source_nodes.get(filename)
+            if node_id:
+                entry["node_id"] = node_id
+        elif message.startswith("Node ") and message.endswith(" has no label"):
+            entry["node_id"] = message[5:-9]
+        elif message.startswith("Edge references non-existent source node:"):
+            entry["node_id"] = message.split(":", 1)[1].strip()
+        elif message.startswith("Edge references non-existent target node:"):
+            entry["node_id"] = message.split(":", 1)[1].strip()
+
+        entries.append(entry)
+    return entries
+
+
+def _build_payload(workflow_path, source_root, errors, warnings, info, source_nodes):
+    error_entries = _build_entries("errors", errors, source_nodes)
+    warning_entries = _build_entries("warnings", warnings, source_nodes)
+    info_entries = _build_entries("info", info, source_nodes)
+
+    nodes_affected = []
+    for entry in error_entries + warning_entries:
+        node_id = entry.get("node_id")
+        if node_id and node_id not in nodes_affected:
+            nodes_affected.append(node_id)
+
+    return {
+        "workflow": workflow_path.name,
+        "source_dir": str(source_root),
+        "valid": len(errors) == 0,
+        "errors": error_entries,
+        "warnings": warning_entries,
+        "info": info_entries,
+        "summary": {
+            "error_count": len(error_entries),
+            "warning_count": len(warning_entries),
+            "info_count": len(info_entries),
+            "nodes_affected": nodes_affected,
+        },
+    }
+
+
+def validate_workflow(workflow_file, source_dir, console, output_format="text"):
     workflow_path = Path(workflow_file)
     source_root = workflow_path.parent / source_dir
 
-    console.print(f"[cyan]Validating:[/cyan] {workflow_path.name}")
-    console.print()
+    if output_format == "text":
+        console.print(f"[cyan]Validating:[/cyan] {workflow_path.name}")
+        console.print()
 
     errors = []
     warnings = []
     info = []
+    source_nodes = {}
 
     def finalize():
-        show_results(console, errors, warnings, info)
+        if output_format == "json":
+            print(
+                json.dumps(
+                    _build_payload(
+                        workflow_path,
+                        source_root,
+                        errors,
+                        warnings,
+                        info,
+                        source_nodes,
+                    ),
+                    indent=2,
+                )
+            )
+        else:
+            show_results(console, errors, warnings, info)
         return len(errors) == 0
 
     try:
-        with open(workflow_path, "r") as f:
+        with open(workflow_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         if not content.strip():
@@ -109,6 +247,7 @@ def validate_workflow(workflow_file, source_dir, console):
                             warnings.append(f"Node '{label}' has invalid format")
                         else:
                             nodeId_part, filename = parts
+                            source_nodes[filename] = node_id
                             if not filename:
                                 errors.append(f"Node '{label}' has no filename")
                             elif not any(
@@ -177,10 +316,40 @@ def validate_workflow(workflow_file, source_dir, console):
         return finalize()
 
     except FileNotFoundError:
-        console.print(f"[red]Error:[/red] File not found: {workflow_path}")
+        if output_format == "json":
+            print(
+                json.dumps(
+                    _build_payload(
+                        workflow_path,
+                        source_root,
+                        [f"File not found: {workflow_path}"],
+                        [],
+                        [],
+                        source_nodes,
+                    ),
+                    indent=2,
+                )
+            )
+        else:
+            console.print(f"[red]Error:[/red] File not found: {workflow_path}")
         return False
     except Exception as e:
-        console.print(f"[red]Validation failed:[/red] {str(e)}")
+        if output_format == "json":
+            print(
+                json.dumps(
+                    _build_payload(
+                        workflow_path,
+                        source_root,
+                        [f"Validation failed: {str(e)}"],
+                        [],
+                        [],
+                        source_nodes,
+                    ),
+                    indent=2,
+                )
+            )
+        else:
+            console.print(f"[red]Validation failed:[/red] {str(e)}")
         return False
 
 

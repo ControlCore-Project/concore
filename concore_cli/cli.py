@@ -95,10 +95,22 @@ def build(workflow_file, source, output, type, auto_build, compose):
 @cli.command()
 @click.argument("workflow_file", type=click.Path(exists=True))
 @click.option("--source", "-s", default="src", help="Source directory")
-def validate(workflow_file, source):
+@click.option(
+    "--format",
+    "output_format",
+    default="text",
+    type=click.Choice(["text", "json"]),
+    help="Validation output format",
+)
+def validate(workflow_file, source, output_format):
     """Validate a workflow file"""
     try:
-        ok = validate_workflow(workflow_file, source, console)
+        ok = validate_workflow(
+            workflow_file,
+            source,
+            console,
+            output_format=output_format,
+        )
         if not ok:
             sys.exit(1)
     except Exception as e:
