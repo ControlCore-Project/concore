@@ -38,7 +38,9 @@ def _classify_message(message, bucket_name):
         return {"error_type": "missing_source_dir"}
     if message == "Node missing required 'id' attribute":
         return {"error_type": "missing_node_id"}
-    if message.startswith("Node '") and message.endswith("contains unsafe shell characters"):
+    if message.startswith("Node '") and message.endswith(
+        "contains unsafe shell characters"
+    ):
         return {"error_type": "unsafe_node_label"}
     if message.startswith("Node '") and "missing format 'ID:filename'" in message:
         return {"error_type": "invalid_node_label_format"}
