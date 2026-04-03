@@ -84,6 +84,44 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertNotEqual(result.exit_code, 0)
             self.assertIn("Missing source file", result.output)
 
+    def test_validate_json_output_for_valid_file(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            result = self.runner.invoke(
+                cli,
+                ["validate", "test-project/workflow.graphml", "--format", "json"],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            payload = json.loads(result.output)
+            self.assertTrue(payload["valid"])
+            self.assertEqual(payload["summary"]["error_count"], 0)
+            self.assertEqual(payload["workflow"], "workflow.graphml")
+            self.assertIn("src", payload["source_dir"])
+
+    def test_validate_json_output_for_missing_source_file(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            missing_file = Path("test-project/src/script.py")
+            if missing_file.exists():
+                missing_file.unlink()
+
+            result = self.runner.invoke(
+                cli,
+                ["validate", "test-project/workflow.graphml", "--format", "json"],
+            )
+            self.assertNotEqual(result.exit_code, 0)
+
+            payload = json.loads(result.output)
+            self.assertFalse(payload["valid"])
+            self.assertEqual(payload["summary"]["error_count"], 1)
+            self.assertEqual(payload["errors"][0]["error_type"], "missing_source_file")
+            self.assertEqual(payload["errors"][0]["node_id"], "n1")
+
     def test_status_command(self):
         result = self.runner.invoke(cli, ["status"])
         self.assertEqual(result.exit_code, 0)
