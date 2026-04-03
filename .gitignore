@@ -31,3 +31,8 @@ htmlcov/
 
 # Concore specific
 concorekill.bat
+
+.claude
+.codex
+.cursor
+_bmad
