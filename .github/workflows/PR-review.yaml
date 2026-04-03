@@ -1,0 +1,55 @@
+name: AI Code Reviewer
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  gemini-code-review:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/gemini-review')
+    steps:
+      - name: PR Info
+        env:
+        #Assign untrusted inputs to environment variables first
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        #Use shell variables ("$VAR") instead of template tags
+        run: |
+          echo "Comment: $COMMENT_BODY"
+          echo "Issue Number: $ISSUE_NUM"
+          echo "Repository: $REPO"
+
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: refs/pull/${{ github.event.issue.number }}/head
+
+      - name: Get PR Details
+        id: pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          #Use env vars for the API call to prevent injection
+          #Use quotes around variables to prevent word splitting
+        run: |
+          PR_JSON=$(gh api "repos/$REPO/pulls/$ISSUE_NUM")
+          echo "head_sha=$(echo "$PR_JSON" | jq -r .head.sha)" >> $GITHUB_OUTPUT
+          echo "base_sha=$(echo "$PR_JSON" | jq -r .base.sha)" >> $GITHUB_OUTPUT
+
+      - uses: truongnh1992/gemini-ai-code-reviewer@main
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: gemini-2.5-flash
+          EXCLUDE: "*.md,*.txt,package-lock.json"

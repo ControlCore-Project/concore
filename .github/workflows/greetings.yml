@@ -1,0 +1,41 @@
+name: Greetings
+
+on:
+  pull_request_target:
+    types: [opened]
+  issues:
+    types: [opened]
+
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+    - uses: actions/first-interaction@v3
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        
+        issue_message: |
+          👋 Welcome to the CONTROL-CORE Project, @${{ github.actor }}! Thank you for opening your first issue in concore.
+          We appreciate your contribution to the organization and will review it as soon as possible.
+          
+          Before we get started, please check out these resources:
+          - 📚 [Project Documentation](https://control-core.readthedocs.io/)
+          - 📘 [Contribution Guidelines](https://github.com/ControlCore-Project/concore/blob/main/CONTRIBUTING.md)
+          - 📜 [Code of Conduct](https://github.com/ControlCore-Project/concore/blob/main/CODE_OF_CONDUCT.md)
+          
+        pr_message: |
+          🎉 Welcome aboard, @${{ github.actor }}! Thank you for your first pull request in concore.
+          
+          Please ensure that you are contributing to the **dev** branch.
+          
+          Your contribution means a lot to us. We'll review it shortly.
+          
+          Please ensure you have reviewed our:
+          - 📚 [Project Documentation](https://control-core.readthedocs.io/)
+          - 📘 [Contribution Guidelines](https://github.com/ControlCore-Project/concore/blob/main/CONTRIBUTING.md)
+          - 📜 [Code of Conduct](https://github.com/ControlCore-Project/concore/blob/main/CODE_OF_CONDUCT.md)
+          
+          If you have any questions, feel free to ask. Happy coding!

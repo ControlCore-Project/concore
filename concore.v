@@ -296,6 +296,7 @@ module concore;
       end
      $fdisplay(fout,"]");
      $fclose(fout);
+     // simtime must not be mutated here (issue #385).
     end
   endtask
 

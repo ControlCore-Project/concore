@@ -1,1 +1,38 @@
-**/.DS_Store
+﻿# Python bytecode/cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.py[cod]
+*.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Build/packaging
+*.egg-info/
+dist/
+build/
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Concore specific
+concorekill.bat
+
+.claude
+.codex
+.cursor
+_bmad

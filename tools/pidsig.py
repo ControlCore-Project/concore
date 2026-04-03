@@ -1,39 +1,20 @@
 import numpy as np
 import math
 import concore
+import logging
+import sys
 dT = 0.1
 global Prev_Error, I, freq
 Prev_Error = 0
 I = 0
 
-try:
-    sp = concore.params['sp']
-except:
-    sp = 67.5
-try:
-    Kp = concore.params['Kp']
-except:
-    Kp = 0.1
-try:
-    Ki = concore.params['Ki']
-except:
-    Ki = 0.01
-try:
-    Kd = concore.params['Kd']
-except:
-    Kd = 0.03
-try:
-    freq = concore.params['freq']
-except:
-    freq = 30
-try:
-    sigout = concore.params['sigout']
-except:
-    sigout = True 
-try:
-    cin = concore.params['cin']
-except:
-    cin = 'hr' 
+sp = concore.tryparam('sp', 67.5)
+Kp = concore.tryparam('Kp', 0.1)
+Ki = concore.tryparam('Ki', 0.01)
+Kd = concore.tryparam('Kd', 0.03)
+freq = concore.tryparam('freq', 30)
+sigout = concore.tryparam('sigout', True)
+cin = concore.tryparam('cin', 'hr')
 
 def  pid_controller(ym):
     global Prev_Error, I, freq
@@ -42,8 +23,8 @@ def  pid_controller(ym):
     elif cin == 'map':
         Error = sp - ym[0]
     else:
-        print('invalid control input '+cin)
-        quit()
+        logging.error(f'invalid control input {cin}')
+        sys.exit(1)
     P = Error
     I = I + Error*dT 
     D = (Error - Prev_Error )/dT	
@@ -60,8 +41,8 @@ concore.delay = 0.02
 init_simtime_u = "[0.0, 0.0,0.0]"
 init_simtime_ym = "[0.0, 70.0,91]"
 u = np.array([concore.initval(init_simtime_u)]).T
-print("Shannon's PID controller: sp is "+str(sp))
-print(concore.params)
+logging.info(f"Shannon's PID controller: sp is {sp}")
+logging.info(concore.params)
 while(concore.simtime<concore.maxtime):
     while concore.unchanged():
         ym = concore.read(1,"ym",init_simtime_ym)
@@ -72,7 +53,7 @@ while(concore.simtime<concore.maxtime):
     else:
         ustar =  pid_controller(ym)
     
-    print(str(concore.simtime) + " u="+str(ustar) + "ym="+str(ym))
+    logging.debug(f"{concore.simtime} u={ustar} ym={ym}")
     concore.write(1,"u",list(ustar),delta=0)
 
 

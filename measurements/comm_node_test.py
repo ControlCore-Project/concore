@@ -1,14 +1,10 @@
 import concore
-import concore2
 import time
 import sys
 
 # --- Script Configuration ---
 concore.delay = 0.07
-concore2.delay = 0.07
-concore2.inpath = concore.inpath
-concore2.outpath = concore.outpath
-concore2.simtime = 0
+concore.simtime = 0
 concore.default_maxtime(100) # This will be ignored by the new logic
 init_simtime_u = "[0.0, 0.0, 0.0]"
 init_simtime_ym = "[0.0, 0.0, 0.0]"
@@ -19,7 +15,7 @@ start_time = time.monotonic()
 
 # --- Main Script Logic ---
 u = concore.initval(init_simtime_u)
-ym = concore2.initval(init_simtime_ym)
+ym = concore.initval(init_simtime_ym)
 curr = 0
 max_value = 100
 iteration = 0
@@ -39,16 +35,16 @@ while curr < max_value and iteration < iteration_limit:
     # Break if the loop condition is met after the first read
     if curr >= max_value:
         # Forward a final message to ensure the next node also terminates
-        concore2.write(concore.oport['Y'], "ym", [curr])
+        concore.write(concore.oport['Y'], "ym", [curr])
         break
 
     # 3. Wait for a message from the 'Y1' channel
-    old2 = concore2.simtime
-    while concore2.unchanged() or concore2.simtime <= old2:
-        ym = concore2.read(concore.iport['Y1'], "ym", init_simtime_ym)
+    old2 = float(concore.simtime)
+    while concore.unchanged() or concore.simtime <= old2:
+        ym = concore.read(concore.iport['Y1'], "ym", init_simtime_ym)
         
     # 4. Forward it to the 'Y' channel
-    concore2.write(concore.oport['Y'], "ym", ym)
+    concore.write(concore.oport['Y'], "ym", ym)
     curr = ym[0]
     
     print(f"comm_node: u={u[0]:.2f} | ym={ym[0]:.2f}")

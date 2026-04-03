@@ -1,28 +1,31 @@
 function import_concore
     global concore;
 
-    try
-      pid = getpid();
-    catch exc
-      pid = feature('getpid');
-    end
-    outputpid = fopen('concorekill.bat','w');
-    fprintf(outputpid,'%s',['taskkill /F /PID ',num2str(pid)]);
-    fclose(outputpid);
+    % Docker/Linux environment — no Windows batch file generation
    
   
-    try
-      iportfile = fopen('concore.iport');
-      concore.iports = fscanf(iportfile,'%c');
-    catch exc
-      iportfile = '';
+    iportfile = fopen('concore.iport');
+    if iportfile ~= -1
+        try
+            concore.iports = fscanf(iportfile,'%c');
+        catch exc
+            concore.iports = '';
+        end
+        fclose(iportfile);
+    else
+        concore.iports = '';
     end
 
-    try
-      oportfile = fopen('concore.oport');
-      concore.oports = fscanf(oportfile,'%c');
-    catch exc
-      oportfile = '';
+    oportfile = fopen('concore.oport');
+    if oportfile ~= -1
+        try
+            concore.oports = fscanf(oportfile,'%c');
+        catch exc
+            concore.oports = '';
+        end
+        fclose(oportfile);
+    else
+        concore.oports = '';
     end
 
     concore.s = '';

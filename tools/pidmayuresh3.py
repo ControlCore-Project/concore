@@ -1,52 +1,31 @@
-import numpy as np
-import math
-import concore
-dT = 0.1
+"""
+Backward-compatibility wrapper for pidmayuresh.py.
 
-sp = concore.tryparam('sp', 67.5)
-Kp = concore.tryparam('Kp', 0.075)
-Ki = concore.tryparam('Ki', 0.02)
-Kd = concore.tryparam('Kd', 0.005)
-freq = concore.tryparam('freq',30)
-sigout = concore.tryparam('sigout',True)
-cin = concore.tryparam('cin', 'hr')
+This file previously contained a duplicate PID controller implementation
+that used print() instead of logging.  The canonical implementation now
+lives in pidmayuresh.py (which uses the logging module).
 
-def  pid_controller(state, ym, sp, Kp, Ki, Kd, sigout, cin, low, up):
-    Prev_Error = state[0]
-    I = state[1]
-    if cin == 'hr':
-        Error = sp - ym[1]
-    elif cin == 'map':
-        Error = sp - ym[0]
-    else:
-        print('invalid control input '+cin)
-        quit()
-    P = Error
-    I = I + Error*dT 
-    D = (Error - Prev_Error )/dT	
-    amp = Kp*P + Ki*I + Kd*D
-    Prev_Error = Error      
-    if sigout:
-        amp = (up-low)/(1.0 + math.exp(amp)) + low
-    state = [Prev_Error, I]
-    return (state, amp)
+This wrapper re-exports everything so that any existing import of
+pidmayuresh3 continues to work without modification.
 
+See:  https://github.com/ControlCore-Project/concore/issues/378
+"""
 
-concore.default_maxtime(150)
-concore.delay = 0.02
-init_simtime_ym = "[0.0, 70.0,91]"
-ym = np.array(concore.initval(init_simtime_ym))
-state = [0.0, 0.0]
-print("Mayuresh's PID controller: sp is "+str(sp))
-print(concore.params)
-while(concore.simtime<concore.maxtime):
-    while concore.unchanged():
-        ym = concore.read(1,"ym",init_simtime_ym)
-    ym = np.array(ym)
-    (state,amp) =  pid_controller(state,ym,sp,Kp,Ki,Kd,sigout,cin,0,3)
-    u = np.array([amp,freq])    
-    print(str(concore.simtime) + " u="+str(u) + "ym="+str(ym))
-    concore.write(1,"u",list(u),delta=0)
+import warnings
+warnings.warn(
+    "pidmayuresh3 is deprecated — use pidmayuresh instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+# Re-execute the canonical module so run-time behaviour is identical
+# when this file is invoked directly (e.g., via a study graph).
+try:
+    # Prefer relative import when part of the tools package
+    from .pidmayuresh import *  # type: ignore[attr-defined]  # noqa: F401,F403
+except ImportError:
+    # Fallback for script-style execution (e.g., `python tools/pidmayuresh3.py`)
+    from pidmayuresh import *  # noqa: F401,F403
 
 
 

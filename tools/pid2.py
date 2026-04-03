@@ -1,5 +1,7 @@
 import numpy as np
 import concore
+import logging
+
 setpoint = 67.5
 setpointF = 75.0
 KpF = 0.1
@@ -42,7 +44,7 @@ def  pid_controller(ym):
     if freq<10:
        freq = 10
     Prev_ErrorF = ErrorF      
-    ustar = np.array([amp,30])    
+    ustar = np.array([amp,freq])    
     return ustar
 
 
@@ -51,7 +53,9 @@ concore.delay = 0.02
 init_simtime_u = "[0.0, 0.0,0.0]"
 init_simtime_ym = "[0.0, 70.0,91]"
 u = np.array([concore.initval(init_simtime_u)]).T
-print("Shannon's PID controller: setpoint is "+str(setpoint))
+
+logging.info(f"Shannon's PID controller: setpoint is {setpoint}")
+
 while(concore.simtime<concore.maxtime):
     while concore.unchanged():
         ym = concore.read(1,"ym",init_simtime_ym)
@@ -59,6 +63,6 @@ while(concore.simtime<concore.maxtime):
     
     ustar =  pid_controller(ym)
     
-    print(str(concore.simtime) + " u="+str(ustar) + "ym="+str(ym))
+    logging.debug(f"{concore.simtime} u={ustar} ym={ym}")
     concore.write(1,"u",list(ustar),delta=0)
 

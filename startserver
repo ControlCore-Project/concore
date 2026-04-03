@@ -1,0 +1,14 @@
+#!/bin/bash
+cd fri/server
+if ! command -v python3 >/dev/null 2>&1; then
+    python main.py
+else
+    python3 main.py
+fi
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "Error: Make sure modules are installed from fri/requirements.txt"
+    echo "Run: pip install -r fri/requirements.txt"
+    echo ""
+fi

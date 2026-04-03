@@ -1,14 +1,14 @@
-FROM openjdk:17-jdk-alpine
+#build stage
+FROM eclipse-temurin:17-jdk-alpine AS builder
+WORKDIR /build
+RUN apk add --no-cache wget
+RUN wget -q "https://search.maven.org/remotecontent?filepath=org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar" -O /opt/jeromq.jar
+COPY *.java .
+RUN javac -cp /opt/jeromq.jar *.java
+
+#runtime stage
+FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
-
-# Only copy the JAR if it exists
-COPY ./target/concore-0.0.1-SNAPSHOT.jar /app/concore.jar || true
-
-# Ensure the JAR file is executable if present
-RUN [ -f /app/concore.jar ] && chmod +x /app/concore.jar || true
-
-EXPOSE 3000
-
-# Run Java app only if the JAR exists, otherwise do nothing
-CMD ["/bin/sh", "-c", "if [ -f /app/concore.jar ]; then java -jar /app/concore.jar; else echo 'No Java application found, exiting'; fi"]
+COPY --from=builder /build/*.class /app/
+COPY --from=builder /opt/jeromq.jar /app/jeromq.jar

@@ -2,17 +2,30 @@ import time
 from ast import literal_eval
 import re
 import os
+import logging
+import atexit
+import sys
+import zmq
+import numpy as np
+import signal
 
-def safe_literal_eval(filename, defaultValue):
-    try:
-        with open(filename, "r") as file:
-            return literal_eval(file.read())
-    except (FileNotFoundError, SyntaxError, ValueError, Exception) as e:
-        print(f"Error reading {filename}: {e}")
-        return defaultValue
-    
-iport = safe_literal_eval("concore.iport", {})
-oport = safe_literal_eval("concore.oport", {})
+import concore_base
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s - %(message)s'
+)
+
+ZeroMQPort = concore_base.ZeroMQPort
+convert_numpy_to_python = concore_base.convert_numpy_to_python
+safe_literal_eval = concore_base.safe_literal_eval
+parse_params = concore_base.parse_params
+
+# Global variables
+zmq_ports = {}
+_cleanup_in_progress = False
+
+last_read_status = "SUCCESS"
 
 s = ''
 olds = ''
@@ -22,22 +35,44 @@ inpath = os.path.abspath("/in")
 outpath = os.path.abspath("/out")
 simtime = 0
 
-#9/21/22
-try:
-    sparams = open(inpath+"1/concore.params").read()
-    if sparams[0] == '"':  #windows keeps "" need to remove
-        sparams = sparams[1:]
-        sparams = sparams[0:sparams.find('"')]
-    if sparams != '{':
-        print("converting sparams: "+sparams)
-        sparams = "{'"+re.sub(',',",'",re.sub('=',"':",re.sub(' ','',sparams)))+"}"
-        print("converted sparams: " + sparams)
+def _port_path(base, port_num):
+    return os.path.join(base, str(port_num))
+
+concore_params_file = os.path.join(_port_path(inpath, 1), "concore.params")
+concore_maxtime_file = os.path.join(_port_path(inpath, 1), "concore.maxtime")
+
+# Load input/output ports if present
+iport = safe_literal_eval("concore.iport", {})
+oport = safe_literal_eval("concore.oport", {})
+
+_mod = sys.modules[__name__]
+
+# ===================================================================
+# ZeroMQ Communication Wrapper
+# ===================================================================
+def init_zmq_port(port_name, port_type, address, socket_type_str):
+    concore_base.init_zmq_port(_mod, port_name, port_type, address, socket_type_str)
+
+def terminate_zmq():
+    """Clean up all ZMQ sockets and contexts before exit."""
+    concore_base.terminate_zmq(_mod)
+
+def signal_handler(sig, frame):
+    """Handle interrupt signals gracefully."""
+    print(f"\nReceived signal {sig}, shutting down gracefully...")
     try:
-        params = literal_eval(sparams)
-    except:
-        print("bad params: "+sparams)
-except:
-    params = dict()
+        atexit.unregister(terminate_zmq)
+    except Exception:
+        pass
+    concore_base.terminate_zmq(_mod)
+    sys.exit(0)
+
+# Register cleanup handlers (docker containers receive SIGTERM from docker stop)
+atexit.register(terminate_zmq)
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+params = concore_base.load_params(concore_params_file)
 
 #9/30/22
 def tryparam(n, i):
@@ -46,86 +81,24 @@ def tryparam(n, i):
 #9/12/21
 def default_maxtime(default):
     global maxtime
-    maxtime = safe_literal_eval(os.path.join(inpath, "1", "concore.maxtime"), default)
+    maxtime = safe_literal_eval(concore_maxtime_file, default)
 
 default_maxtime(100)
 
 def unchanged():
-    global olds, s
-    if olds == s:
-        s = ''
-        return True
-    olds = s
-    return False
+    return concore_base.unchanged(_mod)
 
-def read(port, name, initstr):
-    global s, simtime, retrycount
-    max_retries=5
-    time.sleep(delay)
-    file_path = os.path.join(inpath+str(port), name)
+# ===================================================================
+# I/O Handling (File + ZMQ)
+# ===================================================================
+def read(port_identifier, name, initstr_val):
+    global last_read_status
+    result = concore_base.read(_mod, port_identifier, name, initstr_val)
+    last_read_status = concore_base.last_read_status
+    return result
 
-    try:
-        with open(file_path, "r") as infile:
-            ins = infile.read()
-    except FileNotFoundError:
-        print(f"File {file_path} not found, using default value.")
-        ins = initstr
-    except Exception as e:
-        print(f"Error reading {file_path}: {e}")
-        return initstr
-
-    attempts = 0
-    while len(ins) == 0 and attempts < max_retries:
-        time.sleep(delay)
-        try:
-            with open(file_path, "r") as infile:
-                ins = infile.read()
-        except Exception as e:
-            print(f"Retry {attempts + 1}: Error reading {file_path} - {e}")
-        attempts += 1
-        retrycount += 1
-
-    if len(ins) == 0:
-        print(f"Max retries reached for {file_path}, using default value.")
-        return initstr
-
-    s += ins
-    try:
-        inval = literal_eval(ins)
-        simtime = max(simtime, inval[0])
-        return inval[1:]
-    except Exception as e:
-        print(f"Error parsing {ins}: {e}")
-        return initstr
-
-
-def write(port, name, val, delta=0):
-    global simtime
-    file_path = os.path.join(outpath+str(port), name)
-
-    if isinstance(val, str):
-        time.sleep(2 * delay)
-    elif not isinstance(val, list):
-        print("write must have list or str")
-        return
-
-    try:
-        with open(file_path, "w") as outfile:
-            if isinstance(val, list):
-                outfile.write(str([simtime + delta] + val))
-                simtime += delta
-            else:
-                outfile.write(val)
-    except Exception as e:
-        print(f"Error writing to {file_path}: {e}")
+def write(port_identifier, name, val, delta=0):
+    concore_base.write(_mod, port_identifier, name, val, delta)
 
 def initval(simtime_val):
-    global simtime
-    try:
-        val = literal_eval(simtime_val)
-        simtime = val[0]
-        return val[1:]
-    except Exception as e:
-        print(f"Error parsing simtime_val: {e}")
-        return []
-
+    return concore_base.initval(_mod, simtime_val)

@@ -9,9 +9,12 @@ RUN mkdir /mcr-install \
 
 WORKDIR /mcr-install
 
-RUN wget https://ssd.mathworks.com/supportfiles/downloads/R2021a/Release/1/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2021a_Update_1_glnxa64.zip
+ARG MATLAB_RUNTIME_SHA256="b821022690804e498d2e5ad814dccb64aab17c5e4bc10a1e2a12498ef5364e0d"
+ENV MATLAB_RUNTIME_SHA256=${MATLAB_RUNTIME_SHA256}
 
-RUN unzip MATLAB_Runtime_R2021a_Update_1_glnxa64.zip \
+RUN wget https://ssd.mathworks.com/supportfiles/downloads/R2021a/Release/1/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2021a_Update_1_glnxa64.zip \
+    && echo "${MATLAB_RUNTIME_SHA256}  MATLAB_Runtime_R2021a_Update_1_glnxa64.zip" | sha256sum -c - \
+    && unzip MATLAB_Runtime_R2021a_Update_1_glnxa64.zip \
     && ./install -destinationFolder /opt/mcr -agreeToLicense yes -mode silent \
     && cd / \
     && rm -rf mcr-install

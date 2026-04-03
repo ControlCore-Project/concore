@@ -1,0 +1,142 @@
+{
+  "schema_version": "1.0",
+  "runtime": "python",
+  "mode": "report_only",
+  "cases": [
+    {
+      "id": "parse_params/simple_types_and_whitespace",
+      "target": "parse_params",
+      "description": "Semicolon-delimited params preserve string values and coerce literals.",
+      "input": {
+        "sparams": "delay=5; coeffs=[1,2,3]; label = hello world"
+      },
+      "expected": {
+        "result": {
+          "delay": 5,
+          "coeffs": [
+            1,
+            2,
+            3
+          ],
+          "label": "hello world"
+        }
+      }
+    },
+    {
+      "id": "parse_params/embedded_equals_not_split",
+      "target": "parse_params",
+      "description": "Only the first '=' is used as key/value separator.",
+      "input": {
+        "sparams": "url=https://example.com?a=1&b=2"
+      },
+      "expected": {
+        "result": {
+          "url": "https://example.com?a=1&b=2"
+        }
+      }
+    },
+    {
+      "id": "initval/valid_list_sets_simtime",
+      "target": "initval",
+      "description": "initval sets simtime to first numeric entry and returns payload tail.",
+      "input": {
+        "initial_simtime": 0,
+        "simtime_val_str": "[12.5, \"a\", 3]"
+      },
+      "expected": {
+        "result": [
+          "a",
+          3
+        ],
+        "simtime_after": 12.5
+      }
+    },
+    {
+      "id": "initval/invalid_input_returns_empty_and_preserves_simtime",
+      "target": "initval",
+      "description": "Invalid non-list input returns [] and leaves simtime unchanged.",
+      "input": {
+        "initial_simtime": 7,
+        "simtime_val_str": "not_a_list"
+      },
+      "expected": {
+        "result": [],
+        "simtime_after": 7
+      }
+    },
+    {
+      "id": "write_zmq/list_payload_prepends_timestamp_without_mutation",
+      "target": "write_zmq",
+      "description": "write() prepends simtime+delta for list payloads but does not mutate global simtime.",
+      "input": {
+        "initial_simtime": 10,
+        "delta": 2,
+        "name": "data",
+        "value": [
+          1.5,
+          2.5
+        ]
+      },
+      "expected": {
+        "sent_payload": [
+          12,
+          1.5,
+          2.5
+        ],
+        "simtime_after": 10
+      }
+    },
+    {
+      "id": "write_zmq/non_list_payload_forwarded_as_is",
+      "target": "write_zmq",
+      "description": "Non-list payloads are forwarded as-is and simtime remains unchanged.",
+      "input": {
+        "initial_simtime": 10,
+        "delta": 3,
+        "name": "status",
+        "value": "ok"
+      },
+      "expected": {
+        "sent_payload": "ok",
+        "simtime_after": 10
+      }
+    },
+    {
+      "id": "read_file/missing_file_returns_default_and_false",
+      "target": "read_file",
+      "description": "read() returns init default with ok=False when file is missing.",
+      "input": {
+        "initial_simtime": 4,
+        "port": 1,
+        "name": "missing",
+        "initstr_val": "[0.0, 5.0]"
+      },
+      "expected": {
+        "result": [
+          5.0
+        ],
+        "ok": false,
+        "simtime_after": 4
+      }
+    },
+    {
+      "id": "read_file/older_timestamp_does_not_decrease_simtime",
+      "target": "read_file",
+      "description": "read() keeps simtime monotonic when incoming file timestamp is older.",
+      "input": {
+        "initial_simtime": 10,
+        "port": 1,
+        "name": "ym",
+        "file_content": "[7.0, 3.14]",
+        "initstr_val": "[0.0, 0.0]"
+      },
+      "expected": {
+        "result": [
+          3.14
+        ],
+        "ok": true,
+        "simtime_after": 10
+      }
+    }
+  ]
+}

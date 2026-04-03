@@ -1,0 +1,41 @@
+exclude = [
+    # legacy/experimental dirs - fix incrementally
+    "demo/",
+    "ratc/",
+    "ratc2/",
+    "example/",
+    "0mq/",
+    "measurements/",
+    "tools/",
+    "nintan/",
+    "testsou/",
+    "linktest/",
+    "fri/",
+    "gi/",
+    "humanc/",
+    # core modules - maintainer-managed, don't touch yet
+    "mkconcore.py",
+    "concore.py",
+    "concoredocker.py",
+    "concore_base.py",
+    "contribute.py",
+    "copy_with_port_portname.py",
+    # not valid Python (Dockerfiles)
+    "Dockerfile.py",
+    "Dockerfile.m",
+    "Dockerfile.sh",
+    "Dockerfile.v",
+    "Dockerfile.java",
+]
+
+[lint]
+select = ["E", "F"]
+ignore = [
+    "E501",  # line too long - enforce incrementally
+    "E712",  # comparison to True/False - common in tests
+    "E721",  # type comparison - common in tests
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"

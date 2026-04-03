@@ -1,14 +1,10 @@
 import concore
-import concore2
 import numpy as np
 import matplotlib.pyplot as plt
 import time
 GENERATE_PLOT = 0
 concore.delay = 0.002
-concore2.delay = 0.002
-concore2.inpath = concore.inpath
-concore2.outpath = concore.outpath
-concore2.simtime = 0
+concore.simtime = 0
 
 fout=open(concore.outpath+'1/history.txt','w')
 fout2=open('historyfull.txt','a+')
@@ -23,9 +19,9 @@ while(concore.simtime<concore.maxtime-1):
     while concore.unchanged():
         u = concore.read(concore.iport["VCY"],"u",init_simtime_u)
     ut[int(concore.simtime)] = np.array(u).T
-    while concore2.unchanged():
-        ym = concore2.read(concore.iport["VPY"],"ym",init_simtime_ym)
-    ymt[int(concore2.simtime)] = np.array(ym).T
+    while concore.unchanged():
+        ym = concore.read(concore.iport["VPY"],"ym",init_simtime_ym)
+    ymt[int(concore.simtime)] = np.array(ym).T
     #fout.write(str(u)+str(ym)+'\n')
     #fout2.write(str(u)+str(ym)+'\n')
 print("retry="+str(concore.retrycount))

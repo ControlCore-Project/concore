@@ -12,14 +12,13 @@ int main(){
     Concore concore2;
     concore.delay = 0.07;
     concore2.delay = 0.07;
-    int Nsim = 100;
     string init_simtime_u = "[0.0,0.0,0.0]";
     string init_simtime_ym = "[0.0,0.0,0.0]";
     int energy = 0;
 
     vector<double> ym = concore.initval(init_simtime_ym);
     vector<double> u;
-    while(concore.simtime<Nsim){
+    while(concore.simtime<concore.maxtime){
         while (concore.unchanged()){
             u = concore.read(concore.iport["VC"],"u",init_simtime_u);
         }

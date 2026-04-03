@@ -1,7 +1,6 @@
 # funcall_distributed.py (MODIFIED FOR LATENCY MEASUREMENT)
 import time
 import concore
-import concore2
 import csv # <--- ADDED: Import CSV library
 
 print("funcall using ZMQ via concore")
@@ -16,24 +15,21 @@ concore.init_zmq_port(
 
 # Standard concore initializations
 concore.delay = 0.07
-concore2.delay = 0.07
-concore2.inpath = concore.inpath
-concore2.outpath = concore.outpath
-concore2.simtime = 0
+concore.simtime = 0
 concore.default_maxtime(100) # Recommend increasing this for more data points, e.g., 1000
 init_simtime_u_str = "[0.0, 0.0, 0.0]"
 init_simtime_ym_str = "[0.0, 0.0, 0.0]"
 
 u = concore.initval(init_simtime_u_str)
-ym = concore2.initval(init_simtime_ym_str)
+ym = concore.initval(init_simtime_ym_str)
 
 # --- ADDED: Initialize a list to store latency values ---
 zeromq_latencies = []
 
-print(f"Initial u: {u}, ym: {ym}, concore.simtime: {concore.simtime}, concore2.simtime: {concore2.simtime}")
+print(f"Initial u: {u}, ym: {ym}, concore.simtime: {concore.simtime}, concore.simtime: {concore.simtime}")
 print(f"Max time: {concore.maxtime}")
 
-while concore2.simtime < concore.maxtime:
+while concore.simtime < concore.maxtime:
     while concore.unchanged():
         u = concore.read(concore.iport['U'], "u", init_simtime_u_str)
 
@@ -53,18 +49,18 @@ while concore2.simtime < concore.maxtime:
     if isinstance(received_ym_data, list) and len(received_ym_data) > 0:
         response_time = received_ym_data[0]
         if isinstance(response_time, (int, float)):
-            concore2.simtime = response_time
+            concore.simtime = response_time
             ym = received_ym_data[1:]
         else:
             print(f"Warning: Received ZMQ data's first element is not time: {received_ym_data}. Using as is.")
             ym = received_ym_data
     else:
         print(f"Warning: Received unexpected ZMQ data format: {received_ym_data}. Using default ym.")
-        ym = concore2.initval(init_simtime_ym_str)
+        ym = concore.initval(init_simtime_ym_str)
 
-    concore2.write(concore.oport['Y'], "ym", ym)
+    concore.write(concore.oport['Y'], "ym", ym)
     
-    print(f"funcall ZMQ u={u} ym={ym} time={concore2.simtime} | ZMQ Latency: {latency_ms:.4f} ms")
+    print(f"funcall ZMQ u={u} ym={ym} time={concore.simtime} | ZMQ Latency: {latency_ms:.4f} ms")
 
 print("funcall retry=" + str(concore.retrycount))
 

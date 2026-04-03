@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Lint
+        run: ruff check . --output-format=github
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-ci.txt
+
+      - name: Run tests
+        run: |
+          pytest --tb=short -q \
+            --cov=concore_cli --cov=concore_base \
+            --cov-report=term-missing \
+            --ignore=measurements/ \
+            --ignore=0mq/ \
+            --ignore=ratc/ \
+            --ignore=linktest/
+
+  java-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Download jeromq
+        run: |
+          curl -fsSL -o jeromq.jar https://repo1.maven.org/maven2/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar
+
+      - name: Compile Java tests
+        run: |
+          javac -cp jeromq.jar concoredocker.java TestLiteralEval.java TestConcoredockerApi.java
+
+      - name: Run Java tests
+        run: |
+          java -cp .:jeromq.jar TestLiteralEval
+          java -cp .:jeromq.jar TestConcoredockerApi
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if Dockerfile.py changed
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            dockerfile:
+              - 'Dockerfile.py'
+              - 'requirements.txt'
+
+      - name: Validate Dockerfile build
+        if: steps.filter.outputs.dockerfile == 'true'
+        run: docker build -f Dockerfile.py -t concore-py-test .

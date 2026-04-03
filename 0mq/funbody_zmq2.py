@@ -1,7 +1,6 @@
 # funbody2_zmq.py
 import time 
 import concore
-import concore2
 
 print("funbody using ZMQ via concore")
 
@@ -15,21 +14,18 @@ concore.init_zmq_port(
 
 # Standard concore initializations
 concore.delay = 0.07         
-concore2.delay = 0.07        
-concore2.inpath = concore.inpath
-concore2.outpath = concore.outpath
-concore2.simtime = 0         
+concore.simtime = 0         
 concore.default_maxtime(100) 
 init_simtime_u_str = "[0.0, 0.0, 0.0]"
 init_simtime_ym_str = "[0.0, 0.0, 0.0]"
 
 u_data_values = concore.initval(init_simtime_u_str) 
-ym_data_values = concore2.initval(init_simtime_ym_str)
+ym_data_values = concore.initval(init_simtime_ym_str)
 
 print(f"Initial u_data_values: {u_data_values}, ym_data_values: {ym_data_values}")
 print(f"Max time: {concore.maxtime}")
 
-while concore2.simtime < concore.maxtime:
+while concore.simtime < concore.maxtime:
     received_u_data = concore.read(PORT_NAME_F2_OUT, "u_signal", init_simtime_u_str)
 
     if not (isinstance(received_u_data, list) and len(received_u_data) > 0):
@@ -49,17 +45,17 @@ while concore2.simtime < concore.maxtime:
     if 'U2' in concore.oport: 
         concore.write(concore.oport['U2'], "u", u_data_values)
 
-    old_concore2_simtime = concore2.simtime
-    while concore2.unchanged() or concore2.simtime <= old_concore2_simtime:
+    old_concore_simtime = float(concore.simtime)
+    while concore.unchanged() or concore.simtime <= old_concore_simtime:
         # Assuming concore.iport['Y2'] is a file port (e.g., from pmpymax.py)
-        ym_data_values = concore2.read(concore.iport['Y2'], "ym", init_simtime_ym_str)
-        # time.sleep(concore2.delay) # Optional delay
+        ym_data_values = concore.read(concore.iport['Y2'], "ym", init_simtime_ym_str)
+        # time.sleep(concore.delay) # Optional delay
 
-    ym_full_to_send = [concore2.simtime] + ym_data_values
+    ym_full_to_send = [concore.simtime] + ym_data_values
     
     concore.write(PORT_NAME_F2_OUT, "ym_signal", ym_full_to_send)
     
-    print(f"funbody u={u_data_values} ym={ym_data_values} time={concore2.simtime}")
+    print(f"funbody u={u_data_values} ym={ym_data_values} time={concore.simtime}")
 
 print("funbody retry=" + str(concore.retrycount))
 

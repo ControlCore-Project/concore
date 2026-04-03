@@ -1,6 +1,7 @@
 import numpy as np
 import concore
 
+ysp = 3.0
 
 def controller(ym): 
   if ym[0] < ysp:

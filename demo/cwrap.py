@@ -4,6 +4,7 @@ import requests
 import time
 from ast import literal_eval
 import os
+import sys
 
 #time.sleep(7)
 timeout_max = 20
@@ -58,7 +59,6 @@ except:
     except:
         init_simtime_ym = "[0.0, 0.0, 0.0]"
 
-print(apikey)
 print(yuyu)
 print(name1+'='+init_simtime_u)
 print(name2+'='+init_simtime_ym)
@@ -83,11 +83,11 @@ while(concore.simtime<concore.maxtime):
         u = concore.read(1,name1,init_simtime_u)
     f = {'file1': open(concore.inpath+'1/'+name1, 'rb')}
     print("CW: before post u="+str(u))
-    print('http://www.controlcore.org/pm/'+yuyu+apikey+'&fetch='+name2)
+    print('http://www.controlcore.org/pm/'+yuyu+'<APIKEY_HIDDEN>'+'&fetch='+name2)
     r = requests.post('http://www.controlcore.org/pm/'+yuyu+apikey+'&fetch='+name2, files=f,timeout=timeout_max)
     if r.status_code!=200:
         print("bad POST request "+str(r.status_code))
-        quit()
+        sys.exit(1)
     if len(r.text)!=0:
         try:
             t=literal_eval(r.text)[0]
@@ -108,7 +108,7 @@ while(concore.simtime<concore.maxtime):
         timeout_count += 1
         if r.status_code!=200 or time.perf_counter()-t1 > 1.1*timeout_max: #timeout_count>100:
             print("timeout or bad POST request "+str(r.status_code))
-            quit()
+            sys.exit(1)
         if len(r.text)!=0:
             try:
                 t=literal_eval(r.text)[0]

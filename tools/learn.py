@@ -2,6 +2,7 @@ import concore
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import logging
 GENERATE_PLOT = 1
 
 concore.delay = 0.002
@@ -21,7 +22,7 @@ while(concore.simtime<concore.maxtime):
         ut[int(concore.simtime)] = np.array(u).T
         ymt[int(concore.simtime)] = np.array(ym).T
     oldsimtime = concore.simtime
-print("retry="+str(concore.retrycount))
+logging.info(f"retry={concore.retrycount}")
 
 #################
 # plot inputs and outputs

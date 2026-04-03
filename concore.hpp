@@ -1,4 +1,7 @@
 // concore.hpp -- this C++ include file will be the equivalent of concore.py
+#ifndef CONCORE_HPP
+#define CONCORE_HPP
+
 #include <iostream>
 #include <vector>
 #include <iomanip> //for setprecision
@@ -12,11 +15,16 @@
 //libraries for platform independent delay. Supports C++11 upwards
 #include <chrono>
 #include <thread>
+#ifdef __linux__
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <unistd.h>
+#endif
 #include <cstring>
 #include <cctype>
+#include <regex>
+
+#include "concore_base.hpp"
 
 using namespace std;
 
@@ -32,21 +40,43 @@ private:
     string inpath = "./in";
     string outpath = "./out";
 
-    int shmId_create;
-    int shmId_get;
+    static constexpr size_t SHM_SIZE = 4096;
 
-    char* sharedData_create;
-    char* sharedData_get;
+    int shmId_create = -1;
+    int shmId_get = -1;
+
+    char* sharedData_create = nullptr;
+    char* sharedData_get = nullptr;
     // File sharing:- 0, Shared Memory:- 1
     int communication_iport = 0;  // iport refers to input port
     int communication_oport = 0;  // oport refers to input port
 
+#ifdef CONCORE_USE_ZMQ
+    map<string, concore_base::ZeroMQPort*> zmq_ports;
+#endif
+
  public:
+    enum class ReadStatus {
+        SUCCESS,
+        TIMEOUT,
+        PARSE_ERROR,
+        FILE_NOT_FOUND,
+        RETRIES_EXCEEDED
+    };
+
+    struct ReadResult {
+        ReadStatus status;
+        vector<double> data;
+    };
+
     double delay = 1;
     int retrycount = 0;
     double simtime;
+    int maxtime = 100;
     map <string, int> iport;
     map <string, int> oport;
+    map <string, string> params;
+    ReadStatus last_read_status = ReadStatus::SUCCESS;
 
     /**
      * @brief Constructor for Concore class.
@@ -55,15 +85,26 @@ private:
      */
     Concore(){
         iport = mapParser("concore.iport");
-        oport = mapParser("concore.oport");   
-        std::map<std::string, int>::iterator it_iport = iport.begin();
-        std::map<std::string, int>::iterator it_oport = oport.begin();
-        int iport_number = ExtractNumeric(it_iport->first); 
-        int oport_number = ExtractNumeric(it_oport->first);
+        oport = mapParser("concore.oport");
+        default_maxtime(100);
+        load_params();   
+        
+        int iport_number = -1;
+        int oport_number = -1;
+        
+        if (!iport.empty()) {
+            std::map<std::string, int>::iterator it_iport = iport.begin();
+            iport_number = ExtractNumeric(it_iport->first);
+        }
+        if (!oport.empty()) {
+            std::map<std::string, int>::iterator it_oport = oport.begin();
+            oport_number = ExtractNumeric(it_oport->first);
+        }
 
         // if iport_number and oport_number is equal to -1 then it refers to File Method, 
         // otherwise it refers to Shared Memory and the number represent the unique key.
 
+#ifdef __linux__
         if(oport_number != -1)
         {
             // oport_number is not equal to -1 so refers to SM and value is key.
@@ -76,7 +117,8 @@ private:
             // iport_number is not equal to -1 so refers to SM and value is key.
             communication_iport = 1;
             this->getSharedMemory(iport_number);
-        }    
+        }
+#endif
     }
 
     /**
@@ -85,12 +127,97 @@ private:
      */
     ~Concore()
     {
+#ifdef CONCORE_USE_ZMQ
+        for (auto& kv : zmq_ports)
+            delete kv.second;
+        zmq_ports.clear();
+#endif
+#ifdef __linux__
         // Detach the shared memory segment from the process
-        shmdt(sharedData_create);
-        shmdt(sharedData_get);
+        if (communication_oport == 1 && sharedData_create != nullptr) {
+            shmdt(sharedData_create);
+        }
+        if (communication_iport == 1 && sharedData_get != nullptr) {
+            shmdt(sharedData_get);
+        }
 
         // Remove the shared memory segment
-        shmctl(shmId_create, IPC_RMID, nullptr);
+        if (shmId_create != -1) {
+            shmctl(shmId_create, IPC_RMID, nullptr);
+        }
+#endif
+    }
+
+    /**
+     * @brief Concore is not copyable as it owns shared memory handles.
+     */
+    Concore(const Concore&) = delete;
+    Concore& operator=(const Concore&) = delete;
+
+    /**
+     * @brief Move constructor. Transfers SHM handle ownership to the new instance.
+     */
+    Concore(Concore&& other) noexcept
+        : s(std::move(other.s)), olds(std::move(other.olds)),
+          inpath(std::move(other.inpath)), outpath(std::move(other.outpath)),
+          shmId_create(other.shmId_create), shmId_get(other.shmId_get),
+          sharedData_create(other.sharedData_create), sharedData_get(other.sharedData_get),
+          communication_iport(other.communication_iport), communication_oport(other.communication_oport),
+          delay(other.delay), retrycount(other.retrycount), simtime(other.simtime),
+          maxtime(other.maxtime), iport(std::move(other.iport)), oport(std::move(other.oport)),
+          params(std::move(other.params))
+    {
+        other.shmId_create = -1;
+        other.shmId_get = -1;
+        other.sharedData_create = nullptr;
+        other.sharedData_get = nullptr;
+        other.communication_iport = 0;
+        other.communication_oport = 0;
+    }
+
+    /**
+     * @brief Move assignment. Cleans up current SHM resources, then takes ownership from other.
+     */
+    Concore& operator=(Concore&& other) noexcept
+    {
+        if (this == &other)
+            return *this;
+
+#ifdef __linux__
+        if (communication_oport == 1 && sharedData_create != nullptr)
+            shmdt(sharedData_create);
+        if (communication_iport == 1 && sharedData_get != nullptr)
+            shmdt(sharedData_get);
+        if (shmId_create != -1)
+            shmctl(shmId_create, IPC_RMID, nullptr);
+#endif
+
+        s = std::move(other.s);
+        olds = std::move(other.olds);
+        inpath = std::move(other.inpath);
+        outpath = std::move(other.outpath);
+        shmId_create = other.shmId_create;
+        shmId_get = other.shmId_get;
+        sharedData_create = other.sharedData_create;
+        sharedData_get = other.sharedData_get;
+        communication_iport = other.communication_iport;
+        communication_oport = other.communication_oport;
+        delay = other.delay;
+        retrycount = other.retrycount;
+        simtime = other.simtime;
+        maxtime = other.maxtime;
+        iport = std::move(other.iport);
+        oport = std::move(other.oport);
+        params = std::move(other.params);
+
+        other.shmId_create = -1;
+        other.shmId_get = -1;
+        other.sharedData_create = nullptr;
+        other.sharedData_get = nullptr;
+        other.communication_iport = 0;
+        other.communication_oport = 0;
+
+        return *this;
     }
 
     /**
@@ -127,22 +254,38 @@ private:
         return std::stoi(numberString);
     }
 
+#ifdef __linux__
     /**
      * @brief Creates a shared memory segment with the given key.
      * @param key The key for the shared memory segment.
      */
     void createSharedMemory(key_t key)
     {
-        shmId_create = shmget(key, 256, IPC_CREAT | 0666);
+        shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
 
         if (shmId_create == -1) {
             std::cerr << "Failed to create shared memory segment." << std::endl;
+            return;
+        }
+
+        // Verify the segment is large enough (shmget won't resize an existing segment)
+        struct shmid_ds shm_info;
+        if (shmctl(shmId_create, IPC_STAT, &shm_info) == 0 && shm_info.shm_segsz < SHM_SIZE) {
+            std::cerr << "Shared memory segment too small (" << shm_info.shm_segsz
+                      << " bytes, need " << SHM_SIZE << "). Removing and recreating." << std::endl;
+            shmctl(shmId_create, IPC_RMID, nullptr);
+            shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
+            if (shmId_create == -1) {
+                std::cerr << "Failed to recreate shared memory segment." << std::endl;
+                return;
+            }
         }
 
         // Attach the shared memory segment to the process's address space
         sharedData_create = static_cast<char*>(shmat(shmId_create, NULL, 0));
         if (sharedData_create == reinterpret_cast<char*>(-1)) {
             std::cerr << "Failed to attach shared memory segment." << std::endl;
+            sharedData_create = nullptr;
         }
     }
 
@@ -153,9 +296,11 @@ private:
      */
     void getSharedMemory(key_t key)
     {
-        while (true) {
+        int retry = 0;
+        const int MAX_RETRY = 100;
+        while (retry < MAX_RETRY) {
             // Get the shared memory segment created by Writer
-            shmId_get = shmget(key, 256, 0666);
+            shmId_get = shmget(key, SHM_SIZE, 0666);
             // Check if shared memory exists
             if (shmId_get != -1) {
                 break; // Break the loop if shared memory exists
@@ -163,11 +308,22 @@ private:
 
             std::cout << "Shared memory does not exist. Make sure the writer process is running." << std::endl;
             sleep(1); // Sleep for 1 second before checking again
+            retry++;
+        }
+
+        if (shmId_get == -1) {
+            std::cerr << "Failed to get shared memory segment after max retries." << std::endl;
+            return;
         }
 
         // Attach the shared memory segment to the process's address space
         sharedData_get = static_cast<char*>(shmat(shmId_get, NULL, 0));
+        if (sharedData_get == reinterpret_cast<char*>(-1)) {
+            std::cerr << "Failed to attach shared memory segment." << std::endl;
+            sharedData_get = nullptr;
+        }
     }
+#endif
 
     /**
      * @brief Parses a file containing port and number mappings and returns a map of the values.
@@ -176,44 +332,13 @@ private:
      */
     map<string,int> mapParser(string filename){
         map<string,int> ans;
-
-        ifstream portfile;
-        string portstr;
-        portfile.open(filename);
-        if(portfile){
-            ostringstream ss;
-            ss << portfile.rdbuf();
-            portstr = ss.str();
-            portfile.close();
-        }
-
-        portstr[portstr.size()-1]=',';
-        portstr+='}';
-        int i=0;
-        string portname="";
-        string portnum="";
-
-        while(portstr[i]!='}'){
-            if(portstr[i]=='\''){
-                i++;
-                while(portstr[i]!='\''){
-                    portname+=portstr[i];
-                    i++;
-                }
-                ans.insert({portname,0});
+        auto str_map = concore_base::safe_literal_eval_dict(filename, {});
+        for (const auto& kv : str_map) {
+            try {
+                ans[kv.first] = std::stoi(kv.second);
+            } catch (...) {
+                ans[kv.first] = 0;
             }
-
-            if(portstr[i]==':'){
-                i++;
-                while(portstr[i]!=','){
-                    portnum+=portstr[i];
-                    i++;
-                }
-                ans[portname]=stoi(portnum);
-                portnum="";
-                portname="";
-            }  
-            i++;
         }
         return ans;
     }
@@ -239,24 +364,25 @@ private:
      * @return A vector of double values extracted from the input string.
      */
     vector<double> parser(string f){
-        vector<double> temp;
-        string value = "";
-    
-        //Changing last bracket to comma to use comma as a delimiter
-        f[f.length()-1]=',';
+        return concore_base::parselist_double(f);
+    }
 
-        for(int i=1;i<f.length();i++){
-            if(f[i]!=',')
-                value+=f[i];
-            else{
-                if((int)value.size()!=0)
-                    temp.push_back(stod(value));
-                
-                //reset value
-                value = "";
-            }
-        }
-        return temp;
+    /**
+     * @brief Parses a literal string into a ConcoreValue representation.
+     * @param f The input string to parse.
+     * @return A ConcoreValue obtained by parsing the input string.
+     */
+    concore_base::ConcoreValue parse_literal(string f){
+        return concore_base::parse_literal(f);
+    }
+
+    /**
+     * @brief Flattens a ConcoreValue into a vector of numeric (double) values.
+     * @param v The ConcoreValue to flatten.
+     * @return A vector of double values obtained by flattening the input.
+     */
+    vector<double> flatten_numeric(const concore_base::ConcoreValue& v){
+        return concore_base::flatten_numeric(v);
     }
 
     /**
@@ -276,6 +402,14 @@ private:
         return read_FM(port, name, initstr);
     }
 
+    ReadResult read_result(int port, string name, string initstr)
+    {
+        ReadResult result;
+        result.data = read(port, name, initstr);
+        result.status = last_read_status;
+        return result;
+    }
+
     /**
      * @brief Reads data from a specified port and name using the FM (File Method) communication protocol.
      * @param port The port number.
@@ -287,6 +421,7 @@ private:
         chrono::milliseconds timespan((int)(1000*delay));
         this_thread::sleep_for(timespan);
         string ins;
+        ReadStatus status = ReadStatus::SUCCESS;
         try {
             ifstream infile;
             infile.open(inpath+to_string(port)+"/"+name, ios::in);
@@ -297,13 +432,18 @@ private:
                 infile.close();
             }
             else {
+                status = ReadStatus::FILE_NOT_FOUND;
                 throw 505;}
         }
         catch (...) {
             ins = initstr;
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::FILE_NOT_FOUND;
         }
         
-        while ((int)ins.length()==0){
+        int retry = 0;
+        const int MAX_RETRY = 100;
+        while ((int)ins.length()==0 && retry < MAX_RETRY){
             this_thread::sleep_for(timespan);
             try{
                 ifstream infile;
@@ -324,13 +464,26 @@ private:
             catch(...){
                 cout<<"Read error";
             }
-            
-            
+            retry++;
         }
+        if ((int)ins.length()==0)
+            status = ReadStatus::RETRIES_EXCEEDED;
         s += ins;
 
         vector<double> inval = parser(ins);
+        if(inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
+            inval = parser(initstr);
+        }
+        if(inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
+            last_read_status = status;
+            return inval;
+        }
         simtime = simtime > inval[0] ? simtime : inval[0];
+        last_read_status = status;
 
         //returning a string with data excluding simtime
         inval.erase(inval.begin());
@@ -349,10 +502,11 @@ private:
         chrono::milliseconds timespan((int)(1000*delay));
         this_thread::sleep_for(timespan);
         string ins = "";
+        ReadStatus status = ReadStatus::SUCCESS;
         try {
         if (shmId_get != -1) {
             if (sharedData_get && sharedData_get[0] != '\0') {
-                std::string message(sharedData_get, strnlen(sharedData_get, 256));
+                std::string message(sharedData_get, strnlen(sharedData_get, SHM_SIZE));
                 ins = message;
             } 
             else 
@@ -362,17 +516,22 @@ private:
         } 
         else 
         {
+            status = ReadStatus::FILE_NOT_FOUND;
             throw 505;
         }
         } catch (...) {
             ins = initstr;
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::FILE_NOT_FOUND;
         }
         
-        while ((int)ins.length()==0){
+        int retry = 0;
+        const int MAX_RETRY = 100;
+        while ((int)ins.length()==0 && retry < MAX_RETRY){
             this_thread::sleep_for(timespan);
             try{
                 if(shmId_get != -1) {
-                    std::string message(sharedData_get, strnlen(sharedData_get, 256));
+                    std::string message(sharedData_get, strnlen(sharedData_get, SHM_SIZE));
                     ins = message;
                     retrycount++;
                 }
@@ -385,11 +544,26 @@ private:
             catch(...){
                 std::cout << "Read error" << std::endl;
             }
+            retry++;
         }
+        if ((int)ins.length()==0)
+            status = ReadStatus::RETRIES_EXCEEDED;
         s += ins;
 
         vector<double> inval = parser(ins);
+        if(inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
+            inval = parser(initstr);
+        }
+        if(inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
+            last_read_status = status;
+            return inval;
+        }
         simtime = simtime > inval[0] ? simtime : inval[0];
+        last_read_status = status;
 
         //returning a string with data excluding simtime
         inval.erase(inval.begin());
@@ -451,6 +625,7 @@ private:
                     outfile<<val[i]<<',';
                 outfile<<val[val.size()-1]<<']';
                 outfile.close();
+                // simtime must not be mutated here (issue #385).
                 }
             else{
                 throw 505;
@@ -499,13 +674,22 @@ private:
         try {
             std::ostringstream outfile;
             if(shmId_create != -1){
+                if (sharedData_create == nullptr)
+                    throw 506;
                 val.insert(val.begin(),simtime+delta);
                 outfile<<'[';
                 for(int i=0;i<val.size()-1;i++)
                     outfile<<val[i]<<',';
                 outfile<<val[val.size()-1]<<']';
                 std::string result = outfile.str();
-                std::strncpy(sharedData_create, result.c_str(), 256 - 1);
+                if (result.size() >= SHM_SIZE) {
+                    std::cerr << "ERROR: write_SM payload (" << result.size()
+                              << " bytes) exceeds " << SHM_SIZE - 1
+                              << "-byte shared memory limit. Data truncated!" << std::endl;
+                }
+                std::strncpy(sharedData_create, result.c_str(), SHM_SIZE - 1);
+                sharedData_create[SHM_SIZE - 1] = '\0';
+                // simtime must not be mutated here (issue #385).
                 }
             else{
                 throw 505;
@@ -529,7 +713,15 @@ private:
         this_thread::sleep_for(timespan);
         try {
             if(shmId_create != -1){
-                std::strncpy(sharedData_create, val.c_str(), 256 - 1);
+                if (sharedData_create == nullptr)
+                    throw 506;
+                if (val.size() >= SHM_SIZE) {
+                    std::cerr << "ERROR: write_SM payload (" << val.size()
+                              << " bytes) exceeds " << SHM_SIZE - 1
+                              << "-byte shared memory limit. Data truncated!" << std::endl;
+                }
+                std::strncpy(sharedData_create, val.c_str(), SHM_SIZE - 1);
+                sharedData_create[SHM_SIZE - 1] = '\0';
             }
             else throw 505;
         }
@@ -538,6 +730,188 @@ private:
         }
     }
     
+#ifdef CONCORE_USE_ZMQ
+    /**
+     * @brief Registers a ZMQ port for use with read()/write().
+     * @param port_name The ZMQ port name.
+     * @param port_type "bind" or "connect".
+     * @param address The ZMQ address.
+     * @param socket_type_str The socket type string.
+     */
+    void init_zmq_port(string port_name, string port_type, string address, string socket_type_str) {
+        if (zmq_ports.count(port_name)) return;
+        int sock_type = concore_base::zmq_socket_type_from_string(socket_type_str);
+        if (sock_type == -1) {
+            cerr << "init_zmq_port: unknown socket type '" << socket_type_str << "'" << endl;
+            return;
+        }
+        zmq_ports[port_name] = new concore_base::ZeroMQPort(port_type, address, sock_type);
+    }
+
+    /**
+     * @brief Reads data from a ZMQ port. Strips simtime prefix, updates simtime.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param initstr The initial string.
+     * @return a vector of double values
+     */
+    vector<double> read_ZMQ(string port_name, string name, string initstr) {
+        ReadStatus status = ReadStatus::SUCCESS;
+        auto it = zmq_ports.find(port_name);
+        if (it == zmq_ports.end()) {
+            cerr << "read_ZMQ: port '" << port_name << "' not initialized" << endl;
+            status = ReadStatus::FILE_NOT_FOUND;
+            last_read_status = status;
+            return parser(initstr);
+        }
+        vector<double> inval = it->second->recv_with_retry();
+        if (inval.empty()) {
+            status = ReadStatus::TIMEOUT;
+            inval = parser(initstr);
+        }
+        if (inval.empty()) {
+            if (status == ReadStatus::SUCCESS)
+                status = ReadStatus::PARSE_ERROR;
+            last_read_status = status;
+            return inval;
+        }
+        last_read_status = status;
+        simtime = simtime > inval[0] ? simtime : inval[0];
+        s += port_name;
+        inval.erase(inval.begin());
+        return inval;
+    }
+
+    /**
+     * @brief Writes a vector of double values to a ZMQ port. Prepends simtime+delta.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param val The vector of double values to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write_ZMQ(string port_name, string name, vector<double> val, int delta=0) {
+        auto it = zmq_ports.find(port_name);
+        if (it == zmq_ports.end()) {
+            cerr << "write_ZMQ: port '" << port_name << "' not initialized" << endl;
+            return;
+        }
+        val.insert(val.begin(), simtime + delta);
+        it->second->send_with_retry(val);
+        // simtime must not be mutated here (issue #385).
+    }
+
+    /**
+     * @brief Writes a string to a ZMQ port.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write_ZMQ(string port_name, string name, string val, int delta=0) {
+        auto it = zmq_ports.find(port_name);
+        if (it == zmq_ports.end()) {
+            cerr << "write_ZMQ: port '" << port_name << "' not initialized" << endl;
+            return;
+        }
+        chrono::milliseconds timespan((int)(2000*delay));
+        this_thread::sleep_for(timespan);
+        it->second->send_string_with_retry(val);
+    }
+
+    /**
+     * @brief deviate the read to ZMQ communication protocol when port identifier is a string key.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param initstr The initial string.
+     * @return 
+     */
+    vector<double> read(string port_name, string name, string initstr) {
+        return read_ZMQ(port_name, name, initstr);
+    }
+
+    ReadResult read_result(string port_name, string name, string initstr) {
+        ReadResult result;
+        result.data = read(port_name, name, initstr);
+        result.status = last_read_status;
+        return result;
+    }
+
+    /**
+     * @brief deviate the write to ZMQ communication protocol when port identifier is a string key.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param val The vector of double values to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write(string port_name, string name, vector<double> val, int delta=0) {
+        return write_ZMQ(port_name, name, val, delta);
+    }
+
+    /**
+     * @brief deviate the write to ZMQ communication protocol when port identifier is a string key.
+     * @param port_name The ZMQ port name.
+     * @param name The name of the file.
+     * @param val The string to write.
+     * @param delta The delta value (default: 0).
+     */
+    void write(string port_name, string name, string val, int delta=0) {
+        return write_ZMQ(port_name, name, val, delta);
+    }
+#endif // CONCORE_USE_ZMQ
+
+    /**
+     * @brief Strips leading and trailing whitespace from a string.
+     * @param str The input string.
+     * @return The stripped string.
+     */
+    string stripstr(string str){
+        return concore_base::stripstr(str);
+    }
+
+    /**
+     * @brief Strips surrounding single or double quotes from a string.
+     * @param str The input string.
+     * @return The unquoted string.
+     */
+    string stripquotes(string str){
+        return concore_base::stripquotes(str);
+    }
+
+    /**
+     * @brief Parses a dict-formatted string into a string-to-string map.
+     * @param str The input string in {key: val, ...} format.
+     * @return A map of key-value string pairs.
+     */
+    map<string, string> parsedict(string str){
+        return concore_base::parsedict(str);
+    }
+
+    /**
+     * @brief Sets maxtime from the concore.maxtime file, falling back to defaultValue.
+     * @param defaultValue The fallback value if the file is missing.
+     */
+    void default_maxtime(int defaultValue){
+        maxtime = (int)concore_base::load_maxtime(
+            inpath + "/1/concore.maxtime", (double)defaultValue);
+    }
+
+    /**
+     * @brief Loads simulation parameters from concore.params into the params map.
+     */
+    void load_params(){
+        params = concore_base::load_params(inpath + "/1/concore.params");
+    }
+
+    /**
+     * @brief Returns the value of a param by name, or a default if not found.
+     * @param n The parameter name.
+     * @param i The default value.
+     * @return The parameter value or the default.
+     */
+    string tryparam(string n, string i){
+        return concore_base::tryparam(params, n, i);
+    }
+
     /**
      * @brief Initializes the system with the given input values.
      * @param f The input string containing the values.
@@ -547,6 +921,8 @@ private:
         //parsing
         vector<double> val = parser(f);
 
+        if (val.empty()) return val;
+
         //determining simtime
         simtime = val[0];
 
@@ -555,3 +931,5 @@ private:
         return val;
     }    
 };
+
+#endif // CONCORE_HPP

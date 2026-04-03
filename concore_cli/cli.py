@@ -1,0 +1,207 @@
+import click
+from rich.console import Console
+import os
+import sys
+
+from .commands.init import init_project, init_project_interactive, run_wizard
+from .commands.build import build_workflow
+from .commands.validate import validate_workflow
+from .commands.status import show_status
+from .commands.stop import stop_all
+from .commands.inspect import inspect_workflow
+from .commands.watch import watch_study
+from .commands.doctor import doctor_check
+from .commands.setup import setup_concore
+from . import __version__
+
+console = Console()
+DEFAULT_EXEC_TYPE = "windows" if os.name == "nt" else "posix"
+
+
+@click.group()
+@click.version_option(version=__version__, prog_name="concore")
+def cli():
+    pass
+
+
+@cli.command()
+@click.argument("name", required=False, default=None)
+@click.option("--template", default="basic", help="Template type to use")
+@click.option(
+    "--interactive",
+    "-i",
+    is_flag=True,
+    help="Launch guided wizard to select node types",
+)
+def init(name, template, interactive):
+    """Create a new concore project"""
+    try:
+        if interactive:
+            if not name:
+                name = console.input("[cyan]Project name:[/cyan] ").strip()
+            if not name:
+                console.print("[red]Error:[/red] Project name is required.")
+                sys.exit(1)
+            selected = run_wizard(console)
+            init_project_interactive(name, selected, console)
+        else:
+            if not name:
+                console.print(
+                    "[red]Error:[/red] Provide a project name or use --interactive."
+                )
+                sys.exit(1)
+            init_project(name, template, console)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("workflow_file", type=click.Path(exists=True))
+@click.option("--source", "-s", default="src", help="Source directory")
+@click.option("--output", "-o", default="out", help="Output directory")
+@click.option(
+    "--type",
+    "-t",
+    default=DEFAULT_EXEC_TYPE,
+    type=click.Choice(["windows", "posix", "docker"]),
+    help="Execution type",
+)
+@click.option(
+    "--auto-build", is_flag=True, help="Automatically run build script after generation"
+)
+@click.option(
+    "--compose",
+    is_flag=True,
+    help="Generate docker-compose.yml in output directory (docker type only)",
+)
+def build(workflow_file, source, output, type, auto_build, compose):
+    """Compile a concore workflow into executable scripts"""
+    try:
+        build_workflow(
+            workflow_file,
+            source,
+            output,
+            type,
+            auto_build,
+            console,
+            compose=compose,
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("workflow_file", type=click.Path(exists=True))
+@click.option("--source", "-s", default="src", help="Source directory")
+@click.option(
+    "--format",
+    "output_format",
+    default="text",
+    type=click.Choice(["text", "json"]),
+    help="Validation output format",
+)
+def validate(workflow_file, source, output_format):
+    """Validate a workflow file"""
+    try:
+        ok = validate_workflow(
+            workflow_file,
+            source,
+            console,
+            output_format=output_format,
+        )
+        if not ok:
+            sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("workflow_file", type=click.Path(exists=True))
+@click.option("--source", "-s", default="src", help="Source directory")
+@click.option("--json", "output_json", is_flag=True, help="Output in JSON format")
+def inspect(workflow_file, source, output_json):
+    """Inspect a workflow file and show its structure"""
+    try:
+        inspect_workflow(workflow_file, source, output_json, console)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+def status():
+    """Show running concore processes"""
+    try:
+        show_status(console)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.confirmation_option(prompt="Stop all running concore processes?")
+def stop():
+    """Stop all running concore processes"""
+    try:
+        stop_all(console)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("study_dir", type=click.Path(exists=True))
+@click.option("--interval", "-n", default=2.0, help="Refresh interval in seconds")
+@click.option("--once", is_flag=True, help="Print a single snapshot and exit")
+def watch(study_dir, interval, once):
+    """Watch a running simulation study for live monitoring"""
+    try:
+        watch_study(study_dir, interval, once, console)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+def doctor():
+    """Check system readiness for running concore studies"""
+    try:
+        ok = doctor_check(console)
+        if not ok:
+            sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.option("--dry-run", is_flag=True, help="Preview detected config without writing")
+@click.option("--force", is_flag=True, help="Overwrite existing config files")
+def setup(dry_run, force):
+    """Auto-detect tools and write concore config files"""
+    try:
+        ok = setup_concore(console, dry_run=dry_run, force=force)
+        if not ok:
+            sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+def editor():
+    """Launch concore-editor"""
+    try:
+        from .commands.editor import launch_editor
+
+        launch_editor()
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    cli()
