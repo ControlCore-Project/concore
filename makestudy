@@ -26,6 +26,7 @@ fi
 
 if [ "$#" -eq 1 ]; then
     studydir="$(basename "${graphml%.*}")"
+    studydir="${studydir%.graphml}"
 else
     studydir="$2"
 fi

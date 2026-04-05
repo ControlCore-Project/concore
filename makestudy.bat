@@ -12,9 +12,21 @@ set "ext1=%~x1"
 set "file1=!file1:\=\\!"
 set "dir1=!dir1:\=\\!"
 
+:: when the input file is 'something.graphml.jpg'
+if /I "!name1:~-8!"==".graphml" set "name1=!name1:~0,-8!"
+
 :: If the second argument (file2) is not provided
 if not defined file2 (
     if /I "%ext1%"==".graphml" (
+        echo python mkconcore.py "!file1!" "!dir1!" "!name1!" windows
+        python mkconcore.py "!file1!" "!dir1!" "!name1!" windows
+    ) else if /I "%ext1%"==".png" (
+        echo python mkconcore.py "!file1!" "!dir1!" "!name1!" windows
+        python mkconcore.py "!file1!" "!dir1!" "!name1!" windows
+    ) else if /I "%ext1%"==".jpg" (
+        echo python mkconcore.py "!file1!" "!dir1!" "!name1!" windows
+        python mkconcore.py "!file1!" "!dir1!" "!name1!" windows
+    ) else if /I "%ext1%"==".jpeg" (
         echo python mkconcore.py "!file1!" "!dir1!" "!name1!" windows
         python mkconcore.py "!file1!" "!dir1!" "!name1!" windows
     ) else (
@@ -23,6 +35,15 @@ if not defined file2 (
     )
 ) else (
     if /I "%ext1%"==".graphml" (
+        echo python mkconcore.py "!file1!" "!dir1!" "!file2!" windows
+        python mkconcore.py "!file1!" "!dir1!" "!file2!" windows
+    ) else if /I "%ext1%"==".png" (
+        echo python mkconcore.py "!file1!" "!dir1!" "!file2!" windows
+        python mkconcore.py "!file1!" "!dir1!" "!file2!" windows
+    ) else if /I "%ext1%"==".jpg" (
+        echo python mkconcore.py "!file1!" "!dir1!" "!file2!" windows
+        python mkconcore.py "!file1!" "!dir1!" "!file2!" windows
+    ) else if /I "%ext1%"==".jpeg" (
         echo python mkconcore.py "!file1!" "!dir1!" "!file2!" windows
         python mkconcore.py "!file1!" "!dir1!" "!file2!" windows
     ) else (
