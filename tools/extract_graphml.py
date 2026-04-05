@@ -177,7 +177,7 @@ def extract_graphml_to_file(image_path: str, output_path: str | None = None) -> 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python extract_graphml.py <image.png|jpg> [output.graphml]")
+        print("Usage: python extract_graphml.py <image.png|jpg|jpeg> [output.graphml]")
         sys.exit(1)
 
     in_path = sys.argv[1]
