@@ -1,3 +1,4 @@
+from typing import Optional
 import struct
 import zlib
 import sys
@@ -11,7 +12,7 @@ import os
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
-def _extract_from_png(data: bytes) -> str | None:
+def _extract_from_png(data: bytes) -> Optional[str]:
     #Return the GraphML string embedded in a PNG file, or None
     if data[:8] != _PNG_SIGNATURE:
         return None
@@ -87,7 +88,7 @@ def _extract_from_png(data: bytes) -> str | None:
 _JPEG_SOI = b"\xff\xd8"
 
 
-def _extract_from_jpeg(data: bytes) -> str | None:
+def _extract_from_jpeg(data: bytes) -> Optional[str]:
     #Return the GraphML string embedded in a JPEG file, or None.
     if data[:2] != _JPEG_SOI:
         return None
@@ -119,7 +120,7 @@ def _extract_from_jpeg(data: bytes) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def extract_graphml(image_path: str) -> str | None:
+def extract_graphml(image_path: str) -> Optional[str]:
     try:
         with open(image_path, "rb") as fh:
             data = fh.read()
@@ -141,7 +142,7 @@ def extract_graphml(image_path: str) -> str | None:
     return None
 
 
-def extract_graphml_to_file(image_path: str, output_path: str | None = None) -> str | None:
+def extract_graphml_to_file(image_path: str, output_path: Optional[str] = None) -> Optional[str]:
     graphml = extract_graphml(image_path)
     if graphml is None:
         print(

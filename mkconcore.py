@@ -151,9 +151,12 @@ _IMAGE_EXTS = {".png", ".jpg", ".jpeg"}
 _tmp_graphml_file = None  # keep reference so the temp file isn't deleted early
 if os.path.splitext(GRAPHML_FILE)[1].lower() in _IMAGE_EXTS:
     try:
-        _tool_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools")
-        sys.path.insert(0, _tool_dir)
-        from extract_graphml import extract_graphml as _extract_graphml
+        import importlib.util
+        _tool_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools", "extract_graphml.py")
+        _spec = importlib.util.spec_from_file_location("extract_graphml", _tool_path)
+        _extract_graphml_module = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_extract_graphml_module)
+        _extract_graphml = _extract_graphml_module.extract_graphml
         _graphml_str = _extract_graphml(GRAPHML_FILE)
         if _graphml_str is None:
             print(f"No embedded GraphML found in '{GRAPHML_FILE}'.")
