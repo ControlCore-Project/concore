@@ -13,7 +13,7 @@ set "file1=!file1:\=\\!"
 set "dir1=!dir1:\=\\!"
 
 :: when the input file is 'something.graphml.jpg'
-set "name1=!name1:.graphml=!"
+if /I "!name1:~-8!"==".graphml" set "name1=!name1:~0,-8!"
 
 :: If the second argument (file2) is not provided
 if not defined file2 (
