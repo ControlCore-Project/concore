@@ -1,5 +1,6 @@
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
@@ -137,6 +138,15 @@ public class concoredocker {
     static double getSimtime() { return simtime; }
     static void resetState() { s = ""; olds = ""; simtime = 0; }
 
+    private static Path resolvePortFilePath(String base, int portNum, String name) throws IOException {
+        Path portDir = Paths.get(base, String.valueOf(portNum)).toAbsolutePath().normalize();
+        Path filePath = portDir.resolve(name).normalize();
+        if (!filePath.startsWith(portDir)) {
+            throw new IOException("Invalid file name '" + name + "' for port " + portNum);
+        }
+        return filePath;
+    }
+
     public static boolean unchanged() {
         if (olds.equals(s)) {
             s = "";
@@ -172,7 +182,14 @@ public class concoredocker {
             // initstr not parseable as list; defaultVal stays empty
         }
 
-        String filePath = inpath + "/" + port + "/" + name;
+        Path filePathObj;
+        try {
+            filePathObj = resolvePortFilePath(inpath, port, name);
+        } catch (IOException | RuntimeException e) {
+            System.out.println("Invalid path for port " + port + " and name '" + name + "': " + e.getMessage());
+            return new ReadResult(ReadStatus.PARSE_ERROR, defaultVal);
+        }
+        String filePath = filePathObj.toString();
         try {
             Thread.sleep(delay);
         } catch (InterruptedException e) {
@@ -183,7 +200,7 @@ public class concoredocker {
 
         String ins;
         try {
-            ins = new String(Files.readAllBytes(Paths.get(filePath)));
+            ins = new String(Files.readAllBytes(filePathObj));
         } catch (IOException e) {
             System.out.println("File " + filePath + " not found, using default value.");
             s += initstr;
@@ -200,7 +217,7 @@ public class concoredocker {
                 return new ReadResult(ReadStatus.TIMEOUT, defaultVal);
             }
             try {
-                ins = new String(Files.readAllBytes(Paths.get(filePath)));
+                ins = new String(Files.readAllBytes(filePathObj));
             } catch (IOException e) {
                 System.out.println("Retry " + (attempts + 1) + ": Error reading " + filePath);
             }
@@ -342,7 +359,8 @@ public class concoredocker {
      */
     public static void write(int port, String name, Object val, int delta) {
         try {
-            String path = outpath + "/" + port + "/" + name;
+            Path pathObj = resolvePortFilePath(outpath, port, name);
+            String path = pathObj.toString();
             StringBuilder content = new StringBuilder();
             if (val instanceof String) {
                 Thread.sleep(2 * delay);
@@ -374,7 +392,7 @@ public class concoredocker {
                 System.out.println("write must have list or str");
                 return;
             }
-            Files.write(Paths.get(path), content.toString().getBytes());
+            Files.write(pathObj, content.toString().getBytes());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.out.println("skipping " + outpath + "/" + port + "/" + name);

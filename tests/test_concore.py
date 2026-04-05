@@ -582,6 +582,21 @@ class TestZMQRetryExhaustion:
                 delattr(concore, "simtime")
 
 
+class TestFilePathTraversalGuard:
+    """File write should not allow escaping the target port directory."""
+
+    def test_file_write_blocks_traversal_name(self, temp_dir):
+        import concore
+
+        concore.simtime = 0
+        concore.outpath = os.path.join(temp_dir, "out")
+        os.makedirs(os.path.join(temp_dir, "out1"), exist_ok=True)
+
+        concore.write(1, "../escape.txt", [1.0], delta=0)
+
+        assert not os.path.exists(os.path.join(temp_dir, "escape.txt"))
+
+
 class TestPidRegistry:
     """Tests for the Windows PID registry mechanism (Issue #391)."""
 

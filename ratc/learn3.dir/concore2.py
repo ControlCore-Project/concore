@@ -64,11 +64,22 @@ def unchanged():
         olds = s       
         return False
 
+def _resolve_port_file_path(base_path, port_num, name):
+    port_dir = os.path.abspath(base_path + str(port_num))
+    file_path = os.path.abspath(os.path.join(port_dir, name))
+    try:
+        if os.path.commonpath([port_dir, file_path]) != port_dir:
+            raise ValueError
+    except ValueError:
+        raise ValueError("bad file name")
+    return file_path
+
 def read(port, name, initstr):
     global s,simtime,retrycount
     time.sleep(delay)
     try:
-        infile = open(inpath+str(port)+"/"+name);
+        file_path = _resolve_port_file_path(inpath, port, name)
+        infile = open(file_path);
         ins = infile.read()
     except:
         ins = initstr
@@ -89,7 +100,8 @@ def write(port, name, val, delta=0):
         print("mywrite must have list or str")
         quit() 
     try:
-        with open(outpath+str(port)+"/"+name,"w") as outfile:     
+        file_path = _resolve_port_file_path(outpath, port, name)
+        with open(file_path,"w") as outfile:     
             if isinstance(val,list):
                 outfile.write(str([simtime+delta]+val))
                 simtime += delta

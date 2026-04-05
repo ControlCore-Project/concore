@@ -27,6 +27,8 @@ public class TestConcoredockerApi {
         testReadFileNotFound();
         testReadRetriesExceeded();
         testReadParseError();
+        testReadTraversalBlocked();
+        testWriteTraversalBlocked();
 
         System.out.println("\n=== Results: " + passed + " passed, " + failed + " failed out of " + (passed + failed) + " tests ===");
         if (failed > 0) {
@@ -229,5 +231,24 @@ public class TestConcoredockerApi {
         concoredocker.ReadResult result = concoredocker.read(1, "bad", "[0.0, 0.0]");
         check("read parse error: status", concoredocker.ReadStatus.PARSE_ERROR, result.status);
         check("read parse error: data is default", 1, result.data.size());
+    }
+
+    static void testReadTraversalBlocked() {
+        Path tmp = makeTempDir();
+        concoredocker.resetState();
+        concoredocker.setInPath(tmp.toString());
+
+        concoredocker.ReadResult result = concoredocker.read(1, "../escape", "[0.0, 7.0]");
+        check("read traversal blocked: status", concoredocker.ReadStatus.PARSE_ERROR, result.status);
+        check("read traversal blocked: returns default", 1, result.data.size());
+    }
+
+    static void testWriteTraversalBlocked() {
+        Path tmp = makeTempDir(1);
+        concoredocker.resetState();
+        concoredocker.setOutPath(tmp.toString());
+
+        concoredocker.write(1, "../escape", Collections.singletonList((Object) 1.0), 0);
+        check("write traversal blocked: no escaped file", false, Files.exists(tmp.resolve("escape")));
     }
 }
