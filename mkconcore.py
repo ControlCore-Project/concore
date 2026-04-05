@@ -70,6 +70,7 @@ import sys
 import os
 import shutil
 import stat
+import tempfile
 import copy_with_port_portname
 import numpy as np
 import shlex  # Added for POSIX shell escaping
@@ -144,6 +145,32 @@ if len(sys.argv) < 4:
 
 ORIGINAL_CWD = os.getcwd()
 GRAPHML_FILE = os.path.abspath(sys.argv[1])
+
+# --- Image input support: extract embedded GraphML from PNG/JPG ---
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg"}
+_tmp_graphml_file = None  # keep reference so the temp file isn't deleted early
+if os.path.splitext(GRAPHML_FILE)[1].lower() in _IMAGE_EXTS:
+    try:
+        _tool_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools")
+        sys.path.insert(0, _tool_dir)
+        from extract_graphml import extract_graphml as _extract_graphml
+        _graphml_str = _extract_graphml(GRAPHML_FILE)
+        if _graphml_str is None:
+            print(f"No embedded GraphML found in '{GRAPHML_FILE}'.")
+            sys.exit(1)
+        _tmp_graphml_file = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".graphml", delete=False, encoding="utf-8"
+        )
+        _tmp_graphml_file.write(_graphml_str)
+        _tmp_graphml_file.close()
+        GRAPHML_FILE = _tmp_graphml_file.name
+        import atexit as _atexit
+        _atexit.register(os.unlink, GRAPHML_FILE)
+    except Exception as _e:
+        print(f"Failed to extract GraphML from image: {_e}")
+        sys.exit(1)
+# ------------------------------------------------------------------
+
 TRIMMED_LOGS = True
 CONCOREPATH = _resolve_concore_path()
 CPPWIN    = os.environ.get("CONCORE_CPPWIN", "g++")          #Windows C++  6/22/21
