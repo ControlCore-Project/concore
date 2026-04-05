@@ -109,6 +109,32 @@ class TestReadFileParseError:
         assert self.concore.last_read_status == "PARSE_ERROR"
 
 
+class TestReadFileTraversalBlocked:
+    """read() rejects traversal names and returns PARSE_ERROR."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, temp_dir, monkeypatch):
+        import concore
+
+        self.concore = concore
+        monkeypatch.setattr(concore, "delay", 0)
+        monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
+
+        in_dir = os.path.join(temp_dir, "in1")
+        os.makedirs(in_dir, exist_ok=True)
+        with open(os.path.join(in_dir, "ym"), "w") as f:
+            f.write("[10, 3.14]")
+
+    def test_returns_default_and_false_on_traversal_name(self):
+        data, ok = self.concore.read(1, "../ym", "[0, 0.0]")
+        assert ok is False
+        assert data == [0, 0.0]
+
+    def test_last_read_status_is_parse_error_for_traversal_name(self):
+        self.concore.read(1, "../ym", "[0, 0.0]")
+        assert self.concore.last_read_status == "PARSE_ERROR"
+
+
 class TestReadFileRetriesExceeded:
     """read() returns (default, False) with RETRIES_EXCEEDED when file is empty."""
 

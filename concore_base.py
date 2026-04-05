@@ -194,6 +194,15 @@ def parse_params(sparams):
                 params[key] = value
     return params
 
+
+def _resolve_port_file_path(mod, base_path, port_num, name):
+    """Resolve a file path under a port directory and block path traversal."""
+    port_dir = os.path.abspath(mod._port_path(base_path, port_num))
+    file_path = os.path.abspath(os.path.join(port_dir, name))
+    if os.path.commonpath([port_dir, file_path]) != port_dir:
+        raise ValueError(f"Invalid file name '{name}' for port {port_num}")
+    return file_path
+
 def load_params(params_file):
     try:
         if os.path.exists(params_file):
@@ -293,14 +302,16 @@ def read(mod, port_identifier, name, initstr_val):
     # Case 2: File-based port
     try:
         file_port_num = int(port_identifier)
+        file_path = _resolve_port_file_path(mod, mod.inpath, file_port_num, name)
     except ValueError:
-        logger.error(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
+        logger.error(
+            f"Error: Invalid port identifier '{port_identifier}' or file name '{name}' "
+            f"for file operation. Must stay inside the port directory."
+        )
         last_read_status = "PARSE_ERROR"
         return default_return_val, False
 
     time.sleep(mod.delay) 
-    port_dir = mod._port_path(mod.inpath, file_port_num)
-    file_path = os.path.join(port_dir, name)
     ins = ""
 
     file_not_found = False
@@ -394,10 +405,12 @@ def write(mod, port_identifier, name, val, delta=0):
     # Case 2: File-based port
     try:
         file_port_num = int(port_identifier)
-        port_dir = mod._port_path(mod.outpath, file_port_num)
-        file_path = os.path.join(port_dir, name) 
+        file_path = _resolve_port_file_path(mod, mod.outpath, file_port_num, name)
     except ValueError:
-        logger.error(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
+        logger.error(
+            f"Error: Invalid port identifier '{port_identifier}' or file name '{name}' "
+            f"for file operation. Must stay inside the port directory."
+        )
         return
 
     # File writing rules
