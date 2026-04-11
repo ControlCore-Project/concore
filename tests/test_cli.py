@@ -4,6 +4,7 @@ import shutil
 import os
 import json
 from pathlib import Path
+from unittest.mock import patch
 from click.testing import CliRunner
 from concore_cli.cli import cli
 
@@ -184,6 +185,65 @@ class TestConcoreCLI(unittest.TestCase):
                 self.assertTrue(Path("out/build.bat").exists())
             else:
                 self.assertTrue(Path("out/build").exists())
+
+    def test_build_command_quotes_posix_tool_path_with_spaces(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            with patch.dict(
+                os.environ,
+                {"CONCORE_PYTHONEXE": "/opt/custom tools/python3"},
+                clear=False,
+            ):
+                result = self.runner.invoke(
+                    cli,
+                    [
+                        "build",
+                        "test-project/workflow.graphml",
+                        "--source",
+                        "test-project/src",
+                        "--output",
+                        "out",
+                        "--type",
+                        "posix",
+                    ],
+                )
+
+            self.assertEqual(result.exit_code, 0)
+            run_script = Path("out/run").read_text()
+            self.assertIn("'/opt/custom tools/python3' script.py", run_script)
+
+    def test_build_command_quotes_windows_tool_path_with_spaces(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            with patch.dict(
+                os.environ,
+                {"CONCORE_PYTHONWIN": r"C:\Program Files\Python313\python.exe"},
+                clear=False,
+            ):
+                result = self.runner.invoke(
+                    cli,
+                    [
+                        "build",
+                        "test-project/workflow.graphml",
+                        "--source",
+                        "test-project/src",
+                        "--output",
+                        "out",
+                        "--type",
+                        "windows",
+                    ],
+                )
+
+            self.assertEqual(result.exit_code, 0)
+            run_script = Path("out/run.bat").read_text()
+            self.assertIn(
+                '"C:\\Program Files\\Python313\\python.exe" "script.py"',
+                run_script,
+            )
 
     def test_build_command_nested_output_path(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
