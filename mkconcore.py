@@ -112,6 +112,20 @@ def safe_relpath(value, context):
         raise ValueError(f"Unsafe {context}: invalid path segment.")
     return normalized
 
+def _quote_executable_windows(value):
+    value = value.strip()
+    if value.startswith('"') and value.endswith('"'):
+        return value
+    return f'"{value}"'
+
+def _quote_executable_posix(value):
+    value = value.strip()
+    if (value.startswith("'") and value.endswith("'")) or (
+        value.startswith('"') and value.endswith('"')
+    ):
+        return value
+    return shlex.quote(value)
+
 MKCONCORE_VER = "22-09-18"
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1140,6 +1154,24 @@ for node in nodes_dict:
 if concoretype=="posix":
     fdebug.write('#!/bin/bash' + "\n")
     frun.write('#!/bin/bash' + "\n")
+
+# Normalize tool executable quoting once, then reuse existing script templates.
+if concoretype == "windows":
+    PYTHONWIN = _quote_executable_windows(PYTHONWIN)
+    CPPWIN = _quote_executable_windows(CPPWIN)
+    VWIN = _quote_executable_windows(VWIN)
+    JAVACWIN = _quote_executable_windows(JAVACWIN)
+    JAVAWIN = _quote_executable_windows(JAVAWIN)
+    OCTAVEWIN = _quote_executable_windows(OCTAVEWIN)
+    MATLABWIN = _quote_executable_windows(MATLABWIN)
+else:
+    PYTHONEXE = _quote_executable_posix(PYTHONEXE)
+    CPPEXE = _quote_executable_posix(CPPEXE)
+    VEXE = _quote_executable_posix(VEXE)
+    JAVACEXE = _quote_executable_posix(JAVACEXE)
+    JAVAEXE = _quote_executable_posix(JAVAEXE)
+    OCTAVEEXE = _quote_executable_posix(OCTAVEEXE)
+    MATLABEXE = _quote_executable_posix(MATLABEXE)
 
 
 i=0
