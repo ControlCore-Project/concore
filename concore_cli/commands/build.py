@@ -97,7 +97,6 @@ def _write_docker_compose(output_path):
         "services:",
     ]
 
-    prev_service_name = None
     named_volumes = set()
     for index, service in enumerate(services, start=1):
         service_name = re.sub(r"[^A-Za-z0-9_.-]", "-", service["container_name"]).strip(
@@ -105,10 +104,10 @@ def _write_docker_compose(output_path):
         )
         if not service_name:
             service_name = f"service-{index}"
-        elif not service_name[0].isalnum():
+        elif not service_name[0].isalpha():
             service_name = f"service-{service_name}"
 
-        compose_lines.append(f"  {service_name}:")
+        compose_lines.append(f"  {_yaml_quote(service_name)}:")
         compose_lines.append(f"    image: {_yaml_quote(service['image'])}")
         compose_lines.append(
             f"    container_name: {_yaml_quote(service['container_name'])}"
@@ -116,11 +115,6 @@ def _write_docker_compose(output_path):
         compose_lines.append("    restart: on-failure")
         compose_lines.append("    networks:")
         compose_lines.append("      - concore-net")
-
-        # Chain services sequentially to prevent ZMQ race conditions
-        if prev_service_name:
-            compose_lines.append("    depends_on:")
-            compose_lines.append(f"      - {prev_service_name}")
 
         if service["volumes"]:
             compose_lines.append("    volumes:")
@@ -130,7 +124,6 @@ def _write_docker_compose(output_path):
                 if re.match(r"^[a-zA-Z0-9_-]+$", part1):
                     named_volumes.add(part1)
 
-        prev_service_name = service_name
 
     if named_volumes:
         compose_lines.append("")
@@ -219,22 +212,24 @@ def build_workflow(
                 elif (output_path / "src").exists():
                     req_dest.touch()
 
-                # Append requirement copying to generated scripts
+                # Append requirement copying to generated scripts robustly
                 for s_name in ["build", "build.bat"]:
                     s_path = output_path / s_name
                     if s_path.exists():
                         content = s_path.read_text(encoding="utf-8")
+                        lines = content.splitlines()
                         if s_name == "build":
-                            content = content.replace(
-                                "docker build",
-                                "cp ../src/requirements.txt .\ndocker build",
-                            )
+                            insert_line = "cp ../src/requirements.txt ."
                         else:
-                            content = content.replace(
-                                "docker build",
-                                "copy ..\\src\\requirements.txt .\n    docker build",
-                            )
-                        s_path.write_text(content, encoding="utf-8")
+                            insert_line = "copy ..\\src\\requirements.txt ."
+
+                        new_lines = []
+                        for line in lines:
+                            if " build" in line and "-t " in line:
+                                new_lines.append(insert_line)
+                            new_lines.append(line)
+
+                        s_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
             if result.stdout:
                 console.print(result.stdout)
