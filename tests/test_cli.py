@@ -383,6 +383,10 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("services:", compose_content)
             self.assertIn("container_name: 'N1'", compose_content)
             self.assertIn("image: 'docker-script'", compose_content)
+            self.assertIn("networks:", compose_content)
+            self.assertIn("concore-net:", compose_content)
+            self.assertIn("- concore-net", compose_content)
+            self.assertIn("restart: on-failure", compose_content)
 
             metadata = json.loads(Path("out/STUDY.json").read_text())
             self.assertIn("docker-compose.yml", metadata["checksums"])
@@ -430,6 +434,35 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("container_name: 'B'", compose_content)
             self.assertIn("container_name: 'C'", compose_content)
             self.assertIn("image: 'docker-common'", compose_content)
+
+    def test_build_command_docker_requirements_injection(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            Path("requirements.txt").write_text("pandas==1.0.0")
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "docker",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            req_path = Path("out/src/requirements.txt")
+            self.assertTrue(req_path.exists())
+            self.assertEqual(req_path.read_text(), "pandas==1.0.0")
+
+            build_script = Path("out/build").read_text()
+            self.assertIn("cp ../src/requirements.txt .", build_script)
 
     def test_build_command_shared_source_specialization_merges_edge_params(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
