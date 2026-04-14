@@ -124,7 +124,6 @@ def _write_docker_compose(output_path):
                 if re.match(r"^[a-zA-Z0-9_-]+$", part1):
                     named_volumes.add(part1)
 
-
     if named_volumes:
         compose_lines.append("")
         compose_lines.append("volumes:")
