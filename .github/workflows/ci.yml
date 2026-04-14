@@ -71,12 +71,13 @@ jobs:
 
       - name: Compile Java tests
         run: |
-          javac -cp jeromq.jar concoredocker.java TestLiteralEval.java TestConcoredockerApi.java
+          javac -cp jeromq.jar ConcoreJavaRuntimeCore.java concore.java concoredocker.java TestLiteralEval.java TestConcoredockerApi.java TestConcoreApi.java
 
       - name: Run Java tests
         run: |
           java -cp .:jeromq.jar TestLiteralEval
           java -cp .:jeromq.jar TestConcoredockerApi
+          java -cp .:jeromq.jar TestConcoreApi
 
   docker-build:
     runs-on: ubuntu-latest
