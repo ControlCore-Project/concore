@@ -89,7 +89,13 @@ def _write_docker_compose(output_path):
     if not services:
         return None
 
-    compose_lines = ["networks:", "  concore-net:", "    driver: bridge", "", "services:"]
+    compose_lines = [
+        "networks:",
+        "  concore-net:",
+        "    driver: bridge",
+        "",
+        "services:",
+    ]
 
     prev_service_name = None
     named_volumes = set()
@@ -110,20 +116,20 @@ def _write_docker_compose(output_path):
         compose_lines.append("    restart: on-failure")
         compose_lines.append("    networks:")
         compose_lines.append("      - concore-net")
-        
+
         # Chain services sequentially to prevent ZMQ race conditions
         if prev_service_name:
             compose_lines.append("    depends_on:")
             compose_lines.append(f"      - {prev_service_name}")
-            
+
         if service["volumes"]:
             compose_lines.append("    volumes:")
             for volume_spec in service["volumes"]:
                 compose_lines.append(f"      - {_yaml_quote(volume_spec)}")
-                part1 = volume_spec.split(':')[0]
+                part1 = volume_spec.split(":")[0]
                 if re.match(r"^[a-zA-Z0-9_-]+$", part1):
                     named_volumes.add(part1)
-        
+
         prev_service_name = service_name
 
     if named_volumes:
@@ -219,9 +225,15 @@ def build_workflow(
                     if s_path.exists():
                         content = s_path.read_text(encoding="utf-8")
                         if s_name == "build":
-                            content = content.replace("docker build", "cp ../src/requirements.txt .\ndocker build")
+                            content = content.replace(
+                                "docker build",
+                                "cp ../src/requirements.txt .\ndocker build",
+                            )
                         else:
-                            content = content.replace("docker build", "copy ..\\src\\requirements.txt .\n    docker build")
+                            content = content.replace(
+                                "docker build",
+                                "copy ..\\src\\requirements.txt .\n    docker build",
+                            )
                         s_path.write_text(content, encoding="utf-8")
 
             if result.stdout:
