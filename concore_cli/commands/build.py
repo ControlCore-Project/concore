@@ -2,6 +2,7 @@ import re
 import shlex
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -88,8 +89,10 @@ def _write_docker_compose(output_path):
     if not services:
         return None
 
-    compose_lines = ["services:"]
+    compose_lines = ["networks:", "  concore-net:", "    driver: bridge", "", "services:"]
 
+    prev_service_name = None
+    named_volumes = set()
     for index, service in enumerate(services, start=1):
         service_name = re.sub(r"[^A-Za-z0-9_.-]", "-", service["container_name"]).strip(
             "-."
@@ -104,10 +107,30 @@ def _write_docker_compose(output_path):
         compose_lines.append(
             f"    container_name: {_yaml_quote(service['container_name'])}"
         )
+        compose_lines.append("    restart: on-failure")
+        compose_lines.append("    networks:")
+        compose_lines.append("      - concore-net")
+        
+        # Chain services sequentially to prevent ZMQ race conditions
+        if prev_service_name:
+            compose_lines.append("    depends_on:")
+            compose_lines.append(f"      - {prev_service_name}")
+            
         if service["volumes"]:
             compose_lines.append("    volumes:")
             for volume_spec in service["volumes"]:
                 compose_lines.append(f"      - {_yaml_quote(volume_spec)}")
+                part1 = volume_spec.split(':')[0]
+                if re.match(r"^[a-zA-Z0-9_-]+$", part1):
+                    named_volumes.add(part1)
+        
+        prev_service_name = service_name
+
+    if named_volumes:
+        compose_lines.append("")
+        compose_lines.append("volumes:")
+        for v in sorted(named_volumes):
+            compose_lines.append(f"  {v}:")
 
     compose_lines.append("")
     compose_path = output_path / "docker-compose.yml"
@@ -179,6 +202,27 @@ def build_workflow(
             )
 
             progress.update(task, completed=True)
+
+            if exec_type == "docker":
+                req_src = Path.cwd() / "requirements.txt"
+                if not req_src.exists():
+                    req_src = source_path / "requirements.txt"
+                req_dest = output_path / "src" / "requirements.txt"
+                if req_src.exists() and (output_path / "src").exists():
+                    shutil.copy2(req_src, req_dest)
+                elif (output_path / "src").exists():
+                    req_dest.touch()
+
+                # Append requirement copying to generated scripts
+                for s_name in ["build", "build.bat"]:
+                    s_path = output_path / s_name
+                    if s_path.exists():
+                        content = s_path.read_text(encoding="utf-8")
+                        if s_name == "build":
+                            content = content.replace("docker build", "cp ../src/requirements.txt .\ndocker build")
+                        else:
+                            content = content.replace("docker build", "copy ..\\src\\requirements.txt .\n    docker build")
+                        s_path.write_text(content, encoding="utf-8")
 
             if result.stdout:
                 console.print(result.stdout)
