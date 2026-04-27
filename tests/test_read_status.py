@@ -1,7 +1,8 @@
 """Tests for read() error signalling (Issue #390).
 
-read() now returns (data, success_flag) and sets
-concore.last_read_status / concore_base.last_read_status.
+read() returns data for backward compatibility.
+read_with_status() returns (data, success_flag).
+Both update concore.last_read_status / concore_base.last_read_status.
 """
 
 import os
@@ -35,7 +36,7 @@ class DummyZMQPort:
 
 
 class TestReadFileSuccess:
-    """read() on a valid file returns (data, True) with SUCCESS status."""
+    """read_with_status() on a valid file returns (data, True)."""
 
     @pytest.fixture(autouse=True)
     def setup(self, temp_dir, monkeypatch):
@@ -53,7 +54,7 @@ class TestReadFileSuccess:
         monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
 
     def test_returns_data_and_true(self):
-        data, ok = self.concore.read(1, "ym", "[0, 0.0]")
+        data, ok = self.concore.read_with_status(1, "ym", "[0, 0.0]")
         assert ok is True
         assert data == [3.14]
 
@@ -63,7 +64,7 @@ class TestReadFileSuccess:
 
 
 class TestReadFileMissing:
-    """read() on a missing file returns (default, False) with FILE_NOT_FOUND."""
+    """read_with_status() on missing file returns (default, False)."""
 
     @pytest.fixture(autouse=True)
     def setup(self, temp_dir, monkeypatch):
@@ -75,7 +76,7 @@ class TestReadFileMissing:
         monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
 
     def test_returns_default_and_false(self):
-        data, ok = self.concore.read(1, "nonexistent", "[0, 0.0]")
+        data, ok = self.concore.read_with_status(1, "nonexistent", "[0, 0.0]")
         assert ok is False
 
     def test_last_read_status_is_file_not_found(self):
@@ -84,7 +85,7 @@ class TestReadFileMissing:
 
 
 class TestReadFileParseError:
-    """read() returns (default, False) with PARSE_ERROR on malformed content."""
+    """read_with_status() returns (default, False) on parse errors."""
 
     @pytest.fixture(autouse=True)
     def setup(self, temp_dir, monkeypatch):
@@ -101,7 +102,7 @@ class TestReadFileParseError:
         monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
 
     def test_returns_default_and_false(self):
-        data, ok = self.concore.read(1, "ym", "[0, 0.0]")
+        data, ok = self.concore.read_with_status(1, "ym", "[0, 0.0]")
         assert ok is False
 
     def test_last_read_status_is_parse_error(self):
@@ -110,7 +111,7 @@ class TestReadFileParseError:
 
 
 class TestReadFileTraversalBlocked:
-    """read() rejects traversal names and returns PARSE_ERROR."""
+    """read_with_status() rejects traversal names and returns PARSE_ERROR."""
 
     @pytest.fixture(autouse=True)
     def setup(self, temp_dir, monkeypatch):
@@ -126,7 +127,7 @@ class TestReadFileTraversalBlocked:
             f.write("[10, 3.14]")
 
     def test_returns_default_and_false_on_traversal_name(self):
-        data, ok = self.concore.read(1, "../ym", "[0, 0.0]")
+        data, ok = self.concore.read_with_status(1, "../ym", "[0, 0.0]")
         assert ok is False
         assert data == [0, 0.0]
 
@@ -136,7 +137,7 @@ class TestReadFileTraversalBlocked:
 
 
 class TestReadFileRetriesExceeded:
-    """read() returns (default, False) with RETRIES_EXCEEDED when file is empty."""
+    """read_with_status() returns (default, False) on retry exhaustion."""
 
     @pytest.fixture(autouse=True)
     def setup(self, temp_dir, monkeypatch):
@@ -154,7 +155,7 @@ class TestReadFileRetriesExceeded:
         monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
 
     def test_returns_default_and_false(self):
-        data, ok = self.concore.read(1, "ym", "[0, 0.0]")
+        data, ok = self.concore.read_with_status(1, "ym", "[0, 0.0]")
         assert ok is False
 
     def test_last_read_status_is_retries_exceeded(self):
@@ -168,7 +169,7 @@ class TestReadFileRetriesExceeded:
 
 
 class TestReadZMQSuccess:
-    """Successful ZMQ read returns (data, True)."""
+    """Successful ZMQ read_with_status() returns (data, True)."""
 
     @pytest.fixture(autouse=True)
     def setup(self, monkeypatch):
@@ -185,14 +186,14 @@ class TestReadZMQSuccess:
         self.concore.zmq_ports["test_port"] = dummy
         self.concore.simtime = 0
 
-        data, ok = self.concore.read("test_port", "ym", "[]")
+        data, ok = self.concore.read_with_status("test_port", "ym", "[]")
         assert ok is True
         assert data == [1.1, 2.2]
         assert self.concore.last_read_status == "SUCCESS"
 
 
 class TestReadZMQTimeout:
-    """ZMQ read that returns None (timeout) yields (default, False)."""
+    """ZMQ read timeout yields (default, False) via read_with_status()."""
 
     @pytest.fixture(autouse=True)
     def setup(self, monkeypatch):
@@ -210,13 +211,13 @@ class TestReadZMQTimeout:
         )
         self.concore.zmq_ports["test_port"] = dummy
 
-        data, ok = self.concore.read("test_port", "ym", "[]")
+        data, ok = self.concore.read_with_status("test_port", "ym", "[]")
         assert ok is False
         assert self.concore.last_read_status == "TIMEOUT"
 
 
 class TestReadZMQError:
-    """ZMQ read that raises ZMQError yields (default, False)."""
+    """ZMQ read ZMQError yields (default, False) via read_with_status()."""
 
     @pytest.fixture(autouse=True)
     def setup(self, monkeypatch):
@@ -234,7 +235,7 @@ class TestReadZMQError:
         dummy = DummyZMQPort(raise_on_recv=zmq.error.ZMQError("test error"))
         self.concore.zmq_ports["test_port"] = dummy
 
-        data, ok = self.concore.read("test_port", "ym", "[]")
+        data, ok = self.concore.read_with_status("test_port", "ym", "[]")
         assert ok is False
         assert self.concore.last_read_status == "TIMEOUT"
 
@@ -245,7 +246,7 @@ class TestReadZMQError:
 
 
 class TestReadBackwardCompatibility:
-    """Legacy callers can use isinstance check on the result."""
+    """Legacy callers get plain data from read()."""
 
     @pytest.fixture(autouse=True)
     def setup(self, temp_dir, monkeypatch):
@@ -261,22 +262,12 @@ class TestReadBackwardCompatibility:
 
         monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
 
-    def test_legacy_unpack_pattern(self):
-        """The recommended migration pattern works correctly."""
-        result = self.concore.read(1, "ym", "[0, 0.0]")
-
-        if isinstance(result, tuple):
-            value, ok = result
-        else:
-            value = result
-            ok = True
-
+    def test_read_returns_data_only(self):
+        value = self.concore.read(1, "ym", "[0, 0.0]")
         assert value == [42.0]
-        assert ok is True
 
-    def test_tuple_unpack(self):
-        """New-style callers can unpack directly."""
-        value, ok = self.concore.read(1, "ym", "[0, 0.0]")
+    def test_read_with_status_returns_tuple(self):
+        value, ok = self.concore.read_with_status(1, "ym", "[0, 0.0]")
         assert value == [42.0]
         assert ok is True
 

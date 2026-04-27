@@ -116,7 +116,7 @@ def _run_read_file_case(case):
                 ) as f:
                     f.write(case["input"]["file_content"])
 
-            result, ok = concore.read(
+            result, ok = concore.read_with_status(
                 case["input"]["port"],
                 case["input"]["name"],
                 case["input"]["initstr_val"],

@@ -300,7 +300,7 @@ class TestWriteZMQ:
         concore.write("roundtrip_test", "data", original_data)
 
         # Read should return original data (simtime stripped) plus success flag
-        result, ok = concore.read("roundtrip_test", "data", "[]")
+        result, ok = concore.read_with_status("roundtrip_test", "data", "[]")
         assert result == original_data
         assert ok is True
 
@@ -520,7 +520,7 @@ class TestZMQRetryExhaustion:
             concore.zmq_ports["t_in"] = TimeoutPort()
             concore.simtime = 0
 
-            result, ok = concore.read("t_in", "x", "[0.0]")
+            result, ok = concore.read_with_status("t_in", "x", "[0.0]")
 
             assert result == [0.0]
             assert ok is False

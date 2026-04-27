@@ -136,7 +136,7 @@ class TestRead:
 
         concoredocker.s = ""
         concoredocker.simtime = 0
-        result, ok = concoredocker.read(1, "data", "[0, 0, 0]")
+        result, ok = concoredocker.read_with_status(1, "data", "[0, 0, 0]")
 
         assert result == [100, 200]
         assert ok is True
@@ -156,7 +156,7 @@ class TestRead:
 
         concoredocker.s = ""
         concoredocker.simtime = 0
-        result, ok = concoredocker.read(1, "nofile", "[0, 5, 5]")
+        result, ok = concoredocker.read_with_status(1, "nofile", "[0, 5, 5]")
 
         assert result == [5, 5]
         assert ok is False
@@ -204,7 +204,7 @@ class TestZMQ:
         concoredocker.zmq_ports["test_zmq"] = DummyPort()
         concoredocker.simtime = 0
 
-        result, ok = concoredocker.read("test_zmq", "data", "[]")
+        result, ok = concoredocker.read_with_status("test_zmq", "data", "[]")
 
         assert result == [4.0, 5.0]
         assert ok is True
@@ -243,7 +243,7 @@ class TestZMQ:
 
         original = [1.5, 2.5, 3.5]
         concoredocker.write("roundtrip", "data", original)
-        result, ok = concoredocker.read("roundtrip", "data", "[]")
+        result, ok = concoredocker.read_with_status("roundtrip", "data", "[]")
 
         assert result == original
         assert ok is True
@@ -278,7 +278,7 @@ class TestZMQRetryExhaustion:
             concoredocker.zmq_ports["t_in"] = TimeoutPort()
             concoredocker.simtime = 0
 
-            result, ok = concoredocker.read("t_in", "x", "[0.0]")
+            result, ok = concoredocker.read_with_status("t_in", "x", "[0.0]")
 
             assert result == [0.0]
             assert ok is False
