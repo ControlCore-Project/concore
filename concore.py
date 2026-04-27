@@ -223,25 +223,19 @@ def unchanged():
 def read(port_identifier, name, initstr_val):
     """Read data from a ZMQ port or file-based port.
 
-    Returns:
-        tuple: (data, success_flag) where success_flag is True if real
-            data was received, False if a fallback/default was used.
-            Also sets ``concore.last_read_status`` to one of:
-            SUCCESS, FILE_NOT_FOUND, TIMEOUT, PARSE_ERROR,
-            EMPTY_DATA, RETRIES_EXCEEDED.
+    Returns only the data payload for backward compatibility.
+    Use ``read_with_status()`` for explicit ``(data, success_flag)``.
+    """
+    global last_read_status
+    result, _ok = concore_base.read(_mod, port_identifier, name, initstr_val)
+    last_read_status = concore_base.last_read_status
+    return result
 
-    Backward compatibility:
-        Legacy callers that do ``value = concore.read(...)`` will
-        receive a tuple.  They can adapt with::
 
-            result = concore.read(...)
-            if isinstance(result, tuple):
-                value, ok = result
-            else:
-                value, ok = result, True
+def read_with_status(port_identifier, name, initstr_val):
+    """Read data and return ``(data, success_flag)``.
 
-        Alternatively, check ``concore.last_read_status`` after the
-        call.
+    Also updates ``concore.last_read_status``.
     """
     global last_read_status
     result = concore_base.read(_mod, port_identifier, name, initstr_val)

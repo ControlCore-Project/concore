@@ -93,6 +93,12 @@ def unchanged():
 # ===================================================================
 def read(port_identifier, name, initstr_val):
     global last_read_status
+    result, _ok = concore_base.read(_mod, port_identifier, name, initstr_val)
+    last_read_status = concore_base.last_read_status
+    return result
+
+def read_with_status(port_identifier, name, initstr_val):
+    global last_read_status
     result = concore_base.read(_mod, port_identifier, name, initstr_val)
     last_read_status = concore_base.last_read_status
     return result

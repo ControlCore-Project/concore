@@ -249,18 +249,11 @@ def read(mod, port_identifier, name, initstr_val):
             SUCCESS, FILE_NOT_FOUND, TIMEOUT, PARSE_ERROR,
             EMPTY_DATA, RETRIES_EXCEEDED.
 
-    Backward compatibility:
-        Legacy callers that do ``value = concore.read(...)`` will
-        receive a tuple.  They can adapt with::
-
-            result = concore.read(...)
-            if isinstance(result, tuple):
-                value, ok = result
-            else:
-                value, ok = result, True
-
-        Alternatively, check ``concore.last_read_status`` after the
-        call.
+    Notes:
+        This low-level helper always returns ``(data, success_flag)``.
+        The wrapper modules expose:
+        - ``read()`` for backward-compatible data-only reads.
+        - ``read_with_status()`` for explicit ``(data, success_flag)``.
     """
     global last_read_status
 
