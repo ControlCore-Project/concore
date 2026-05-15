@@ -31,7 +31,7 @@ def _compile_and_run(payload_size):
         binary_file = temp_path / "shm_abort_test"
         source_file.write_text(
             textwrap.dedent(
-                f'''
+                f"""
                 #include "concore.hpp"
                 #include <exception>
                 #include <string>
@@ -49,7 +49,7 @@ def _compile_and_run(payload_size):
                         return 1;
                     }}
                 }}
-                '''
+                """
             ).lstrip(),
             encoding="utf-8",
         )
