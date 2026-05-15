@@ -632,8 +632,14 @@ private:
                 }
             }
 
-        catch(...){
-            cout<<"skipping +"<<outpath<<port<<" /"<<name;
+        catch (const std::exception &e) {
+            // Surface the error message and rethrow so callers (or the runtime)
+            // see the failure instead of silently proceeding with truncated data.
+            std::cerr << e.what() << std::endl;
+            throw;
+        } catch (...) {
+            // Unknown exception: rethrow to avoid silent suppression.
+            throw;
         }
     }
 
@@ -657,8 +663,11 @@ private:
             }
             else throw 505;
         }
-        catch(...){
-            cout<<"skipping +"<<outpath<<port<<" /"<<name;
+        catch (const std::exception &e) {
+            std::cerr << e.what() << std::endl;
+            throw;
+        } catch (...) {
+            throw;
         }
     }
 
