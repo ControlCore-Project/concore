@@ -40,6 +40,10 @@ private:
     string inpath = "./in";
     string outpath = "./out";
 
+    // Shared memory segment size in bytes.
+    // Increase this constant if your payloads exceed 4096 bytes.
+    // All nodes in a study must be compiled with the same SHM_SIZE.
+    // Payloads >= SHM_SIZE throw std::runtime_error (no silent truncation).
     static constexpr size_t SHM_SIZE = 4096;
 
     int shmId_create = -1;
@@ -683,9 +687,13 @@ private:
                 outfile<<val[val.size()-1]<<']';
                 std::string result = outfile.str();
                 if (result.size() >= SHM_SIZE) {
-                    std::cerr << "ERROR: write_SM payload (" << result.size()
-                              << " bytes) exceeds " << SHM_SIZE - 1
-                              << "-byte shared memory limit. Data truncated!" << std::endl;
+                    throw std::runtime_error(
+                        "concore SHM write failed: payload (" +
+                        std::to_string(result.size()) +
+                        " bytes) exceeds SHM_SIZE (" +
+                        std::to_string(SHM_SIZE) +
+                        "). Aborting. No data written. Increase SHM_SIZE in concore.hpp."
+                    );
                 }
                 std::strncpy(sharedData_create, result.c_str(), SHM_SIZE - 1);
                 sharedData_create[SHM_SIZE - 1] = '\0';
@@ -711,15 +719,19 @@ private:
     void write_SM(int port, string name, string val, int delta=0){
         chrono::milliseconds timespan((int)(2000*delay));
         this_thread::sleep_for(timespan);
+        if (val.size() >= SHM_SIZE) {
+            throw std::runtime_error(
+                "concore SHM write failed: payload (" +
+                std::to_string(val.size()) +
+                " bytes) exceeds SHM_SIZE (" +
+                std::to_string(SHM_SIZE) +
+                "). Aborting. No data written. Increase SHM_SIZE in concore.hpp."
+            );
+        }
         try {
             if(shmId_create != -1){
                 if (sharedData_create == nullptr)
                     throw 506;
-                if (val.size() >= SHM_SIZE) {
-                    std::cerr << "ERROR: write_SM payload (" << val.size()
-                              << " bytes) exceeds " << SHM_SIZE - 1
-                              << "-byte shared memory limit. Data truncated!" << std::endl;
-                }
                 std::strncpy(sharedData_create, val.c_str(), SHM_SIZE - 1);
                 sharedData_create[SHM_SIZE - 1] = '\0';
             }
