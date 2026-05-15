@@ -40,10 +40,6 @@ private:
     string inpath = "./in";
     string outpath = "./out";
 
-    // Shared memory segment size in bytes.
-    // Increase this constant if your payloads exceed 4096 bytes.
-    // All nodes in a study must be compiled with the same SHM_SIZE.
-    // Payloads >= SHM_SIZE throw std::runtime_error (no silent truncation).
     static constexpr size_t SHM_SIZE = 4096;
 
     int shmId_create = -1;
