@@ -1,7 +1,6 @@
 from concore_cli.commands.build import _write_docker_compose
 from rich.console import Console
 from pathlib import Path
-import pytest
 
 def _fake_run_script(output_dir, services):
     lines = [
@@ -52,13 +51,13 @@ def test_compose_first_service_has_no_depends_on(tmp_path):
     path = _write_docker_compose(tmp_path, Console(quiet=True))
     lines = path.read_text().splitlines()
     controller_idx = next(
-        i for i, l in enumerate(lines) if "controller:" in l
+        i for i, line in enumerate(lines) if "controller:" in line
     )
     plant_idx = next(
-        i for i, l in enumerate(lines) if "plant:" in l
+        i for i, line in enumerate(lines) if "plant:" in line
     )
     section = lines[controller_idx:plant_idx]
-    assert not any("depends_on" in l for l in section)
+    assert not any("depends_on" in line for line in section)
 
 
 def test_zmq_mode_adds_env(tmp_path):
