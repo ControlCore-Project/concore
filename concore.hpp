@@ -709,8 +709,11 @@ private:
                 }
             }
 
-        catch(...){
-            cout<<"skipping +"<<outpath<<port<<" /"<<name;
+        catch (const std::exception &e) {
+            std::cerr << e.what() << std::endl;
+            throw;
+        } catch (...) {
+            throw;
         }
     }
 
@@ -742,8 +745,11 @@ private:
             }
             else throw 505;
         }
-        catch(...){
-            cout<<"skipping +"<<outpath<<port<<" /"<<name;
+        catch (const std::exception &e) {
+            std::cerr << e.what() << std::endl;
+            throw;
+        } catch (...) {
+            throw;
         }
     }
     
