@@ -75,8 +75,16 @@ def init(name, template, interactive):
     is_flag=True,
     help="Generate docker-compose.yml in output directory (docker type only)",
 )
-def build(workflow_file, source, output, type, auto_build, compose):
+@click.option(
+    "--zmq",
+    is_flag=True,
+    help="Configure compose for ZMQ networking mode (requires --compose)",
+)
+def build(workflow_file, source, output, type, auto_build, compose, zmq):
     """Compile a concore workflow into executable scripts"""
+    if zmq and not compose:
+        console.print("[red]Error:[/red] --zmq requires --compose")
+        sys.exit(1)
     try:
         build_workflow(
             workflow_file,
@@ -86,6 +94,7 @@ def build(workflow_file, source, output, type, auto_build, compose):
             auto_build,
             console,
             compose=compose,
+            zmq_mode=zmq,
         )
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
