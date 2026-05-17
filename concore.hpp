@@ -632,14 +632,8 @@ private:
                 }
             }
 
-        catch (const std::exception &e) {
-            // Surface the error message and rethrow so callers (or the runtime)
-            // see the failure instead of silently proceeding with truncated data.
-            std::cerr << e.what() << std::endl;
-            throw;
-        } catch (...) {
-            // Unknown exception: rethrow to avoid silent suppression.
-            throw;
+        catch(...){
+            cout<<"skipping +"<<outpath<<port<<" /"<<name;
         }
     }
 
@@ -663,11 +657,8 @@ private:
             }
             else throw 505;
         }
-        catch (const std::exception &e) {
-            std::cerr << e.what() << std::endl;
-            throw;
-        } catch (...) {
-            throw;
+        catch(...){
+            cout<<"skipping +"<<outpath<<port<<" /"<<name;
         }
     }
 
@@ -692,13 +683,9 @@ private:
                 outfile<<val[val.size()-1]<<']';
                 std::string result = outfile.str();
                 if (result.size() >= SHM_SIZE) {
-                    throw std::runtime_error(
-                        "concore SHM write failed: payload (" +
-                        std::to_string(result.size()) +
-                        " bytes) exceeds SHM_SIZE (" +
-                        std::to_string(SHM_SIZE) +
-                        "). Aborting. No data written. Increase SHM_SIZE in concore.hpp."
-                    );
+                    std::cerr << "ERROR: write_SM payload (" << result.size()
+                              << " bytes) exceeds " << SHM_SIZE - 1
+                              << "-byte shared memory limit. Data truncated!" << std::endl;
                 }
                 std::strncpy(sharedData_create, result.c_str(), SHM_SIZE - 1);
                 sharedData_create[SHM_SIZE - 1] = '\0';
@@ -709,11 +696,8 @@ private:
                 }
             }
 
-        catch (const std::exception &e) {
-            std::cerr << e.what() << std::endl;
-            throw;
-        } catch (...) {
-            throw;
+        catch(...){
+            cout<<"skipping +"<<outpath<<port<<" /"<<name;
         }
     }
 
@@ -727,29 +711,22 @@ private:
     void write_SM(int port, string name, string val, int delta=0){
         chrono::milliseconds timespan((int)(2000*delay));
         this_thread::sleep_for(timespan);
-        if (val.size() >= SHM_SIZE) {
-            throw std::runtime_error(
-                "concore SHM write failed: payload (" +
-                std::to_string(val.size()) +
-                " bytes) exceeds SHM_SIZE (" +
-                std::to_string(SHM_SIZE) +
-                "). Aborting. No data written. Increase SHM_SIZE in concore.hpp."
-            );
-        }
         try {
             if(shmId_create != -1){
                 if (sharedData_create == nullptr)
                     throw 506;
+                if (val.size() >= SHM_SIZE) {
+                    std::cerr << "ERROR: write_SM payload (" << val.size()
+                              << " bytes) exceeds " << SHM_SIZE - 1
+                              << "-byte shared memory limit. Data truncated!" << std::endl;
+                }
                 std::strncpy(sharedData_create, val.c_str(), SHM_SIZE - 1);
                 sharedData_create[SHM_SIZE - 1] = '\0';
             }
             else throw 505;
         }
-        catch (const std::exception &e) {
-            std::cerr << e.what() << std::endl;
-            throw;
-        } catch (...) {
-            throw;
+        catch(...){
+            cout<<"skipping +"<<outpath<<port<<" /"<<name;
         }
     }
     
