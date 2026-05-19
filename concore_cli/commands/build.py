@@ -75,9 +75,17 @@ def _parse_docker_run_line(line):
     }
 
 
-def _write_docker_compose(output_path):
+def _write_docker_compose(output_path, console, zmq_mode=False):
     run_script = output_path / "run"
     if not run_script.exists():
+        console.print(
+            "[yellow]Warning:[/yellow] No docker run script found "
+            f"in {output_path}."
+        )
+        console.print(
+            "[dim]Tip: run concore build --type docker first, "
+            "then use --compose[/dim]"
+        )
         return None
 
     services = []
@@ -89,15 +97,10 @@ def _write_docker_compose(output_path):
     if not services:
         return None
 
-    compose_lines = [
-        "networks:",
-        "  concore-net:",
-        "    driver: bridge",
-        "",
-        "services:",
-    ]
+    compose_lines = ["services:"]
 
     named_volumes = set()
+    previous_service_name = None
     for index, service in enumerate(services, start=1):
         service_name = re.sub(r"[^A-Za-z0-9_.-]", "-", service["container_name"]).strip(
             "-."
@@ -107,14 +110,11 @@ def _write_docker_compose(output_path):
         elif not service_name[0].isalpha():
             service_name = f"service-{service_name}"
 
-        compose_lines.append(f"  {_yaml_quote(service_name)}:")
+        compose_lines.append(f"  {service_name}:")
         compose_lines.append(f"    image: {_yaml_quote(service['image'])}")
         compose_lines.append(
             f"    container_name: {_yaml_quote(service['container_name'])}"
         )
-        compose_lines.append("    restart: on-failure")
-        compose_lines.append("    networks:")
-        compose_lines.append("      - concore-net")
 
         if service["volumes"]:
             compose_lines.append("    volumes:")
@@ -124,11 +124,27 @@ def _write_docker_compose(output_path):
                 if re.match(r"^[a-zA-Z0-9_-]+$", part1):
                     named_volumes.add(part1)
 
+        compose_lines.append("    restart: on-failure")
+        if zmq_mode:
+            compose_lines.append("    environment:")
+            compose_lines.append("      - CONCORE_TRANSPORT=zmq")
+        if index > 1 and previous_service_name:
+            compose_lines.append("    depends_on:")
+            compose_lines.append(f"      - {previous_service_name}")
+        compose_lines.append("    networks:")
+        compose_lines.append("      - concore_net")
+        previous_service_name = service_name
+
     if named_volumes:
         compose_lines.append("")
         compose_lines.append("volumes:")
         for v in sorted(named_volumes):
             compose_lines.append(f"  {v}:")
+
+    compose_lines.append("")
+    compose_lines.append("networks:")
+    compose_lines.append("  concore_net:")
+    compose_lines.append("    driver: bridge")
 
     compose_lines.append("")
     compose_path = output_path / "docker-compose.yml"
@@ -144,6 +160,7 @@ def build_workflow(
     auto_build,
     console,
     compose=False,
+    zmq_mode=False,
 ):
     workflow_path = Path(workflow_file).resolve()
     source_path = Path(source).resolve()
@@ -238,7 +255,9 @@ def build_workflow(
             )
 
             if compose:
-                compose_path = _write_docker_compose(output_path)
+                compose_path = _write_docker_compose(
+                    output_path, console, zmq_mode=zmq_mode
+                )
                 if compose_path is not None:
                     console.print(
                         f"[green]✓[/green] Compose file written to [cyan]{compose_path}[/cyan]"
