@@ -51,30 +51,22 @@ def test_compose_first_service_has_no_depends_on(tmp_path):
     )
     path = _write_docker_compose(tmp_path, Console(quiet=True))
     lines = path.read_text().splitlines()
-    controller_idx = next(
-        i for i, line in enumerate(lines) if "controller:" in line
-    )
-    plant_idx = next(
-        i for i, line in enumerate(lines) if "plant:" in line
-    )
+    controller_idx = next(i for i, line in enumerate(lines) if "controller:" in line)
+    plant_idx = next(i for i, line in enumerate(lines) if "plant:" in line)
     section = lines[controller_idx:plant_idx]
     assert not any("depends_on" in line for line in section)
 
 
 def test_zmq_mode_adds_env(tmp_path):
     _fake_run_script(tmp_path, [{"name": "node1", "image": "concore/py"}])
-    path = _write_docker_compose(
-        tmp_path, Console(quiet=True), zmq_mode=True
-    )
+    path = _write_docker_compose(tmp_path, Console(quiet=True), zmq_mode=True)
     content = path.read_text()
     assert "CONCORE_TRANSPORT=zmq" in content
 
 
 def test_no_zmq_env_in_default_mode(tmp_path):
     _fake_run_script(tmp_path, [{"name": "node1", "image": "concore/py"}])
-    path = _write_docker_compose(
-        tmp_path, Console(quiet=True), zmq_mode=False
-    )
+    path = _write_docker_compose(tmp_path, Console(quiet=True), zmq_mode=False)
     content = path.read_text()
     assert "CONCORE_TRANSPORT" not in content
 
@@ -87,6 +79,7 @@ def test_missing_run_script_returns_none(tmp_path):
 def test_zmq_without_compose_errors():
     from click.testing import CliRunner
     from concore_cli.cli import cli
+
     runner = CliRunner()
     result = runner.invoke(cli, ["build", "wf.graphml", "--zmq"])
     assert result.exit_code != 0

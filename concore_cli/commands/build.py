@@ -79,12 +79,10 @@ def _write_docker_compose(output_path, console, zmq_mode=False):
     run_script = output_path / "run"
     if not run_script.exists():
         console.print(
-            "[yellow]Warning:[/yellow] No docker run script found "
-            f"in {output_path}."
+            f"[yellow]Warning:[/yellow] No docker run script found in {output_path}."
         )
         console.print(
-            "[dim]Tip: run concore build --type docker first, "
-            "then use --compose[/dim]"
+            "[dim]Tip: run concore build --type docker first, then use --compose[/dim]"
         )
         return None
 
