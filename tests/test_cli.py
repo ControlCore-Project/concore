@@ -384,8 +384,8 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("container_name: 'N1'", compose_content)
             self.assertIn("image: 'docker-script'", compose_content)
             self.assertIn("networks:", compose_content)
-            self.assertIn("concore-net:", compose_content)
-            self.assertIn("- concore-net", compose_content)
+            self.assertIn("concore_net:", compose_content)
+            self.assertIn("- concore_net", compose_content)
             self.assertIn("restart: on-failure", compose_content)
 
             metadata = json.loads(Path("out/STUDY.json").read_text())
