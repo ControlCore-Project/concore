@@ -55,6 +55,34 @@ jobs:
             --ignore=ratc/ \
             --ignore=linktest/
 
+  julia-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        julia-version: ['1.10', '1']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: ${{ matrix.julia-version }}
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-ci.txt
+
+      - name: Run Julia tests
+        run: julia --color=yes tests/julia/runtests.jl
+        shell: bash
+
   java-test:
     runs-on: ubuntu-latest
     steps:

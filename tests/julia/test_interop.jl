@@ -101,6 +101,8 @@ assert concore.simtime == 7.0, concore.simtime
     end
 
     function cxx_compiler()
+        Sys.iswindows() && return nothing
+
         for name in ("g++", "clang++")
             compiler = Sys.which(name)
             compiler !== nothing && return compiler
