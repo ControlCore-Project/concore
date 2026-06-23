@@ -10,4 +10,5 @@ using .Concore
     include("test_protocol.jl")
     include("test_wire_compat.jl")
     include("test_interop.jl")
+    include("test_mmap.jl")
 end
