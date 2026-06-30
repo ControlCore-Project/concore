@@ -17,11 +17,19 @@
 #include <thread>
 #ifdef __linux__
 #include <sys/ipc.h>
+#include <sys/sem.h>
 #include <sys/shm.h>
 #include <unistd.h>
+#include <cerrno>
+union semun { //not defined by glibc; needed for semctl SETVAL
+    int val;
+    struct semid_ds* buf;
+    unsigned short* array;
+};
 #endif
 #include <cstring>
 #include <cctype>
+#include <cstdint>
 #include <regex>
 
 #include "concore_base.hpp"
@@ -41,6 +49,12 @@ private:
     string outpath = "./out";
 
     static constexpr size_t SHM_SIZE = 4096;
+    //SHM layout: [0..7]=uint64 seq#, [8..]=payload.  odd=writing, even=ready.
+    //A seqlock-style protocol: writer flips even->odd, memcpy, fence,
+    //flips odd->even.  Reader loads seq, copies payload, re-loads seq,
+    //accepts only if both loads match and seq is even.  See issue #195.
+    static constexpr size_t SHM_HEADER_SIZE = 8;
+    static constexpr size_t SHM_PAYLOAD_MAX = SHM_SIZE - SHM_HEADER_SIZE - 1;
 
     int shmId_create = -1;
     int shmId_get = -1;
@@ -50,6 +64,11 @@ private:
     // File sharing:- 0, Shared Memory:- 1
     int communication_iport = 0;  // iport refers to input port
     int communication_oport = 0;  // oport refers to input port
+#ifdef __linux__
+    //POSIX semaphores keyed by (shm_key+1).  Idempotent across processes.
+    int semId_create = -1;
+    int semId_get = -1;
+#endif
 
 #ifdef CONCORE_USE_ZMQ
     map<string, concore_base::ZeroMQPort*> zmq_ports;
@@ -145,6 +164,9 @@ private:
         if (shmId_create != -1) {
             shmctl(shmId_create, IPC_RMID, nullptr);
         }
+        if (semId_create != -1) {
+            semctl(semId_create, 0, IPC_RMID);
+        }
 #endif
     }
 
@@ -166,6 +188,9 @@ private:
           delay(other.delay), retrycount(other.retrycount), simtime(other.simtime),
           maxtime(other.maxtime), iport(std::move(other.iport)), oport(std::move(other.oport)),
           params(std::move(other.params))
+#ifdef __linux__
+          , semId_create(other.semId_create), semId_get(other.semId_get)
+#endif
     {
         other.shmId_create = -1;
         other.shmId_get = -1;
@@ -173,6 +198,10 @@ private:
         other.sharedData_get = nullptr;
         other.communication_iport = 0;
         other.communication_oport = 0;
+#ifdef __linux__
+        other.semId_create = -1;
+        other.semId_get = -1;
+#endif
     }
 
     /**
@@ -190,6 +219,8 @@ private:
             shmdt(sharedData_get);
         if (shmId_create != -1)
             shmctl(shmId_create, IPC_RMID, nullptr);
+        if (semId_create != -1)
+            semctl(semId_create, 0, IPC_RMID);
 #endif
 
         s = std::move(other.s);
@@ -209,6 +240,10 @@ private:
         iport = std::move(other.iport);
         oport = std::move(other.oport);
         params = std::move(other.params);
+#ifdef __linux__
+        semId_create = other.semId_create;
+        semId_get = other.semId_get;
+#endif
 
         other.shmId_create = -1;
         other.shmId_get = -1;
@@ -216,6 +251,10 @@ private:
         other.sharedData_get = nullptr;
         other.communication_iport = 0;
         other.communication_oport = 0;
+#ifdef __linux__
+        other.semId_create = -1;
+        other.semId_get = -1;
+#endif
 
         return *this;
     }
@@ -255,6 +294,78 @@ private:
     }
 
 #ifdef __linux__
+    static inline uint64_t shm_load_seq(const char* base) {
+        uint64_t v;
+        __atomic_load(reinterpret_cast<const uint64_t*>(base), &v, __ATOMIC_ACQUIRE);
+        return v;
+    }
+
+    static inline void shm_store_seq(char* base, uint64_t v) {
+        __atomic_store(reinterpret_cast<uint64_t*>(base), &v, __ATOMIC_RELEASE);
+    }
+
+    // Seqlock-style snapshot read: returns the payload on success, or
+    // std::string() (empty) if the seq# is missing, odd (write in progress),
+    // or changed between the two reads. The caller can retry without
+    // taking the semaphore.
+    static std::string shm_read_payload(const char* base) {
+        if (base == nullptr) return std::string();
+        uint64_t s1 = shm_load_seq(base);
+        if (s1 == 0 || (s1 & 1u)) return std::string();
+        std::string out(base + SHM_HEADER_SIZE,
+                        strnlen(base + SHM_HEADER_SIZE, SHM_PAYLOAD_MAX));
+        __atomic_thread_fence(__ATOMIC_ACQUIRE);
+        uint64_t s2 = shm_load_seq(base);
+        if (s1 != s2) return std::string();
+        return out;
+    }
+
+    static int shm_sem_create(key_t key) {
+        // Try to create as the original owner. If it already exists,
+        // attach without resetting its value (a stale semaphore would
+        // reset valid in-use state otherwise).
+        int id = semget(key, 1, IPC_CREAT | IPC_EXCL | 0666);
+        if (id >= 0) {
+            semun arg{};
+            arg.val = 1;
+            if (semctl(id, 0, SETVAL, arg) < 0) return -1;
+            return id;
+        }
+        // EEXIST means another process got here first; just open it.
+        id = semget(key, 1, 0666);
+        return id < 0 ? -1 : id;
+    }
+
+    static void shm_sem_acquire(int id) {
+        if (id < 0) return;
+        sembuf sb{};
+        sb.sem_num = 0;
+        sb.sem_op = -1;
+        sb.sem_flg = 0;
+        while (semop(id, &sb, 1) == -1) {
+            if (errno != EINTR) {
+                std::cerr << "semop(acquire) failed errno=" << errno << std::endl;
+                return;
+            }
+        }
+    }
+
+    static void shm_sem_release(int id) {
+        if (id < 0) return;
+        sembuf sb{};
+        sb.sem_num = 0;
+        sb.sem_op = 1;
+        sb.sem_flg = 0;
+        while (semop(id, &sb, 1) == -1) {
+            if (errno != EINTR) {
+                std::cerr << "semop(release) failed errno=" << errno << std::endl;
+                return;
+            }
+        }
+    }
+#endif
+
+#ifdef __linux__
     /**
      * @brief Creates a shared memory segment with the given key.
      * @param key The key for the shared memory segment.
@@ -286,7 +397,17 @@ private:
         if (sharedData_create == reinterpret_cast<char*>(-1)) {
             std::cerr << "Failed to attach shared memory segment." << std::endl;
             sharedData_create = nullptr;
+            return;
         }
+
+        semId_create = shm_sem_create(key + 1);
+        if (semId_create < 0) {
+            std::cerr << "Failed to create shared memory semaphore." << std::endl;
+        }
+
+        //initialise header
+        shm_store_seq(sharedData_create, uint64_t{0});
+        sharedData_create[SHM_HEADER_SIZE] = '\0';
     }
 
     /**
@@ -321,6 +442,14 @@ private:
         if (sharedData_get == reinterpret_cast<char*>(-1)) {
             std::cerr << "Failed to attach shared memory segment." << std::endl;
             sharedData_get = nullptr;
+            return;
+        }
+
+        //attach reader-side semaphore (writer owns its lifetime)
+        semId_get = semget(key + 1, 1, 0666);
+        if (semId_get < 0) {
+            //no semaphore: reads fall back to seq# alone
+            semId_get = -1;
         }
     }
 #endif
@@ -503,49 +632,48 @@ private:
         this_thread::sleep_for(timespan);
         string ins = "";
         ReadStatus status = ReadStatus::SUCCESS;
-        try {
-        if (shmId_get != -1) {
-            if (sharedData_get && sharedData_get[0] != '\0') {
-                std::string message(sharedData_get, strnlen(sharedData_get, SHM_SIZE));
-                ins = message;
-            } 
-            else 
-            {
-                throw 505;
-            }
-        } 
-        else 
-        {
+#ifdef __linux__
+        if (shmId_get == -1 || sharedData_get == nullptr) {
             status = ReadStatus::FILE_NOT_FOUND;
-            throw 505;
-        }
-        } catch (...) {
             ins = initstr;
-            if (status == ReadStatus::SUCCESS)
-                status = ReadStatus::FILE_NOT_FOUND;
+        } else {
+            std::string snap = shm_read_payload(sharedData_get);
+            if (snap.empty()) {
+                ins = initstr;
+                if (status == ReadStatus::SUCCESS)
+                    status = ReadStatus::FILE_NOT_FOUND;
+            } else {
+                ins = snap;
+            }
         }
-        
+#else
+        ins = initstr;
+        status = ReadStatus::FILE_NOT_FOUND;
+#endif
+
         int retry = 0;
         const int MAX_RETRY = 100;
+#ifdef __linux__
         while ((int)ins.length()==0 && retry < MAX_RETRY){
             this_thread::sleep_for(timespan);
-            try{
-                if(shmId_get != -1) {
-                    std::string message(sharedData_get, strnlen(sharedData_get, SHM_SIZE));
-                    ins = message;
+            if(shmId_get != -1 && sharedData_get != nullptr) {
+                std::string snap = shm_read_payload(sharedData_get);
+                if (!snap.empty()) {
+                    ins = snap;
                     retrycount++;
-                }
-                else{
-                    retrycount++;
-                    throw 505;
                 }
             }
-            //observed retry count in C++ from various tests is approx 80.
-            catch(...){
-                std::cout << "Read error" << std::endl;
+            else{
+                retrycount++;
             }
             retry++;
         }
+#else
+        while ((int)ins.length()==0 && retry < MAX_RETRY){
+            this_thread::sleep_for(timespan);
+            retry++;
+        }
+#endif
         if ((int)ins.length()==0)
             status = ReadStatus::RETRIES_EXCEEDED;
         s += ins;
@@ -680,34 +808,54 @@ private:
      */
     void write_SM(int port, string name, vector<double> val, int delta=0){
 
+        std::ostringstream outfile;
+        val.insert(val.begin(),simtime+delta);
+        outfile<<'[';
+        for(int i=0;i<val.size()-1;i++)
+            outfile<<val[i]<<',';
+        outfile<<val[val.size()-1]<<']';
+        std::string result = outfile.str();
+        if (result.size() >= SHM_SIZE) {
+            throw std::runtime_error(
+                "concore SHM write failed: payload (" +
+                std::to_string(result.size()) +
+                " bytes) exceeds SHM_SIZE (" +
+                std::to_string(SHM_SIZE) +
+                "). Aborting. No data written. Increase SHM_SIZE in concore.hpp."
+            );
+        }
+        const size_t max_payload = SHM_PAYLOAD_MAX;
+        if (result.size() > max_payload) {
+            std::cerr << "ERROR: write_SM payload (" << result.size()
+                      << " bytes) exceeds " << max_payload
+                      << "-byte shared memory limit. Data truncated!" << std::endl;
+            result.resize(max_payload);
+        }
         try {
-            std::ostringstream outfile;
-            if(shmId_create != -1){
-                if (sharedData_create == nullptr)
-                    throw 506;
-                val.insert(val.begin(),simtime+delta);
-                outfile<<'[';
-                for(int i=0;i<val.size()-1;i++)
-                    outfile<<val[i]<<',';
-                outfile<<val[val.size()-1]<<']';
-                std::string result = outfile.str();
-                if (result.size() >= SHM_SIZE) {
-                    throw std::runtime_error(
-                        "concore SHM write failed: payload (" +
-                        std::to_string(result.size()) +
-                        " bytes) exceeds SHM_SIZE (" +
-                        std::to_string(SHM_SIZE) +
-                        "). Aborting. No data written. Increase SHM_SIZE in concore.hpp."
-                    );
-                }
-                std::strncpy(sharedData_create, result.c_str(), SHM_SIZE - 1);
-                sharedData_create[SHM_SIZE - 1] = '\0';
-                // simtime must not be mutated here (issue #385).
-                }
-            else{
+            if(shmId_create == -1){
                 throw 505;
-                }
             }
+            if (sharedData_create == nullptr)
+                throw 506;
+#ifdef __linux__
+            shm_sem_acquire(semId_create);
+#endif
+            {
+                auto* seqp = reinterpret_cast<uint64_t*>(sharedData_create);
+                // Mark "writing" by flipping seq to odd.
+                (void)__atomic_fetch_add(seqp, uint64_t{1}, __ATOMIC_ACQ_REL);
+                std::memcpy(sharedData_create + SHM_HEADER_SIZE,
+                            result.c_str(), result.size());
+                sharedData_create[SHM_HEADER_SIZE + result.size()] = '\0';
+                __atomic_thread_fence(__ATOMIC_RELEASE);
+                // Publish by flipping seq to even.
+                (void)__atomic_fetch_add(seqp, uint64_t{1}, __ATOMIC_ACQ_REL);
+            }
+#ifdef __linux__
+            shm_sem_release(semId_create);
+#endif
+            // simtime must not be mutated here (issue #385).
+        }
 
         catch (const std::exception &e) {
             std::cerr << e.what() << std::endl;
@@ -737,13 +885,33 @@ private:
             );
         }
         try {
-            if(shmId_create != -1){
-                if (sharedData_create == nullptr)
-                    throw 506;
-                std::strncpy(sharedData_create, val.c_str(), SHM_SIZE - 1);
-                sharedData_create[SHM_SIZE - 1] = '\0';
+            if(shmId_create == -1){
+                throw 505;
             }
-            else throw 505;
+            if (sharedData_create == nullptr)
+                throw 506;
+            const size_t max_payload = SHM_PAYLOAD_MAX;
+            if (val.size() > max_payload) {
+                std::cerr << "ERROR: write_SM payload (" << val.size()
+                          << " bytes) exceeds " << max_payload
+                          << "-byte shared memory limit. Data truncated!" << std::endl;
+                val.resize(max_payload);
+            }
+#ifdef __linux__
+            shm_sem_acquire(semId_create);
+#endif
+            {
+                auto* seqp = reinterpret_cast<uint64_t*>(sharedData_create);
+                (void)__atomic_fetch_add(seqp, uint64_t{1}, __ATOMIC_ACQ_REL);
+                std::memcpy(sharedData_create + SHM_HEADER_SIZE,
+                            val.c_str(), val.size());
+                sharedData_create[SHM_HEADER_SIZE + val.size()] = '\0';
+                __atomic_thread_fence(__ATOMIC_RELEASE);
+                (void)__atomic_fetch_add(seqp, uint64_t{1}, __ATOMIC_ACQ_REL);
+            }
+#ifdef __linux__
+            shm_sem_release(semId_create);
+#endif
         }
         catch (const std::exception &e) {
             std::cerr << e.what() << std::endl;
