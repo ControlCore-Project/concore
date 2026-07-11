@@ -138,4 +138,4 @@ jobs:
         # file, so we don't need system SHM semaphores or shared-memory
         # segments to succeed. This catches header-level regressions on
         # the SHM transport (issue #195) without needing g++ at runtime.
-        run: g++ -std=c++17 -Wall -Wextra -fsyntax-only tests/test_shm_cpp_smoke.cpp
+        run: g++ -std=c++17 -Wall -Wextra -I. -fsyntax-only tests/test_shm_cpp_smoke.cpp
