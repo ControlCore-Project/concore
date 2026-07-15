@@ -12,4 +12,5 @@ using .Concore
     include("test_interop.jl")
     include("test_mmap.jl")
     include("test_zmq.jl")
+    include("test_concoredocker.jl")
 end
