@@ -634,6 +634,16 @@ if 'py' in required_langs:
         print(CONCOREPATH+" is not correct path to concore (missing concore_base.py)")
         quit()
 
+if 'jl' in required_langs and concoretype=="docker":
+    try:
+        fsource = open(CONCOREPATH+"/concoredocker.jl")
+    except (FileNotFoundError, IOError):
+        print(CONCOREPATH+" is not correct path to concore (missing concoredocker.jl)")
+        quit()
+    with open(outdir+"/src/concore.jl","w") as fcopy:
+        fcopy.write(fsource.read())
+    fsource.close()
+
 if 'cpp' in required_langs:
     try:
         if concoretype=="docker":
@@ -790,6 +800,9 @@ if (concoretype=="docker"):
                     if langext=="py":
                         src_path = CONCOREPATH+"/Dockerfile.py"
                         logging.info("assuming .py extension for Dockerfile")
+                    elif langext == "jl":
+                        src_path = CONCOREPATH+"/Dockerfile.jl"
+                        logging.info("assuming .jl extension for Dockerfile")
                     elif langext == "cpp":  # 6/22/21
                         src_path = CONCOREPATH+"/Dockerfile.cpp"
                         logging.info("assuming .cpp extension for Dockerfile")
@@ -814,6 +827,8 @@ if (concoretype=="docker"):
                     fcopy.write(source_content)
                     if langext=="py":
                         fcopy.write('CMD ["python", "-i", "'+sourcecode+'"]\n')
+                    if langext=="jl":
+                        fcopy.write('CMD ["julia", "'+sourcecode+'"]\n')
                     if langext=="m":
                         fcopy.write('CMD ["octave", "-qf", "--eval", "run('+"'"+sourcecode+"'"+')"]\n') #3/28/21
                     if langext=="sh":
@@ -837,6 +852,8 @@ if (concoretype=="docker"):
             if langext == "py": #4/29/21
                 fbuild.write("cp ../src/concore.py .\n")
                 fbuild.write("cp ../src/concore_base.py .\n")
+            elif langext == "jl":
+                fbuild.write("cp ../src/concore.jl .\n")
             elif langext == "cpp": #6/22/21
                 fbuild.write("cp ../src/concore.hpp .\n")
             elif langext == "v": #6/25/21

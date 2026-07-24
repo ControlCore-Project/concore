@@ -391,6 +391,54 @@ class TestConcoreCLI(unittest.TestCase):
             metadata = json.loads(Path("out/STUDY.json").read_text())
             self.assertIn("docker-compose.yml", metadata["checksums"])
 
+    def test_build_command_docker_compose_julia_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            script_path = Path("test-project/src/script.py")
+            script_path.rename("test-project/src/script.jl")
+            Path("test-project/src/script.jl").write_text(
+                'include("concore.jl")\nusing .Concore\n'
+            )
+
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.jl"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "docker",
+                    "--compose",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            docker_runtime = Path(__file__).resolve().parents[1] / "concoredocker.jl"
+            self.assertEqual(
+                Path("out/src/concore.jl").read_text(), docker_runtime.read_text()
+            )
+
+            dockerfile = Path("out/src/Dockerfile.script").read_text()
+            self.assertIn("FROM julia:1.10", dockerfile)
+            self.assertIn('CMD ["julia", "script.jl"]', dockerfile)
+
+            build_script = Path("out/build").read_text()
+            self.assertIn("cp ../src/script.jl .", build_script)
+            self.assertIn("cp ../src/concore.jl .", build_script)
+
+            compose_content = Path("out/docker-compose.yml").read_text()
+            self.assertIn("container_name: 'N1'", compose_content)
+            self.assertIn("image: 'docker-script'", compose_content)
+
     def test_build_command_docker_compose_multi_node(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             Path("src").mkdir()
