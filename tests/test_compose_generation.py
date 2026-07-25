@@ -28,9 +28,7 @@ def test_compose_has_network_section(tmp_path):
 
 
 def test_compose_preserves_named_volume(tmp_path):
-    (tmp_path / "run").write_text(
-        "docker run --name node1 -v CU:/out1 concore/py &"
-    )
+    (tmp_path / "run").write_text("docker run --name node1 -v CU:/out1 concore/py &")
     path = _write_docker_compose(tmp_path, Console(quiet=True))
     content = path.read_text()
     assert "  CU:\n    name: 'CU'" in content
