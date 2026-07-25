@@ -36,7 +36,7 @@ outpath = os.path.abspath("/out")
 simtime = 0
 
 def _port_path(base, port_num):
-    return os.path.join(base, str(port_num))
+    return base + str(port_num)
 
 concore_params_file = os.path.join(_port_path(inpath, 1), "concore.params")
 concore_maxtime_file = os.path.join(_port_path(inpath, 1), "concore.maxtime")

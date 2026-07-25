@@ -44,6 +44,14 @@ class TestSafeLiteralEval:
         assert result == "fallback"
 
 
+class TestDockerPaths:
+    def test_port_path_matches_docker_mounts(self):
+        from concoredocker import _port_path
+
+        assert _port_path("/in", 1) == "/in1"
+        assert _port_path("/out", 2) == "/out2"
+
+
 class TestUnchanged:
     def test_returns_true_when_unchanged(self):
         import concoredocker
@@ -89,9 +97,10 @@ class TestWrite:
         import concoredocker
 
         old_outpath = concoredocker.outpath
-        outdir = os.path.join(temp_dir, "1")
+        outpath = os.path.join(temp_dir, "out")
+        outdir = outpath + "1"
         os.makedirs(outdir)
-        concoredocker.outpath = temp_dir
+        concoredocker.outpath = outpath
         concoredocker.simtime = 5.0
 
         concoredocker.write(1, "testfile", [1.0, 2.0], delta=0)
@@ -105,9 +114,10 @@ class TestWrite:
         import concoredocker
 
         old_outpath = concoredocker.outpath
-        outdir = os.path.join(temp_dir, "1")
+        outpath = os.path.join(temp_dir, "out")
+        outdir = outpath + "1"
         os.makedirs(outdir)
-        concoredocker.outpath = temp_dir
+        concoredocker.outpath = outpath
         concoredocker.simtime = 10.0
 
         concoredocker.write(1, "testfile", [3.0], delta=2)
@@ -126,9 +136,10 @@ class TestRead:
 
         old_inpath = concoredocker.inpath
         old_delay = concoredocker.delay
-        indir = os.path.join(temp_dir, "1")
+        inpath = os.path.join(temp_dir, "in")
+        indir = inpath + "1"
         os.makedirs(indir)
-        concoredocker.inpath = temp_dir
+        concoredocker.inpath = inpath
         concoredocker.delay = 0.001
 
         with open(os.path.join(indir, "data"), "w") as f:
@@ -149,9 +160,10 @@ class TestRead:
 
         old_inpath = concoredocker.inpath
         old_delay = concoredocker.delay
-        indir = os.path.join(temp_dir, "1")
+        inpath = os.path.join(temp_dir, "in")
+        indir = inpath + "1"
         os.makedirs(indir)
-        concoredocker.inpath = temp_dir
+        concoredocker.inpath = inpath
         concoredocker.delay = 0.001
 
         concoredocker.s = ""
