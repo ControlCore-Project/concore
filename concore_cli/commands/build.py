@@ -138,6 +138,7 @@ def _write_docker_compose(output_path, console, zmq_mode=False):
         compose_lines.append("volumes:")
         for v in sorted(named_volumes):
             compose_lines.append(f"  {v}:")
+            compose_lines.append(f"    name: {_yaml_quote(v)}")
 
     compose_lines.append("")
     compose_lines.append("networks:")
