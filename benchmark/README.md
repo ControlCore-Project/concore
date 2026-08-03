@@ -3,6 +3,8 @@
 The benchmark scripts compare Julia's File, Mmap, and ZMQ backends and run
 matched Julia and Python workloads.
 
+Measured results and analysis are in [RESULTS.md](RESULTS.md).
+
 Run the full benchmarks from the repository root:
 
 ```sh
