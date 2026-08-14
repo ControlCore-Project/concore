@@ -85,11 +85,12 @@ jobs:
 
   julia-matlab-verilog-test:
     runs-on: ubuntu-latest
-    env:
-      CONCORE_INTEROP_DIR: ${{ runner.temp }}/concore-matlab-interop
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set interop directory
+        run: echo "CONCORE_INTEROP_DIR=$RUNNER_TEMP/concore-matlab-interop" >> "$GITHUB_ENV"
 
       - uses: julia-actions/setup-julia@v3
         with:
