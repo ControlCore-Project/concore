@@ -174,4 +174,4 @@ If you use _concore_ in your research, please cite the below papers:
   
 * Kathiravelu, P., Arnold, M., Fleischer, J., Yao, Y., Awasthi, S., Goel, A. K., Branen, A., Sarikhani, P., Kumar, G., Kothare, M. V., and Mahmoudi, B. **CONTROL-CORE: A Framework for Simulation and Design of Closed-Loop Peripheral Neuromodulation Control Systems**. In IEEE Access. March 2022. https://doi.org/10.1109/ACCESS.2022.3161471 
 
-* Gera, S., Kothare, M. V., and Kathiravelu, P. **Unifying Distributed Workflows: A High-Performance Protocol for CONTROL-CORE.** In the 12th International Conference on Software Defined Systems (SDS-2025). December 2025.https://doi.org/10.1109/SDS68531.2025.11409867 
+* Gera, S., Kothare, M. V., and Kathiravelu, P. **Unifying Distributed Workflows: A High-Performance Protocol for CONTROL-CORE.** In the 12th International Conference on Software Defined Systems (SDS-2025). December 2025. https://doi.org/10.1109/SDS68531.2025.11409867 
