@@ -83,6 +83,42 @@ jobs:
         run: julia --color=yes tests/julia/runtests.jl
         shell: bash
 
+  julia-matlab-verilog-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set interop directory
+        run: echo "CONCORE_INTEROP_DIR=$RUNNER_TEMP/concore-matlab-interop" >> "$GITHUB_ENV"
+
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.10'
+
+      - name: Install Icarus Verilog
+        run: sudo apt-get update && sudo apt-get install -y iverilog
+
+      - name: Run Verilog interop tests
+        run: julia --color=yes tests/julia/test_verilog_interop.jl
+
+      - uses: matlab-actions/setup-matlab@v3
+
+      - name: Write Julia data for MATLAB
+        run: julia --color=yes tests/julia/test_matlab_interop.jl write
+
+      - name: Run MATLAB interop tests
+        uses: matlab-actions/run-command@v3
+        with:
+          command: addpath(pwd); addpath(fullfile(pwd, 'tests', 'matlab')); test_julia_interop
+
+      - name: Read MATLAB data from Julia
+        run: julia --color=yes tests/julia/test_matlab_interop.jl read
+
+      - name: Remove interop files
+        if: always()
+        run: rm -rf "$CONCORE_INTEROP_DIR"
+
   java-test:
     runs-on: ubuntu-latest
     steps:
