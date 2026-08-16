@@ -83,6 +83,22 @@ jobs:
         run: julia --color=yes tests/julia/runtests.jl
         shell: bash
 
+  julia-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.10'
+
+      - name: Install documentation dependencies
+        run: julia --project=docs -e 'using Pkg; Pkg.instantiate()'
+
+      - name: Build Julia documentation
+        run: julia --project=docs docs/make.jl
+
   julia-matlab-verilog-test:
     runs-on: ubuntu-latest
 
