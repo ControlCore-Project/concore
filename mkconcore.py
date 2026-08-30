@@ -204,6 +204,7 @@ JAVACEXE  = os.environ.get("CONCORE_JAVACEXE", "javac")      #Ubuntu/macOS javac
 JAVACWIN  = os.environ.get("CONCORE_JAVACWIN", "javac")      #Windows javac
 JAVAEXE   = os.environ.get("CONCORE_JAVAEXE", "java")        #Ubuntu/macOS java
 JAVAWIN   = os.environ.get("CONCORE_JAVAWIN", "java")        #Windows java
+JEROMQ_URL = "https://repo1.maven.org/maven2/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 M_IS_OCTAVE = False      #treat .m as octave
 MCRPATH  = "~/MATLAB/R2021a" #path to local Ubunta Matlab Compiler Runtime
 DOCKEREXE = os.environ.get("DOCKEREXE", "docker")#default to docker, allow env override
@@ -670,15 +671,20 @@ if 'v' in required_langs:
         fcopy.write(fsource.read())
     fsource.close()
 
-if 'java' in required_langs and concoretype != "docker":
+if 'java' in required_langs:
+    java_runtime = "concoredocker.java" if concoretype == "docker" else "concore.java"
     try:
-        fsource = open(CONCOREPATH+"/concore.java")
+        fsource = open(CONCOREPATH+"/"+java_runtime)
+        fcore = open(CONCOREPATH+"/ConcoreJavaRuntimeCore.java")
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing Java files)")
         quit()
-    with open(outdir+"/src/concore.java","w") as fcopy:
+    with open(outdir+"/src/"+java_runtime,"w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
+    with open(outdir+"/src/ConcoreJavaRuntimeCore.java","w") as fcopy:
+        fcopy.write(fcore.read())
+    fcore.close()
 
 if 'm' in required_langs:
     try:
@@ -803,6 +809,9 @@ if (concoretype=="docker"):
                     elif langext == "jl":
                         src_path = CONCOREPATH+"/Dockerfile.jl"
                         logging.info("assuming .jl extension for Dockerfile")
+                    elif langext == "java":
+                        src_path = CONCOREPATH+"/Dockerfile.java"
+                        logging.info("assuming .java extension for Dockerfile")
                     elif langext == "cpp":  # 6/22/21
                         src_path = CONCOREPATH+"/Dockerfile.cpp"
                         logging.info("assuming .cpp extension for Dockerfile")
@@ -829,6 +838,9 @@ if (concoretype=="docker"):
                         fcopy.write('CMD ["python", "-i", "'+sourcecode+'"]\n')
                     if langext=="jl":
                         fcopy.write('CMD ["julia", "'+sourcecode+'"]\n')
+                    if langext=="java":
+                        javaclass = os.path.splitext(os.path.basename(sourcecode))[0]
+                        fcopy.write('CMD ["java", "-cp", "/app:/app/jeromq.jar", "'+javaclass+'"]\n')
                     if langext=="m":
                         fcopy.write('CMD ["octave", "-qf", "--eval", "run('+"'"+sourcecode+"'"+')"]\n') #3/28/21
                     if langext=="sh":
@@ -854,6 +866,9 @@ if (concoretype=="docker"):
                 fbuild.write("cp ../src/concore_base.py .\n")
             elif langext == "jl":
                 fbuild.write("cp ../src/concore.jl .\n")
+            elif langext == "java":
+                fbuild.write("cp ../src/concoredocker.java .\n")
+                fbuild.write("cp ../src/ConcoreJavaRuntimeCore.java .\n")
             elif langext == "cpp": #6/22/21
                 fbuild.write("cp ../src/concore.hpp .\n")
             elif langext == "v": #6/25/21
@@ -1074,6 +1089,12 @@ if (concoretype=="docker"):
 if concoretype=="posix":
     fbuild.write('#!/bin/bash' + "\n")
 
+if 'java' in required_langs:
+    if concoretype == "windows":
+        fbuild.write('if not exist .\\src\\jeromq.jar powershell -NoProfile -Command "Invoke-WebRequest -Uri \''+JEROMQ_URL+'\' -OutFile \'.\\src\\jeromq.jar\'"\n')
+    else:
+        fbuild.write("[ -f ./src/jeromq.jar ] || curl -fsSL -o ./src/jeromq.jar "+JEROMQ_URL+"\n")
+
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
@@ -1231,11 +1252,11 @@ for node in nodes_dict:
           elif langext=="java":
               javaclass = os.path.splitext(os.path.basename(sourcecode))[0]
               frun.write('cd '+q_container+'\n')
-              frun.write(JAVACWIN+' '+q_source+'\n')
+              frun.write(JAVACWIN+' -cp .;..\\src\\jeromq.jar -d . '+q_source+' concore.java ..\\src\\ConcoreJavaRuntimeCore.java\n')
               frun.write('cd ..\n')
               frun.write('start /B /D '+q_container+' cmd /c '+JAVAWIN+' -cp .;..\\src\\jeromq.jar '+javaclass+' >'+q_container+'\\concoreout.txt\n')
               fdebug.write('cd '+q_container+'\n')
-              fdebug.write(JAVACWIN+' '+q_source+'\n')
+              fdebug.write(JAVACWIN+' -cp .;..\\src\\jeromq.jar -d . '+q_source+' concore.java ..\\src\\ConcoreJavaRuntimeCore.java\n')
               fdebug.write('cd ..\n')
               fdebug.write('start /D '+q_container+' cmd /K '+JAVAWIN+' -cp .;..\\src\\jeromq.jar '+javaclass+'\n')
           elif langext=="m":  #3/23/21
@@ -1282,13 +1303,13 @@ for node in nodes_dict:
             elif langext == "java":
                 javaclass = os.path.splitext(os.path.basename(sourcecode))[0]
                 safe_javaclass = shlex.quote(javaclass)
-                frun.write('(cd ' + safe_container + '; ' + JAVACEXE + ' ' + safe_source + '; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + ' >concoreout.txt & echo $! >concorepid) &\n')
+                frun.write('(cd ' + safe_container + '; ' + JAVACEXE + ' -cp .:../src/jeromq.jar -d . ' + safe_source + ' concore.java ../src/ConcoreJavaRuntimeCore.java; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + ' >concoreout.txt & echo $! >concorepid) &\n')
                 if ubuntu:
                     fdebug.write('concorewd="$(pwd)"\n')
-                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + safe_container + '\\"; ' + JAVACEXE + ' ' + safe_source + '; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + '; bash" &\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + safe_container + '\\"; ' + JAVACEXE + ' -cp .:../src/jeromq.jar -d . ' + safe_source + ' concore.java ../src/ConcoreJavaRuntimeCore.java; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + '; bash" &\n')
                 else:
                     fdebug.write('concorewd="$(pwd)"\n')
-                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\\"; ' + JAVACEXE + ' ' + safe_source + '; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + '\\"" \n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\\"; ' + JAVACEXE + ' -cp .:../src/jeromq.jar -d . ' + safe_source + ' concore.java ../src/ConcoreJavaRuntimeCore.java; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + '\\"" \n')
 
             elif langext == "sh":   # 5/19/21
                 # FIX: Escape MCRPATH to prevent shell injection

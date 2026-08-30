@@ -439,6 +439,169 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("container_name: 'N1'", compose_content)
             self.assertIn("image: 'docker-script'", compose_content)
 
+    def test_build_command_posix_java_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            script_path = Path("test-project/src/script.py")
+            script_path.rename("test-project/src/script.java")
+            Path("test-project/src/script.java").write_text(
+                "public class script {\n"
+                "    public static void main(String[] args) {\n"
+                "        concore.defaultMaxTime(10);\n"
+                "    }\n"
+                "}\n"
+            )
+
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.java"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            repo_root = Path(__file__).resolve().parents[1]
+            self.assertEqual(
+                Path("out/src/concore.java").read_text(),
+                (repo_root / "concore.java").read_text(),
+            )
+            self.assertEqual(
+                Path("out/src/ConcoreJavaRuntimeCore.java").read_text(),
+                (repo_root / "ConcoreJavaRuntimeCore.java").read_text(),
+            )
+
+            build_script = Path("out/build").read_text()
+            self.assertIn("curl -fsSL -o ./src/jeromq.jar", build_script)
+            self.assertIn("cp ./src/concore.java ./N1/concore.java", build_script)
+
+            run_script = Path("out/run").read_text()
+            self.assertIn(
+                "javac -cp .:../src/jeromq.jar -d . script.java "
+                "concore.java ../src/ConcoreJavaRuntimeCore.java",
+                run_script,
+            )
+
+            debug_script = Path("out/debug").read_text()
+            self.assertIn(
+                "javac -cp .:../src/jeromq.jar -d . script.java "
+                "concore.java ../src/ConcoreJavaRuntimeCore.java",
+                debug_script,
+            )
+
+    def test_build_command_windows_java_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            script_path = Path("test-project/src/script.py")
+            script_path.rename("test-project/src/script.java")
+            Path("test-project/src/script.java").write_text(
+                "public class script {\n"
+                "    public static void main(String[] args) {\n"
+                "        concore.defaultMaxTime(10);\n"
+                "    }\n"
+                "}\n"
+            )
+
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.java"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "windows",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            build_script = Path("out/build.bat").read_text()
+            self.assertIn("Invoke-WebRequest", build_script)
+            self.assertTrue(Path("out/src/ConcoreJavaRuntimeCore.java").exists())
+
+            run_script = Path("out/run.bat").read_text()
+            self.assertIn(
+                "\"javac\" -cp .;..\\src\\jeromq.jar -d . \"script.java\" "
+                "concore.java ..\\src\\ConcoreJavaRuntimeCore.java",
+                run_script,
+            )
+
+    def test_build_command_docker_java_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            script_path = Path("test-project/src/script.py")
+            script_path.rename("test-project/src/script.java")
+            Path("test-project/src/script.java").write_text(
+                "public class script {\n"
+                "    public static void main(String[] args) {\n"
+                "        concoredocker.defaultMaxTime(10);\n"
+                "    }\n"
+                "}\n"
+            )
+
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.java"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "docker",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            repo_root = Path(__file__).resolve().parents[1]
+            self.assertEqual(
+                Path("out/src/concoredocker.java").read_text(),
+                (repo_root / "concoredocker.java").read_text(),
+            )
+            self.assertEqual(
+                Path("out/src/ConcoreJavaRuntimeCore.java").read_text(),
+                (repo_root / "ConcoreJavaRuntimeCore.java").read_text(),
+            )
+
+            dockerfile = Path("out/src/Dockerfile.script").read_text()
+            self.assertIn("FROM eclipse-temurin:17-jdk-alpine", dockerfile)
+            self.assertIn(
+                'CMD ["java", "-cp", "/app:/app/jeromq.jar", "script"]',
+                dockerfile,
+            )
+            self.assertNotIn("mtmiller/octave", dockerfile)
+
+            build_script = Path("out/build").read_text()
+            self.assertIn("cp ../src/concoredocker.java .", build_script)
+            self.assertIn("cp ../src/ConcoreJavaRuntimeCore.java .", build_script)
+
     def test_build_command_docker_compose_multi_node(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             Path("src").mkdir()
