@@ -541,7 +541,7 @@ class TestConcoreCLI(unittest.TestCase):
 
             run_script = Path("out/run.bat").read_text()
             self.assertIn(
-                "\"javac\" -cp .;..\\src\\jeromq.jar -d . \"script.java\" "
+                '"javac" -cp .;..\\src\\jeromq.jar -d . "script.java" '
                 "concore.java ..\\src\\ConcoreJavaRuntimeCore.java",
                 run_script,
             )
