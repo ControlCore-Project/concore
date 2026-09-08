@@ -25,21 +25,57 @@ function [result] = concore_read(port, name, inistr)
          ins = inistr;
      end
      concore.s = strcat(concore.s, ins);
-     % Safe numeric parsing (replaces unsafe eval)
-     clean_str = strtrim(ins);
-     clean_str = regexprep(clean_str, '[\[\]]', '');
-     % Normalize comma delimiters to whitespace so sscanf parses all values
-     clean_str = strrep(clean_str, ',', ' ');
-     result = sscanf(clean_str, '%f').';
-     % Guard against empty parse result to avoid indexing errors
-     if isempty(result)
+
+     % Python-literal-compatible parsing
+     try
+         parsed = concore_literal_eval(ins);
+     catch exc
+         try
+             parsed = concore_literal_eval(inistr);
+         catch exc2
+             parsed = [];
+         end
+     end
+
+     if isempty(parsed)
          result = [];
          return;
      end
-     concore.simtime = max(concore.simtime, result(1));
-     if numel(result) > 1
-         result = result(2:end);
+
+     if iscell(parsed)
+         if isempty(parsed)
+             result = [];
+             return;
+         end
+         first_elem = parsed{1};
+         if isnumeric(first_elem) || islogical(first_elem)
+             concore.simtime = max(concore.simtime, double(first_elem));
+         end
+         if numel(parsed) > 1
+             % If all remaining elements are numeric scalars, return numeric row vector
+             all_num_scalar = true;
+             for k = 2:numel(parsed)
+                 if ~isnumeric(parsed{k}) || numel(parsed{k}) ~= 1
+                     all_num_scalar = false;
+                     break;
+                 end
+             end
+             if all_num_scalar
+                 result = cell2mat(parsed(2:end));
+             else
+                 result = parsed(2:end);
+             end
+         else
+             result = [];
+         end
+     elseif isnumeric(parsed)
+         concore.simtime = max(concore.simtime, parsed(1));
+         if numel(parsed) > 1
+             result = parsed(2:end);
+         else
+             result = [];
+         end
      else
-         result = [];
+         result = parsed;
      end
 end
