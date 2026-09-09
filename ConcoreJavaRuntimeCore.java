@@ -504,6 +504,10 @@ class ConcoreJavaRuntimeCore {
         ZeroMQPort(String portType, String address, int socketType) {
             ZMQ.Context ctx = getZmqContext();
             this.socket = ctx.socket(socketType);
+            if (socketType == ZMQ.REQ) {
+                this.socket.setReqRelaxed(true);
+                this.socket.setReqCorrelate(true);
+            }
             this.socket.setReceiveTimeOut(2000);
             this.socket.setSendTimeOut(2000);
             this.socket.setLinger(0);

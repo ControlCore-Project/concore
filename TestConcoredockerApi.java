@@ -2,6 +2,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import org.zeromq.ZMQ;
+import org.zeromq.ZMQException;
 
 /**
  * Tests for concoredocker read(), write(), unchanged(), initVal()
@@ -29,6 +31,7 @@ public class TestConcoredockerApi {
         testReadParseError();
         testReadTraversalBlocked();
         testWriteTraversalBlocked();
+        testReqCanSendAfterMissingReply();
 
         System.out.println("\n=== Results: " + passed + " passed, " + failed + " failed out of " + (passed + failed) + " tests ===");
         if (failed > 0) {
@@ -250,5 +253,32 @@ public class TestConcoredockerApi {
 
         concoredocker.write(1, "../escape", Collections.singletonList((Object) 1.0), 0);
         check("write traversal blocked: no escaped file", false, Files.exists(tmp.resolve("escape")));
+    }
+
+    static void testReqCanSendAfterMissingReply() {
+        ZMQ.Context context = ZMQ.context(1);
+        ZMQ.Socket peer = context.socket(ZMQ.REP);
+        peer.setReceiveTimeOut(2000);
+        peer.setLinger(0);
+        int port = peer.bindToRandomPort("tcp://127.0.0.1");
+
+        concoredocker.terminateZmq();
+        try {
+            concoredocker.initZmqPort("request", "connect", "tcp://127.0.0.1:" + port, "REQ");
+            concoredocker.write("request", "signal", Collections.singletonList((Object) 1.0), 0);
+            check("REQ peer receives first request", true, peer.recvStr() != null);
+
+            boolean secondWriteSucceeded = true;
+            try {
+                concoredocker.write("request", "signal", Collections.singletonList((Object) 2.0), 0);
+            } catch (ZMQException e) {
+                secondWriteSucceeded = false;
+            }
+            check("REQ can send again when reply is missing", true, secondWriteSucceeded);
+        } finally {
+            concoredocker.terminateZmq();
+            peer.close();
+            context.term();
+        }
     }
 }
