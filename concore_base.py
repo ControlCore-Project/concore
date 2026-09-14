@@ -247,7 +247,7 @@ def read(mod, port_identifier, name, initstr_val):
             Also sets ``concore.last_read_status`` (and
             ``concore_base.last_read_status``) to one of:
             SUCCESS, FILE_NOT_FOUND, TIMEOUT, PARSE_ERROR,
-            EMPTY_DATA, RETRIES_EXCEEDED.
+            READ_ERROR, RETRIES_EXCEEDED.
 
     Notes:
         This low-level helper always returns ``(data, success_flag)``.
@@ -317,7 +317,7 @@ def read(mod, port_identifier, name, initstr_val):
         mod.s += ins  # Update s to break unchanged() loop
     except Exception as e:
         logger.error(f"Error reading {file_path}: {e}. Using default value.")
-        last_read_status = "FILE_NOT_FOUND"
+        last_read_status = "READ_ERROR"
         return default_return_val, False
 
     # Retry logic if file is empty
