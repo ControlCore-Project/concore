@@ -110,6 +110,35 @@ class TestReadFileParseError:
         assert self.concore.last_read_status == "PARSE_ERROR"
 
 
+class TestReadFileGenericIOError:
+    """read_with_status() returns (default, False) with READ_ERROR on
+    file I/O failures that are not a missing file (e.g. the target
+    path is a directory instead of a file)."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, temp_dir, monkeypatch):
+        import concore
+
+        self.concore = concore
+        monkeypatch.setattr(concore, "delay", 0)
+
+        in_dir = os.path.join(temp_dir, "in1")
+        # "ym" is a directory here instead of a file, so open() raises
+        # IsADirectoryError rather than FileNotFoundError.
+        os.makedirs(os.path.join(in_dir, "ym"), exist_ok=True)
+
+        monkeypatch.setattr(concore, "inpath", os.path.join(temp_dir, "in"))
+
+    def test_returns_default_and_false(self):
+        data, ok = self.concore.read_with_status(1, "ym", "[0, 0.0]")
+        assert ok is False
+        assert data == [0, 0.0]
+
+    def test_last_read_status_is_read_error(self):
+        self.concore.read(1, "ym", "[0, 0.0]")
+        assert self.concore.last_read_status == "READ_ERROR"
+
+
 class TestReadFileTraversalBlocked:
     """read_with_status() rejects traversal names and returns PARSE_ERROR."""
 
@@ -294,6 +323,6 @@ class TestLastReadStatusExposed:
             "FILE_NOT_FOUND",
             "TIMEOUT",
             "PARSE_ERROR",
-            "EMPTY_DATA",
+            "READ_ERROR",
             "RETRIES_EXCEEDED",
         )
