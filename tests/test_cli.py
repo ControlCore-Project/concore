@@ -786,6 +786,24 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertIn("Missing files", result.output)
 
+    def test_watch_rejects_negative_interval(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            os.mkdir("study")
+            result = self.runner.invoke(
+                cli, ["watch", "study", "--interval", "-1"]
+            )
+            self.assertEqual(result.exit_code, 1)
+            self.assertIn("--interval must be greater than 0", result.output)
+
+    def test_watch_rejects_zero_interval(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            os.mkdir("study")
+            result = self.runner.invoke(
+                cli, ["watch", "study", "--interval", "0"]
+            )
+            self.assertEqual(result.exit_code, 1)
+            self.assertIn("--interval must be greater than 0", result.output)
+
 
 if __name__ == "__main__":
     unittest.main()
