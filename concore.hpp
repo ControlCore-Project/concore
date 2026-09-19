@@ -142,7 +142,7 @@ private:
 
     /**
      * @brief Destructor for Concore class.
-     *        Detaches and removes the shared memory segment if shared memory created.
+     *        Detaches shared memory and removes it when the last process exits.
      */
     ~Concore()
     {
@@ -152,21 +152,8 @@ private:
         zmq_ports.clear();
 #endif
 #ifdef __linux__
-        // Detach the shared memory segment from the process
-        if (communication_oport == 1 && sharedData_create != nullptr) {
-            shmdt(sharedData_create);
-        }
-        if (communication_iport == 1 && sharedData_get != nullptr) {
-            shmdt(sharedData_get);
-        }
-
-        // Remove the shared memory segment
-        if (shmId_create != -1) {
-            shmctl(shmId_create, IPC_RMID, nullptr);
-        }
-        if (semId_create != -1) {
-            semctl(semId_create, 0, IPC_RMID);
-        }
+        cleanupSharedMemory(shmId_create, sharedData_create, semId_create);
+        cleanupSharedMemory(shmId_get, sharedData_get, semId_get);
 #endif
     }
 
@@ -213,14 +200,8 @@ private:
             return *this;
 
 #ifdef __linux__
-        if (communication_oport == 1 && sharedData_create != nullptr)
-            shmdt(sharedData_create);
-        if (communication_iport == 1 && sharedData_get != nullptr)
-            shmdt(sharedData_get);
-        if (shmId_create != -1)
-            shmctl(shmId_create, IPC_RMID, nullptr);
-        if (semId_create != -1)
-            semctl(semId_create, 0, IPC_RMID);
+        cleanupSharedMemory(shmId_create, sharedData_create, semId_create);
+        cleanupSharedMemory(shmId_get, sharedData_get, semId_get);
 #endif
 
         s = std::move(other.s);
@@ -304,6 +285,27 @@ private:
         __atomic_store(reinterpret_cast<uint64_t*>(base), &v, __ATOMIC_RELEASE);
     }
 
+    static void cleanupSharedMemory(int shm_id, char* shared_data, int sem_id) {
+        if (shared_data == nullptr)
+            return;
+
+        if (!shm_sem_acquire(sem_id)) {
+            shmdt(shared_data);
+            return;
+        }
+
+        shmdt(shared_data);
+
+        struct shmid_ds shm_info;
+        if (shmctl(shm_id, IPC_STAT, &shm_info) == 0 && shm_info.shm_nattch == 0) {
+            shmctl(shm_id, IPC_RMID, nullptr);
+            semctl(sem_id, 0, IPC_RMID);
+            return;
+        }
+
+        shm_sem_release(sem_id);
+    }
+
     // Seqlock-style snapshot read: returns the payload on success, or
     // std::string() (empty) if the seq# is missing, odd (write in progress),
     // or changed between the two reads. The caller can retry without
@@ -336,18 +338,19 @@ private:
         return id < 0 ? -1 : id;
     }
 
-    static void shm_sem_acquire(int id) {
-        if (id < 0) return;
+    static bool shm_sem_acquire(int id) {
+        if (id < 0) return false;
         sembuf sb{};
         sb.sem_num = 0;
         sb.sem_op = -1;
-        sb.sem_flg = 0;
+        sb.sem_flg = SEM_UNDO;
         while (semop(id, &sb, 1) == -1) {
             if (errno != EINTR) {
                 std::cerr << "semop(acquire) failed errno=" << errno << std::endl;
-                return;
+                return false;
             }
         }
+        return true;
     }
 
     static void shm_sem_release(int id) {
@@ -355,7 +358,7 @@ private:
         sembuf sb{};
         sb.sem_num = 0;
         sb.sem_op = 1;
-        sb.sem_flg = 0;
+        sb.sem_flg = SEM_UNDO;
         while (semop(id, &sb, 1) == -1) {
             if (errno != EINTR) {
                 std::cerr << "semop(release) failed errno=" << errno << std::endl;
@@ -372,9 +375,26 @@ private:
      */
     void createSharedMemory(key_t key)
     {
-        shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
+        while (true) {
+            semId_create = shm_sem_create(key + 1);
+            if (semId_create < 0) {
+                std::cerr << "Failed to create shared memory semaphore." << std::endl;
+                return;
+            }
+            if (shm_sem_acquire(semId_create))
+                break;
+        }
+
+        bool created = false;
+        shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | IPC_EXCL | 0666);
+        if (shmId_create != -1) {
+            created = true;
+        } else if (errno == EEXIST) {
+            shmId_create = shmget(key, SHM_SIZE, 0666);
+        }
 
         if (shmId_create == -1) {
+            shm_sem_release(semId_create);
             std::cerr << "Failed to create shared memory segment." << std::endl;
             return;
         }
@@ -387,27 +407,27 @@ private:
             shmctl(shmId_create, IPC_RMID, nullptr);
             shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
             if (shmId_create == -1) {
+                shm_sem_release(semId_create);
                 std::cerr << "Failed to recreate shared memory segment." << std::endl;
                 return;
             }
+            created = true;
         }
 
         // Attach the shared memory segment to the process's address space
         sharedData_create = static_cast<char*>(shmat(shmId_create, NULL, 0));
         if (sharedData_create == reinterpret_cast<char*>(-1)) {
+            shm_sem_release(semId_create);
             std::cerr << "Failed to attach shared memory segment." << std::endl;
             sharedData_create = nullptr;
             return;
         }
 
-        semId_create = shm_sem_create(key + 1);
-        if (semId_create < 0) {
-            std::cerr << "Failed to create shared memory semaphore." << std::endl;
+        if (created) {
+            shm_store_seq(sharedData_create, uint64_t{0});
+            sharedData_create[SHM_HEADER_SIZE] = '\0';
         }
-
-        //initialise header
-        shm_store_seq(sharedData_create, uint64_t{0});
-        sharedData_create[SHM_HEADER_SIZE] = '\0';
+        shm_sem_release(semId_create);
     }
 
     /**
@@ -420,37 +440,36 @@ private:
         int retry = 0;
         const int MAX_RETRY = 100;
         while (retry < MAX_RETRY) {
-            // Get the shared memory segment created by Writer
-            shmId_get = shmget(key, SHM_SIZE, 0666);
-            // Check if shared memory exists
-            if (shmId_get != -1) {
-                break; // Break the loop if shared memory exists
+            semId_get = semget(key + 1, 1, 0666);
+            if (semId_get == -1) {
+                std::cout << "Shared memory does not exist. Make sure the writer process is running." << std::endl;
+                sleep(1);
+                retry++;
+                continue;
             }
 
+            if (!shm_sem_acquire(semId_get)) {
+                retry++;
+                continue;
+            }
+
+            shmId_get = shmget(key, SHM_SIZE, 0666);
+            if (shmId_get != -1) {
+                sharedData_get = static_cast<char*>(shmat(shmId_get, NULL, 0));
+                if (sharedData_get != reinterpret_cast<char*>(-1)) {
+                    shm_sem_release(semId_get);
+                    return;
+                }
+                sharedData_get = nullptr;
+            }
+
+            shm_sem_release(semId_get);
             std::cout << "Shared memory does not exist. Make sure the writer process is running." << std::endl;
-            sleep(1); // Sleep for 1 second before checking again
+            sleep(1);
             retry++;
         }
 
-        if (shmId_get == -1) {
-            std::cerr << "Failed to get shared memory segment after max retries." << std::endl;
-            return;
-        }
-
-        // Attach the shared memory segment to the process's address space
-        sharedData_get = static_cast<char*>(shmat(shmId_get, NULL, 0));
-        if (sharedData_get == reinterpret_cast<char*>(-1)) {
-            std::cerr << "Failed to attach shared memory segment." << std::endl;
-            sharedData_get = nullptr;
-            return;
-        }
-
-        //attach reader-side semaphore (writer owns its lifetime)
-        semId_get = semget(key + 1, 1, 0666);
-        if (semId_get < 0) {
-            //no semaphore: reads fall back to seq# alone
-            semId_get = -1;
-        }
+        std::cerr << "Failed to get shared memory segment after max retries." << std::endl;
     }
 #endif
 
@@ -838,7 +857,8 @@ private:
             if (sharedData_create == nullptr)
                 throw 506;
 #ifdef __linux__
-            shm_sem_acquire(semId_create);
+            if (!shm_sem_acquire(semId_create))
+                throw 507;
 #endif
             {
                 auto* seqp = reinterpret_cast<uint64_t*>(sharedData_create);
@@ -898,7 +918,8 @@ private:
                 val.resize(max_payload);
             }
 #ifdef __linux__
-            shm_sem_acquire(semId_create);
+            if (!shm_sem_acquire(semId_create))
+                throw 507;
 #endif
             {
                 auto* seqp = reinterpret_cast<uint64_t*>(sharedData_create);
