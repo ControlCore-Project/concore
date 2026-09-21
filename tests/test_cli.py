@@ -55,6 +55,15 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertNotEqual(result.exit_code, 0)
             self.assertIn("already exists", result.output)
 
+    def test_init_rejects_path_in_name(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("work").mkdir()
+            os.chdir("work")
+            result = self.runner.invoke(cli, ["init", "../x"])
+            self.assertNotEqual(result.exit_code, 0)
+            self.assertIn("path separators", result.output)
+            self.assertFalse(Path("../x").exists())
+
     def test_validate_missing_file(self):
         result = self.runner.invoke(cli, ["validate", "nonexistent.graphml"])
         self.assertNotEqual(result.exit_code, 0)
