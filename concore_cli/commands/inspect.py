@@ -12,7 +12,7 @@ def inspect_workflow(workflow_file, source_dir, output_json, console):
     if output_json:
         return _inspect_json(workflow_path, source_dir)
 
-    _inspect_rich(workflow_path, source_dir, console)
+    return _inspect_rich(workflow_path, source_dir, console)
 
 
 def _inspect_rich(workflow_path, source_dir, console):
@@ -28,7 +28,7 @@ def _inspect_rich(workflow_path, source_dir, console):
 
         if not soup.find("graphml"):
             console.print("[red]Not a valid GraphML file[/red]")
-            return
+            return False
 
         nodes = soup.find_all("node")
         edges = soup.find_all("edge")
@@ -172,8 +172,12 @@ def _inspect_rich(workflow_path, source_dir, console):
 
     except FileNotFoundError:
         console.print(f"[red]File not found:[/red] {workflow_path}")
+        return False
     except Exception as e:
         console.print(f"[red]Inspection failed:[/red] {str(e)}")
+        return False
+
+    return True
 
 
 def _inspect_json(workflow_path, source_dir):
@@ -187,7 +191,7 @@ def _inspect_json(workflow_path, source_dir):
 
         if not soup.find("graphml"):
             print(json.dumps({"error": "Not a valid GraphML file"}, indent=2))
-            return
+            return False
 
         nodes = soup.find_all("node")
         edges = soup.find_all("edge")
@@ -269,3 +273,6 @@ def _inspect_json(workflow_path, source_dir):
 
     except Exception as e:
         print(json.dumps({"error": str(e)}, indent=2))
+        return False
+
+    return True

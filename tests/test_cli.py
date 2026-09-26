@@ -786,6 +786,22 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertIn("Missing files", result.output)
 
+    def test_inspect_invalid_graphml_exits_nonzero(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("notes.txt").write_text("not graphml")
+            for args in (["inspect", "notes.txt"], ["inspect", "notes.txt", "--json"]):
+                with self.subTest(args=args):
+                    result = self.runner.invoke(cli, args)
+                    self.assertEqual(result.exit_code, 1)
+                    self.assertIn("Not a valid GraphML file", result.output)
+
+    def test_watch_file_instead_of_dir_exits_nonzero(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("notes.txt").write_text("hi")
+            result = self.runner.invoke(cli, ["watch", "notes.txt", "--once"])
+            self.assertEqual(result.exit_code, 1)
+            self.assertIn("is not a directory", result.output)
+
 
 if __name__ == "__main__":
     unittest.main()
