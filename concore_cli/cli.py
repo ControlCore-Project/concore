@@ -134,7 +134,9 @@ def validate(workflow_file, source, output_format):
 def inspect(workflow_file, source, output_json):
     """Inspect a workflow file and show its structure"""
     try:
-        inspect_workflow(workflow_file, source, output_json, console)
+        ok = inspect_workflow(workflow_file, source, output_json, console)
+        if not ok:
+            sys.exit(1)
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
@@ -168,7 +170,9 @@ def stop():
 def watch(study_dir, interval, once):
     """Watch a running simulation study for live monitoring"""
     try:
-        watch_study(study_dir, interval, once, console)
+        ok = watch_study(study_dir, interval, once, console)
+        if not ok:
+            sys.exit(1)
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
