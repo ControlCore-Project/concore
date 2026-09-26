@@ -2,11 +2,14 @@ import unittest
 import tempfile
 import shutil
 import os
+import sys
 import json
 from pathlib import Path
 from unittest.mock import patch
 from click.testing import CliRunner
 from concore_cli.cli import cli
+
+cli_module = sys.modules[cli.callback.__module__]
 
 
 class TestConcoreCLI(unittest.TestCase):
@@ -60,8 +63,8 @@ class TestConcoreCLI(unittest.TestCase):
         for args in (["init", "../x"], ["init", "../x", "--interactive"]):
             with self.subTest(args=args):
                 with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
-                    with patch(
-                        "concore_cli.cli.run_wizard", return_value=["python"]
+                    with patch.object(
+                        cli_module, "run_wizard", return_value=["python"]
                     ):
                         result = self.runner.invoke(cli, args)
                     self.assertNotEqual(result.exit_code, 0)
