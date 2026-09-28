@@ -91,7 +91,7 @@ def _build_entries(bucket_name, messages, source_nodes):
             if node_id:
                 entry["node_id"] = node_id
         elif message.startswith("Node ") and message.endswith(" has no label"):
-            entry["node_id"] = message[5:-9]
+            entry["node_id"] = message[5 : -len(" has no label")]
         elif message.startswith("Edge references non-existent source node:"):
             entry["node_id"] = message.split(":", 1)[1].strip()
         elif message.startswith("Edge references non-existent target node:"):
