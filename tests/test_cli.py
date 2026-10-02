@@ -738,6 +738,33 @@ class TestConcoreCLI(unittest.TestCase):
             )
             self.assertIn("already exists", result.output.lower())
 
+    def test_build_command_fails_on_unsupported_extension(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            Path("test-project/src/script.py").rename("test-project/src/script.rb")
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.rb"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertNotEqual(result.exit_code, 0)
+            self.assertIn("Extension .rb is unsupported", result.output)
+            self.assertFalse(Path("out/STUDY.json").exists())
+
     def test_inspect_command_basic(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
