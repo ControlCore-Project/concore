@@ -382,8 +382,17 @@ for edge in edges_text:
                     #Validate edge labels
                     safe_name(edge_label, f"Edge label '{edge_label}'")
 
+                    source_label = nodes_dict[edge['source']]
                     if edge_label not in edges_dict:
-                        edges_dict[edge_label] = [nodes_dict[edge['source']], []]
+                        edges_dict[edge_label] = [source_label, []]
+                    elif edges_dict[edge_label][0] != source_label:
+                        # an edge label is one volume with a single writer, a second
+                        # source would get no out mount and its writes would be lost
+                        logging.error(
+                            f"Edge label '{raw_label}' has more than one source node: "
+                            f"{edges_dict[edge_label][0]} and {source_label}"
+                        )
+                        sys.exit(1)
                     edges_dict[edge_label][1].append(nodes_dict[edge['target']])
     except (IndexError, AttributeError, KeyError):
         logging.debug('An edge with no valid properties or missing node encountered and ignored')

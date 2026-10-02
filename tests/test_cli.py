@@ -136,6 +136,39 @@ class TestConcoreCLI(unittest.TestCase):
             )
             self.assertNotEqual(result.exit_code, 0)
 
+    def test_build_command_rejects_edge_label_with_multiple_sources(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("src").mkdir()
+            for name in ["a.py", "b.py", "c.py"]:
+                Path("src", name).write_text("import concore\n")
+            Path("workflow.graphml").write_text(
+                '<graphml xmlns:y="http://www.yworks.com/xml/graphml">\n'
+                '<graph id="G" edgedefault="directed">\n'
+                '<node id="n0"><data key="d0"><y:NodeLabel>A:a.py</y:NodeLabel></data></node>\n'
+                '<node id="n1"><data key="d0"><y:NodeLabel>B:b.py</y:NodeLabel></data></node>\n'
+                '<node id="n2"><data key="d0"><y:NodeLabel>C:c.py</y:NodeLabel></data></node>\n'
+                '<edge source="n0" target="n2"><data key="d1"><y:EdgeLabel>shared</y:EdgeLabel></data></edge>\n'
+                '<edge source="n1" target="n2"><data key="d1"><y:EdgeLabel>shared</y:EdgeLabel></data></edge>\n'
+                "</graph>\n"
+                "</graphml>\n"
+            )
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "workflow.graphml",
+                    "--source",
+                    "src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertNotEqual(result.exit_code, 0)
+            self.assertIn("Edge label 'shared' has more than one source", result.output)
+
     def test_build_command_from_project_dir(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
