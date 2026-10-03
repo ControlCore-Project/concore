@@ -42,6 +42,11 @@ class ZeroMQPort:
         self.socket.setsockopt(zmq.SNDTIMEO, 2000)   # 2 sec send timeout
         self.socket.setsockopt(zmq.LINGER, 0)        # Drop pending messages on close
 
+        # Let REQ send again after a missed reply, and drop stale replies
+        if zmq_socket_type == zmq.REQ:
+            self.socket.setsockopt(zmq.REQ_RELAXED, 1)
+            self.socket.setsockopt(zmq.REQ_CORRELATE, 1)
+
         # Bind or connect
         if self.port_type == "bind":
             self.socket.bind(address)
