@@ -167,6 +167,9 @@ def stop():
 @click.option("--once", is_flag=True, help="Print a single snapshot and exit")
 def watch(study_dir, interval, once):
     """Watch a running simulation study for live monitoring"""
+    if interval <= 0:
+        console.print("[red]Error:[/red] --interval must be greater than 0")
+        sys.exit(1)
     try:
         watch_study(study_dir, interval, once, console)
     except Exception as e:
