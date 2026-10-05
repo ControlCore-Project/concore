@@ -1,3 +1,4 @@
+import json
 import unittest
 import tempfile
 import shutil
@@ -187,6 +188,39 @@ class TestGraphValidation(unittest.TestCase):
         )
 
         self.assertIn("Validation passed", result.output)
+
+    def test_validate_edge_label_with_multiple_sources(self):
+        content = """
+        <graphml xmlns:y="http://www.yworks.com/xml/graphml">
+            <graph id="G" edgedefault="directed">
+                <node id="n0">
+                    <data key="d0"><y:NodeLabel>A:a.py</y:NodeLabel></data>
+                </node>
+                <node id="n1">
+                    <data key="d0"><y:NodeLabel>B:b.py</y:NodeLabel></data>
+                </node>
+                <node id="n2">
+                    <data key="d0"><y:NodeLabel>C:c.py</y:NodeLabel></data>
+                </node>
+                <edge source="n0" target="n2">
+                    <data key="d1"><y:EdgeLabel>shared</y:EdgeLabel></data>
+                </edge>
+                <edge source="n1" target="n2">
+                    <data key="d1"><y:EdgeLabel>shared</y:EdgeLabel></data>
+                </edge>
+            </graph>
+        </graphml>
+        """
+        filepath = self.create_graph_file("shared_label.graphml", content)
+
+        result = self.runner.invoke(cli, ["validate", filepath])
+
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("Edge label 'shared' has more than one source", result.output)
+
+        result = self.runner.invoke(cli, ["validate", filepath, "--format", "json"])
+        error_types = [e["error_type"] for e in json.loads(result.output)["errors"]]
+        self.assertIn("edge_label_multiple_sources", error_types)
 
     def test_validate_zmq_port_conflict(self):
         content = """

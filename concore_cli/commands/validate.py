@@ -64,6 +64,8 @@ def _classify_message(message, bucket_name):
         return {"error_type": "missing_edge_source"}
     if message.startswith("Edge references non-existent target node:"):
         return {"error_type": "missing_edge_target"}
+    if message.startswith("Edge label '") and "has more than one source" in message:
+        return {"error_type": "edge_label_multiple_sources"}
     if message == "Workflow contains cycles (expected for control loops)":
         return {"error_type": "cycle_detected"}
     if message.startswith("Invalid port number:"):
@@ -292,6 +294,7 @@ def validate_workflow(workflow_file, source_dir, console, output_format="text"):
         edge_label_regex = re.compile(r"0x([a-fA-F0-9]+)_(\S+)")
         zmq_edges = 0
         file_edges = 0
+        label_sources = {}
 
         for edge in edges:
             try:
@@ -300,12 +303,24 @@ def validate_workflow(workflow_file, source_dir, console, output_format="text"):
                     label_tag = edge.find("EdgeLabel")
 
                 if label_tag and label_tag.text:
-                    if edge_label_regex.match(label_tag.text.strip()):
+                    edge_label = label_tag.text.strip()
+                    if edge_label_regex.match(edge_label):
                         zmq_edges += 1
                     else:
                         file_edges += 1
+                        label_sources.setdefault(edge_label, set()).add(
+                            edge.get("source")
+                        )
             except Exception:
                 pass
+
+        # mkconcore mounts a file edge for its first source only
+        for edge_label, sources in label_sources.items():
+            if len(sources) > 1:
+                errors.append(
+                    f"Edge label '{edge_label}' has more than one source node: "
+                    f"{', '.join(sorted(sources))}"
+                )
 
         if zmq_edges > 0:
             info.append(f"ZMQ-based edges: {zmq_edges}")
