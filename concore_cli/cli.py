@@ -134,7 +134,9 @@ def validate(workflow_file, source, output_format):
 def inspect(workflow_file, source, output_json):
     """Inspect a workflow file and show its structure"""
     try:
-        inspect_workflow(workflow_file, source, output_json, console)
+        ok = inspect_workflow(workflow_file, source, output_json, console)
+        if not ok:
+            sys.exit(1)
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
@@ -171,7 +173,9 @@ def watch(study_dir, interval, once):
         console.print("[red]Error:[/red] --interval must be greater than 0")
         sys.exit(1)
     try:
-        watch_study(study_dir, interval, once, console)
+        ok = watch_study(study_dir, interval, once, console)
+        if not ok:
+            sys.exit(1)
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
