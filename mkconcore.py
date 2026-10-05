@@ -259,7 +259,7 @@ safe_name(outdir, "Output directory argument", allow_path=True)
 
 if not os.path.isdir(sourcedir):
     logging.error(f"{sourcedir} does not exist")
-    quit()
+    sys.exit(1)
 
 if len(sys.argv) == 4:
     # Use only the output directory name in generated prefixes.
@@ -269,7 +269,7 @@ else:
     concoretype = sys.argv[4]
     if not (concoretype in ["posix","windows","docker","macos","ubuntu"]):
         logging.error(" type must be posix (macos or ubuntu), windows, or docker")
-        quit()
+        sys.exit(1)
 ubuntu = False #6/24/21
 if concoretype == "ubuntu":
     concoretype = "posix"
@@ -280,7 +280,7 @@ if concoretype == "macos":
 if os.path.exists(outdir):
     logging.error(f"{outdir} already exists")
     logging.error(f"if intended, Remove/Rename {outdir} first")
-    quit()
+    sys.exit(1)
 
 os.makedirs(outdir)
 os.chdir(outdir)
@@ -366,7 +366,7 @@ label_values = list(nodes_dict.values())
 duplicates = {label for label in label_values if label_values.count(label) > 1}
 if duplicates:
     logging.error(f"Duplicate node labels found: {sorted(duplicates)}")
-    quit()
+    sys.exit(1)
 
 for edge in edges_text:
     try:
@@ -623,7 +623,7 @@ if 'py' in required_langs:
             fsource = open(CONCOREPATH+"/concore.py")
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing python files)")
-        quit()
+        sys.exit(1)
     with open(outdir+"/src/concore.py","w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
@@ -633,14 +633,14 @@ if 'py' in required_langs:
                 fcopy.write(fbase.read())
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing concore_base.py)")
-        quit()
+        sys.exit(1)
 
 if 'jl' in required_langs and concoretype=="docker":
     try:
         fsource = open(CONCOREPATH+"/concoredocker.jl")
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing concoredocker.jl)")
-        quit()
+        sys.exit(1)
     with open(outdir+"/src/concore.jl","w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
@@ -653,7 +653,7 @@ if 'cpp' in required_langs:
             fsource = open(CONCOREPATH+"/concore.hpp")
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing C++ files)")
-        quit()
+        sys.exit(1)
     with open(outdir+"/src/concore.hpp","w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
@@ -666,7 +666,7 @@ if 'v' in required_langs:
             fsource = open(CONCOREPATH+"/concore.v")
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing Verilog files)")
-        quit()
+        sys.exit(1)
     with open(outdir+"/src/concore.v","w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
@@ -678,7 +678,7 @@ if 'java' in required_langs:
         fcore = open(CONCOREPATH+"/ConcoreJavaRuntimeCore.java")
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing Java files)")
-        quit()
+        sys.exit(1)
     with open(outdir+"/src/"+java_runtime,"w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
@@ -729,7 +729,7 @@ if 'm' in required_langs:
         os.chmod(outdir+"/src/mkcompile",stat.S_IRWXU)
     except Exception as e:
         print(CONCOREPATH+" is not correct path to concore (missing MATLAB files):", e)
-        quit()
+        sys.exit(1)
 
 # --- Generate iport and oport mappings ---
 logging.info("Generating iport/oport mappings...")
@@ -828,7 +828,7 @@ if (concoretype=="docker"):
                         source_content = fsource.read()
                 except:
                     logging.error(f"{CONCOREPATH} is not correct path to concore")
-                    quit()
+                    sys.exit(1)
                 dockerfile_parent = os.path.dirname(dockerfile_path)
                 if dockerfile_parent:
                     os.makedirs(dockerfile_parent, exist_ok=True)
@@ -1100,7 +1100,7 @@ for node in nodes_dict:
     if len(sourcecode)!=0:
         if sourcecode.find(".")==-1:
             logging.error("cannot pull container "+sourcecode+" with control core type "+concoretype) #3/28/21
-            quit()
+            sys.exit(1)
         dockername,langext = sourcecode.rsplit(".", 1)
         fbuild.write('mkdir '+containername+"\n")
         source_subdir = os.path.dirname(sourcecode).replace("\\", "/")
@@ -1219,7 +1219,7 @@ for node in nodes_dict:
       dockername,langext = sourcecode.rsplit(".", 1)
       if not (langext in ["py","m","sh","cpp","v","java"]): # 6/22/21
           logging.error(f"Extension .{langext} is unsupported")
-          quit()
+          sys.exit(1)
       if concoretype=="windows":
           # manual double quoting for Windows + Input validation above prevents breakout
           q_container = f'"{containername}"'
