@@ -69,6 +69,40 @@ class TestZeroMQPort:
 
         assert ZeroMQPort is not None
 
+    @patch("concore_base.time.sleep")
+    def test_req_recovers_after_missing_reply(self, _mock_sleep):
+        """Issue #598 – a REQ port must be able to send again after a
+        receive timeout, and a late reply must not be returned."""
+        import zmq
+        import concore_base
+
+        ctx = zmq.Context()
+        peer = ctx.socket(zmq.REP)
+        peer.setsockopt(zmq.LINGER, 0)
+        peer.setsockopt(zmq.RCVTIMEO, 2000)
+        port_num = peer.bind_to_random_port("tcp://127.0.0.1")
+        req = concore_base.ZeroMQPort(
+            "connect", f"tcp://127.0.0.1:{port_num}", zmq.REQ, ctx
+        )
+        req.socket.setsockopt(zmq.RCVTIMEO, 50)
+        try:
+            req.send_json_with_retry([0, 1.0])
+            assert peer.recv_json() == [0, 1.0]
+            with pytest.raises(TimeoutError):
+                req.recv_json_with_retry()
+
+            req.send_json_with_retry([0, 2.0])
+            peer.send_json("stale")
+            assert peer.recv_json() == [0, 2.0]
+            peer.send_json("fresh")
+
+            req.socket.setsockopt(zmq.RCVTIMEO, 2000)
+            assert req.recv_json_with_retry() == "fresh"
+        finally:
+            req.socket.close()
+            peer.close()
+            ctx.term()
+
 
 class TestDefaultConfiguration:
     def test_default_input_path(self):
