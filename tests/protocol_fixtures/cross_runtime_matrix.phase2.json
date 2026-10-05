@@ -32,9 +32,9 @@
           "note": "Phase-1 baseline execution."
         },
         "cpp": {
-          "status": "not_audited",
+          "status": "observed_fail",
           "classification": "required",
-          "note": "Audit planned in phase 2."
+          "note": "concore_base.hpp load_params() converts \"a=1;b=2\" style params to a JSON-like dict literal by globally replacing every ',' with ',\"' before handing the string to parsedict(). Any param value containing a comma (e.g. an array literal like coeffs=[1,2,3]) gets its commas mangled into invalid syntax, parsedict() throws, and load_params() silently returns an empty map instead of {delay:5, coeffs:[1,2,3], label:\"hello world\"}. Verified by tracing the exact regex pipeline (semicolon->comma, comma->,\", =->\":, space strip) against this fixture's input; not caught by TestConcoreHpp.cpp's test_load_params_semicolon_format, which only exercises comma-free values."
         },
         "java": {
           "status": "observed_pass",
@@ -68,9 +68,9 @@
           "note": "Phase-1 baseline execution."
         },
         "cpp": {
-          "status": "not_audited",
+          "status": "observed_fail",
           "classification": "required",
-          "note": "Audit planned in phase 2."
+          "note": "Same load_params() conversion in concore_base.hpp also does a global '=' -> '\":' replacement, so every '=' in the value (not just the key/value separator) gets treated as a delimiter. For this fixture's URL value, that produces multiple stray \":\" tokens and parsedict() throws, so load_params() returns an empty map instead of {url: \"https://example.com?a=1&b=2\"}. Same root cause as parse_params/simple_types_and_whitespace."
         },
         "java": {
           "status": "observed_pass",
@@ -104,9 +104,9 @@
           "note": "Phase-1 baseline execution."
         },
         "cpp": {
-          "status": "not_audited",
+          "status": "observed_fail",
           "classification": "required",
-          "note": "Audit planned in phase 2."
+          "note": "Concore::initval() (concore.hpp) parses through concore_base::flatten_numeric, whose STRING case is a no-op ('case ConcoreValueType::STRING: break;' in concore_base.hpp), so non-numeric elements are silently dropped rather than preserved. For \"[12.5, \\\"a\\\", 3]\", flatten_numeric produces {12.5, 3.0}, simtime is correctly set to 12.5, but initval() returns [3.0] instead of [\"a\", 3] -- the string is lost with no error and the remaining values shift position. Root cause is that the public initval() API returns vector<double>, which cannot represent a string element at all; concore_base.hpp's own parser (parse_literal) does support strings, only the numeric-flattening call site loses them. Not covered by TestConcoreHpp.cpp's test_initval_parses_simtime_and_data, which only uses an all-numeric payload. Verified by tracing flatten_numeric_impl and initval() directly."
         },
         "java": {
           "status": "observed_pass",
@@ -140,9 +140,9 @@
           "note": "Phase-1 baseline execution."
         },
         "cpp": {
-          "status": "not_audited",
+          "status": "observed_pass",
           "classification": "required",
-          "note": "Audit planned in phase 2."
+          "note": "For non-list-shaped literal input that parse_literal() itself fails to parse (e.g. bare text with no enclosing '[' or '('), concore_base::parselist_double() falls into its catch-all fallback and returns an empty vector; Concore::initval() returns that empty vector immediately, before ever touching simtime. Matches this fixture. Verified by tracing parselist_double()'s exception fallback and initval()'s early-return-on-empty; TestConcoreHpp.cpp's test_initval_empty_input_returns_empty covers the same early-return path with a different input (\"[]\"), not this exact non-bracketed string."
         },
         "java": {
           "status": "observed_pass",
@@ -176,9 +176,9 @@
           "note": "Phase-1 baseline execution."
         },
         "cpp": {
-          "status": "not_audited",
+          "status": "observed_pass",
           "classification": "required",
-          "note": "Audit planned in phase 2."
+          "note": "write_ZMQ(vector<double>) in concore.hpp inserts simtime+delta at the front of the outgoing payload and sends it, without writing back to the Concore instance's simtime member (the code even carries an explicit comment, 'simtime must not be mutated here (issue #385)'). Matches this fixture's semantics. Gated behind the CONCORE_USE_ZMQ build macro; TestConcoreHpp.cpp has no ZMQ coverage, so this was verified by reading concore.hpp directly rather than by an existing test."
         },
         "java": {
           "status": "observed_pass",
@@ -212,9 +212,9 @@
           "note": "Phase-1 baseline execution."
         },
         "cpp": {
-          "status": "not_audited",
+          "status": "observed_pass",
           "classification": "required",
-          "note": "Audit planned in phase 2."
+          "note": "write_ZMQ(string) in concore.hpp sends the string as-is with no timestamp prepended and no simtime mutation, matching this fixture. Same CONCORE_USE_ZMQ caveat as the list-payload case; verified by reading concore.hpp, no existing ZMQ test exercises it."
         },
         "java": {
           "status": "observed_pass",
@@ -248,9 +248,9 @@
           "note": "Phase-1 baseline execution."
         },
         "cpp": {
-          "status": "not_audited",
+          "status": "observed_pass",
           "classification": "required",
-          "note": "Audit planned in phase 2."
+          "note": "read_FM() in concore.hpp falls back to parsing initstr and sets ReadStatus::FILE_NOT_FOUND when the port file doesn't exist, returning the init default with simtime left unchanged. Same value/monotonic semantics as this fixture, though C++ exposes an enum status (last_read_status / ReadResult.status) rather than a boolean 'ok' flag. Directly covered by TestConcoreHpp.cpp's test_read_FM_missing_file_uses_initstr and test_read_result_missing_file_status."
         },
         "java": {
           "status": "observed_pass",
@@ -284,9 +284,9 @@
           "note": "Phase-1 baseline execution."
         },
         "cpp": {
-          "status": "not_audited",
+          "status": "observed_pass",
           "classification": "required",
-          "note": "Audit planned in phase 2."
+          "note": "read_FM() takes 'simtime = simtime > inval[0] ? simtime : inval[0]' (concore.hpp), i.e. a plain max(), so an older incoming timestamp never decreases simtime. Matches this fixture. Verified by reading concore.hpp directly; no existing TestConcoreHpp.cpp test exercises an older-than-current timestamp specifically (test_read_FM_file only covers the initial 0.0 -> 3.0 case)."
         },
         "java": {
           "status": "observed_pass",

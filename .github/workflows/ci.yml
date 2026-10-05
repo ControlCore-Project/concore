@@ -191,3 +191,13 @@ jobs:
         # segments to succeed. This catches header-level regressions on
         # the SHM transport (issue #195) without needing g++ at runtime.
         run: g++ -std=c++17 -Wall -Wextra -I. -fsyntax-only tests/test_shm_cpp_smoke.cpp
+
+      - name: Build and run C++ parser tests
+        run: |
+          g++ -std=c++11 -Wall -Wextra -I. -o TestLiteralEvalCpp TestLiteralEvalCpp.cpp
+          ./TestLiteralEvalCpp
+
+      - name: Build and run C++ Concore API tests
+        run: |
+          g++ -std=c++11 -Wall -Wextra -I. -o TestConcoreHpp TestConcoreHpp.cpp
+          ./TestConcoreHpp

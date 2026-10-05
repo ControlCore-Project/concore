@@ -66,3 +66,30 @@ def test_phase2_matrix_java_status_is_recorded_for_each_case():
         assert java_result["classification"] in EXPECTED_CLASSIFICATIONS
         assert isinstance(java_result["note"], str) and java_result["note"].strip()
         assert java_result["status"] == "observed_pass"
+
+
+# cpp is audited (no longer not_audited) for every case; three cases are a
+# genuine observed_fail -- the two parse_params cases (load_params() mangles
+# comma- and equals-containing values) and the mixed-type initval case
+# (flatten_numeric silently drops non-numeric elements) -- everything else
+# is observed_pass. This pins the audit result so a future edit can't
+# silently regress it back to not_audited or paper over the known bugs.
+CPP_KNOWN_FAILING_CASES = {
+    "parse_params/simple_types_and_whitespace",
+    "parse_params/embedded_equals_not_split",
+    "initval/valid_list_sets_simtime",
+}
+
+
+def test_phase2_matrix_cpp_status_is_recorded_for_each_case():
+    for row in _phase2_matrix()["cases"]:
+        cpp_result = row["runtime_results"]["cpp"]
+        assert cpp_result["status"] in EXPECTED_STATUSES
+        assert cpp_result["classification"] in EXPECTED_CLASSIFICATIONS
+        assert isinstance(cpp_result["note"], str) and cpp_result["note"].strip()
+        assert cpp_result["status"] != "not_audited"
+
+        if row["id"] in CPP_KNOWN_FAILING_CASES:
+            assert cpp_result["status"] == "observed_fail"
+        else:
+            assert cpp_result["status"] == "observed_pass"

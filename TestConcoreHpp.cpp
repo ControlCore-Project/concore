@@ -120,7 +120,7 @@ static void test_write_FM_creates_file() {
     c.delay = 0;
     c.simtime = 2.0;
 
-    c.write_FM(1, "w_out", {10.0, 20.0});
+    c.write_FM(1, "w_out", vector<double>{10.0, 20.0});
 
     std::ifstream f("out1/w_out");
     std::ostringstream ss;
