@@ -1,3 +1,4 @@
+import ntpath
 import os
 
 
@@ -29,6 +30,8 @@ def is_concore_process(cmdline, cwd):
     script by exact filename, or a process whose working directory
     actually contains the concore runtime marker files.
     """
-    if any(os.path.basename(str(item)).lower() == "concorekill.bat" for item in cmdline):
+    # ntpath.basename splits on both "\\" and "/", so Windows paths are
+    # handled the same regardless of the host OS.
+    if any(ntpath.basename(str(item)).lower() == "concorekill.bat" for item in cmdline):
         return True
     return has_concore_markers(cwd)
