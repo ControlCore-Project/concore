@@ -139,6 +139,32 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertEqual(payload["errors"][0]["error_type"], "missing_source_file")
             self.assertEqual(payload["errors"][0]["node_id"], "n1")
 
+    def test_validate_json_output_for_node_without_label(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("src").mkdir()
+            Path("workflow.graphml").write_text(
+                """<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:y="http://www.yworks.com/xml/graphml">
+  <graph id="G" edgedefault="directed">
+    <node id="n1"></node>
+  </graph>
+</graphml>
+"""
+            )
+
+            result = self.runner.invoke(
+                cli, ["validate", "workflow.graphml", "--format", "json"]
+            )
+
+            payload = json.loads(result.output)
+            warning = next(
+                w
+                for w in payload["warnings"]
+                if w["error_type"] == "missing_node_label"
+            )
+            self.assertEqual(warning["node_id"], "n1")
+            self.assertEqual(payload["summary"]["nodes_affected"], ["n1"])
+
     def test_status_command(self):
         result = self.runner.invoke(cli, ["status"])
         self.assertEqual(result.exit_code, 0)
