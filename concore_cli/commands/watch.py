@@ -14,7 +14,7 @@ def watch_study(study_dir, interval, once, console):
     study_path = Path(study_dir).resolve()
     if not study_path.is_dir():
         console.print(f"[red]Error:[/red] '{study_dir}' is not a directory")
-        return
+        return False
 
     nodes = _find_nodes(study_path)
     edges = _find_edges(study_path, nodes)
@@ -28,12 +28,12 @@ def watch_study(study_dir, interval, once, console):
                 border_style="yellow",
             )
         )
-        return
+        return True
 
     if once:
         output = _build_display(study_path, nodes, edges)
         console.print(output)
-        return
+        return True
 
     console.print(f"[cyan]Watching:[/cyan] {study_path}")
     console.print(f"[dim]Refresh every {interval}s — Ctrl+C to stop[/dim]\n")
@@ -47,6 +47,8 @@ def watch_study(study_dir, interval, once, console):
                 time.sleep(interval)
     except KeyboardInterrupt:
         console.print("\n[yellow]Watch stopped.[/yellow]")
+
+    return True
 
 
 def _build_display(study_path, nodes, edges):
