@@ -93,7 +93,7 @@ public class concore {
             script += "    exit /b 0\r\n";
             script += ")\r\n";
             script += "for /f \"usebackq tokens=*\" %%p in (\"%~dp0" + regName + "\") do (\r\n";
-            script += "    wmic process where \"ProcessId=%%p\" get CommandLine /value 2>nul | find /i \"concore\" >nul\r\n";
+            script += "    powershell -NoProfile -Command \"(Get-CimInstance Win32_Process -Filter 'ProcessId=%%p').CommandLine\" 2>nul | findstr /i \"concore\" >nul\r\n";
             script += "    if not errorlevel 1 (\r\n";
             script += "        echo Killing concore process %%p\r\n";
             script += "        taskkill /F /PID %%p >nul 2>&1\r\n";

@@ -716,9 +716,36 @@ class TestPidRegistry:
         with open(_KILL_SCRIPT_FILE) as f:
             content = f.read()
         assert os.path.basename(_PID_REGISTRY_FILE) in content
-        assert "wmic" in content
+        assert "wmic" not in content
+        assert "Get-CimInstance" in content
         assert "taskkill" in content
         assert "concore" in content.lower()
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+    def test_kill_script_kills_concore_process(self):
+        import subprocess
+        from concore import _write_kill_script, _KILL_SCRIPT_FILE, _PID_REGISTRY_FILE
+
+        proc = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(60)", "concore_node"]
+        )
+        try:
+            with open(_PID_REGISTRY_FILE, "w") as f:
+                f.write(str(proc.pid) + "\n")
+            _write_kill_script()
+            result = subprocess.run(
+                ["cmd", "/c", _KILL_SCRIPT_FILE],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            assert "Killing concore process " + str(proc.pid) in result.stdout
+            proc.wait(timeout=10)
+            assert not os.path.exists(_PID_REGISTRY_FILE)
+            assert not os.path.exists(_KILL_SCRIPT_FILE)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
 
     def test_multi_node_registration(self):
         from concore import _register_pid, _PID_REGISTRY_FILE
