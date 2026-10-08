@@ -126,6 +126,7 @@ module concore;
     input [`CONCORE_MAXLEN*8-1:0] name;
     input [`CONCORE_MAXLEN*8-1:0] initstr;
     reg datavalid;
+    real readtime;
     reg [(`CONCORE_MAXLEN+`INPATHLEN)*8-1:0] fname; //room for 6 extra chars
     reg [7:0] asciiport;
     integer i;
@@ -189,13 +190,16 @@ module concore;
        $fclose(fin);
      end
     //parse
-    literal_eval(datavalid,simtime);
+    literal_eval(datavalid,readtime);
     if (datavalid == 0)
       begin
         retrycount = retrycount + 1;
       end
     //time
    end //datavalid
+    // keep simtime monotonic like the other bindings, an older file or the
+    // init string used for a missing file must not move it back
+    if (readtime > simtime) simtime = readtime;
     end
   endtask
 

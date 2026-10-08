@@ -93,3 +93,11 @@ def test_phase2_matrix_cpp_status_is_recorded_for_each_case():
             assert cpp_result["status"] == "observed_fail"
         else:
             assert cpp_result["status"] == "observed_pass"
+
+
+# concore.v only has the file based read path, so the read_file cases are the
+# ones that apply to it. tests/verilog/test_read_simtime.v checks both in CI.
+def test_phase2_matrix_verilog_read_file_cases_pass():
+    for row in _phase2_matrix()["cases"]:
+        if row["target"] == "read_file":
+            assert row["runtime_results"]["verilog"]["status"] == "observed_pass"
