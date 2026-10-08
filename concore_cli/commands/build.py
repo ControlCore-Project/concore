@@ -7,6 +7,7 @@ from pathlib import Path
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from ._source_dir import resolve_source_dir
 from .metadata import write_study_metadata
 
 
@@ -162,7 +163,7 @@ def build_workflow(
     zmq_mode=False,
 ):
     workflow_path = Path(workflow_file).resolve()
-    source_path = Path(source).resolve()
+    source_path = resolve_source_dir(workflow_path, source).resolve()
     output_path = Path(output).resolve()
 
     if not source_path.exists():

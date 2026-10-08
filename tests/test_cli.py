@@ -139,6 +139,30 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertEqual(payload["errors"][0]["error_type"], "missing_source_file")
             self.assertEqual(payload["errors"][0]["node_id"], "n1")
 
+    def test_validate_source_relative_to_cwd(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            Path("test-project/src/script.py").unlink()
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "validate",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--format",
+                    "json",
+                ],
+            )
+            self.assertNotEqual(result.exit_code, 0)
+
+            payload = json.loads(result.output)
+            self.assertEqual(payload["errors"][0]["error_type"], "missing_source_file")
+            self.assertEqual(Path(payload["source_dir"]), Path("test-project/src"))
+
     def test_validate_json_output_for_node_without_label(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             Path("src").mkdir()
@@ -177,6 +201,25 @@ class TestConcoreCLI(unittest.TestCase):
                 ["build", "test-project/workflow.graphml", "--source", "nonexistent"],
             )
             self.assertNotEqual(result.exit_code, 0)
+
+    def test_build_command_default_source_next_to_workflow(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertTrue(Path("out/src/script.py").exists())
 
     def test_build_command_rejects_edge_label_with_multiple_sources(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
@@ -887,6 +930,24 @@ class TestConcoreCLI(unittest.TestCase):
             )
             self.assertEqual(result.exit_code, 0)
             self.assertIn("Missing files", result.output)
+
+    def test_inspect_source_relative_to_cwd(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "inspect",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--json",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+            self.assertEqual(json.loads(result.output)["missing_files"], [])
 
     def test_watch_rejects_negative_interval(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
