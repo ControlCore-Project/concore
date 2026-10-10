@@ -339,6 +339,61 @@ class TestWriteZMQ:
         assert ok is True
 
 
+class TestWriteTuple:
+    """Regression tests for issue #605: tuples get the simtime prefix like lists."""
+
+    @pytest.fixture(autouse=True)
+    def reset_state(self):
+        import concore
+
+        old_simtime = concore.simtime
+        old_outpath = concore.outpath
+        original_ports = concore.zmq_ports.copy()
+        yield
+        concore.simtime = old_simtime
+        concore.outpath = old_outpath
+        concore.zmq_ports.clear()
+        concore.zmq_ports.update(original_ports)
+
+    def test_zmq_write_tuple_prepends_simtime(self):
+        import concore
+
+        class DummyZMQPort:
+            def __init__(self):
+                self.buffer = None
+
+            def send_json_with_retry(self, message):
+                self.buffer = message
+
+            def recv_json_with_retry(self):
+                return self.buffer
+
+        dummy = DummyZMQPort()
+        concore.zmq_ports["tuple_test"] = dummy
+
+        concore.simtime = 5
+        concore.write("tuple_test", "data", (1.5, 2.0))
+        assert dummy.buffer == [5, 1.5, 2.0]
+
+        concore.simtime = 0
+        result = concore.read("tuple_test", "data", "[0, 0]")
+        assert result == [1.5, 2.0]
+        assert concore.last_read_status == "SUCCESS"
+        assert concore.simtime == 5
+
+    def test_file_write_tuple_prepends_simtime(self, temp_dir):
+        import concore
+
+        concore.simtime = 5
+        os.makedirs(os.path.join(temp_dir, "out1"), exist_ok=True)
+        concore.outpath = os.path.join(temp_dir, "out")
+
+        concore.write(1, "data", (1.5, 2.0))
+
+        with open(os.path.join(temp_dir, "out1", "data")) as f:
+            assert f.read() == "[5, 1.5, 2.0]"
+
+
 class TestSimtimeNotMutatedByWrite:
     """Regression tests for issue #385:
     write() must NOT mutate global simtime. Simtime advancement happens
