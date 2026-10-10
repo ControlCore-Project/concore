@@ -201,3 +201,35 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -I. -o TestConcoreHpp TestConcoreHpp.cpp
           ./TestConcoreHpp
+
+  cpp-test-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Build and run C++ tests
+        run: |
+          g++ -std=c++11 -I. -o TestLiteralEvalCpp TestLiteralEvalCpp.cpp
+          ./TestLiteralEvalCpp
+          g++ -std=c++11 -I. -o TestConcoreHpp TestConcoreHpp.cpp
+          ./TestConcoreHpp
+
+  cpp-test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and run C++ tests
+        run: |
+          g++ -std=c++11 -I. -o TestLiteralEvalCpp TestLiteralEvalCpp.cpp
+          ./TestLiteralEvalCpp
+          g++ -std=c++11 -I. -o TestConcoreHpp TestConcoreHpp.cpp
+          ./TestConcoreHpp
