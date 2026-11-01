@@ -6,9 +6,11 @@ from unittest.mock import patch
 from click.testing import CliRunner
 from concore_cli.cli import cli
 from concore_cli.commands.doctor import (
+    TOOL_DEFINITIONS,
+    _check_package,
     _detect_tool,
     _get_platform_key,
-    _check_package,
+    _get_version,
     _resolve_concore_path,
     doctor_check,
 )
@@ -207,6 +209,49 @@ class TestDoctorWithConfig(unittest.TestCase):
         console = Console(file=io.StringIO(), force_terminal=True)
         result = doctor_check(console)
         self.assertIsInstance(result, bool)
+
+
+class TestJavaDoctor(unittest.TestCase):
+    """Tests for Java toolchain support in concore doctor."""
+
+    def test_tool_definitions_include_java(self):
+        """TOOL_DEFINITIONS must include Java (javac)."""
+        self.assertIn("Java (javac)", TOOL_DEFINITIONS)
+
+        java_def = TOOL_DEFINITIONS["Java (javac)"]
+        self.assertEqual(java_def["version_flag"], "-version")
+        self.assertEqual(java_def["config_keys"], ["JAVACEXE", "JAVACWIN"])
+        self.assertIn("javac", java_def["names"]["posix"])
+        self.assertIn("javac", java_def["names"]["windows"])
+
+    def test_doctor_output_mentions_java(self):
+        """Doctor command output should include Java section."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["doctor"])
+        self.assertIn("Java (javac)", result.output)
+
+    @patch("shutil.which")
+    def test_detect_java_when_present(self, mock_which):
+        """Should detect javac when available."""
+        mock_which.side_effect = lambda cmd: (
+            "/usr/bin/javac" if cmd == "javac" else None
+        )
+        path, name = _detect_tool(TOOL_DEFINITIONS["Java (javac)"]["names"]["posix"])
+        self.assertEqual(path, "/usr/bin/javac")
+        self.assertEqual(name, "javac")
+
+    @patch("subprocess.run")
+    def test_get_version_javac_stderr_fallback(self, mock_run):
+        """javac -version outputs to stderr on older JDKs; ensure fallback works."""
+        from unittest.mock import MagicMock
+
+        mock_res = MagicMock()
+        mock_res.stdout = ""
+        mock_res.stderr = "javac 1.8.0_292\n"
+        mock_run.return_value = mock_res
+
+        ver = _get_version("/usr/bin/javac", "-version")
+        self.assertEqual(ver, "javac 1.8.0_292")
 
 
 if __name__ == "__main__":
