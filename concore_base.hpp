@@ -17,6 +17,10 @@
 #include <stdexcept>
 #include <cctype>
 
+#ifdef CONCORE_USE_ZMQ
+#include <zmq.hpp>
+#endif
+
 namespace concore_base {
 
 // ===================================================================
@@ -408,8 +412,6 @@ inline std::string tryparam(
 // ZeroMQ Transport (opt-in: compile with -DCONCORE_USE_ZMQ)
 // ===================================================================
 #ifdef CONCORE_USE_ZMQ
-#include <zmq.hpp>
-
 /**
  * ZMQ socket wrapper with bind/connect, timeouts, and retry.
  */
