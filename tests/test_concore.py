@@ -230,6 +230,22 @@ class TestUnchanged:
         assert concore.unchanged() is False
         assert concore.olds == "new"
 
+    def test_unchanged_returns_false_after_zmq_read(self, monkeypatch):
+        """Issue #612 – a successful ZMQ read must count as new data."""
+        import concore
+
+        class DummyPort:
+            def recv_json_with_retry(self):
+                return [1.0, 10.0]
+
+        monkeypatch.setitem(concore.zmq_ports, "test_zmq", DummyPort())
+        concore.s = ""
+        concore.olds = ""
+
+        assert concore.unchanged() is True
+        concore.read("test_zmq", "u", "[0]")
+        assert concore.unchanged() is False
+
 
 class TestParseParams:
     def test_simple_key_value_pairs(self):

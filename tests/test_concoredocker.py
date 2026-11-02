@@ -236,6 +236,21 @@ class TestZMQ:
 
         assert concoredocker.simtime == 5.0
 
+    def test_read_breaks_unchanged(self, monkeypatch):
+        import concoredocker
+
+        class DummyPort:
+            def recv_json_with_retry(self):
+                return [1.0, 10.0]
+
+        concoredocker.zmq_ports["test_zmq"] = DummyPort()
+        monkeypatch.setattr(concoredocker, "s", "")
+        monkeypatch.setattr(concoredocker, "olds", "")
+
+        assert concoredocker.unchanged() is True
+        concoredocker.read("test_zmq", "data", "[0]")
+        assert concoredocker.unchanged() is False
+
     def test_write_read_roundtrip(self):
         import concoredocker
 

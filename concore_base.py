@@ -275,6 +275,7 @@ def read(mod, port_identifier, name, initstr_val):
         zmq_p = mod.zmq_ports[port_identifier]
         try:
             message = zmq_p.recv_json_with_retry()
+            mod.s += str(message)  # so unchanged() sees the new data
             # Strip simtime prefix if present (mirroring file-based read behavior)
             if isinstance(message, list) and len(message) > 0:
                 first_element = message[0]
