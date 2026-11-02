@@ -246,7 +246,7 @@ public:
     }
 
     void load_params() {
-        auto ordered = concore_base::load_params(inpath + "/1/concore.params");
+        auto ordered = concore_base::load_params(inpath + "1/concore.params");
         params = std::unordered_map<std::string, std::string>(ordered.begin(), ordered.end());
     }
 
@@ -256,7 +256,7 @@ public:
 
     void default_maxtime(double defaultValue) {
         maxtime = concore_base::load_maxtime(
-            inpath + "/1/concore.maxtime", defaultValue);
+            inpath + "1/concore.maxtime", defaultValue);
     }
 
     int ExtractNumeric(const std::string& str) {
@@ -447,7 +447,7 @@ public:
 #endif
         ReadStatus status = ReadStatus::SUCCESS;
         std::this_thread::sleep_for(std::chrono::seconds(delay));
-        std::string file_path = inpath + "/" + std::to_string(port) + "/" + name;
+        std::string file_path = inpath + std::to_string(port) + "/" + name;
         std::ifstream infile(file_path);
         std::string ins;
 
@@ -579,7 +579,7 @@ public:
             return;
         }
 #endif
-        std::string file_path = outpath + "/" + std::to_string(port) + "/" + name;
+        std::string file_path = outpath + std::to_string(port) + "/" + name;
         std::ofstream outfile(file_path);
         if (!outfile) {
             std::cerr << "Error writing to " << file_path << "\n";

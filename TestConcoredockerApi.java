@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQException;
@@ -49,9 +50,10 @@ public class TestConcoredockerApi {
         }
     }
 
+    /** Returns an "in" prefix inside a fresh temp dir, same as /in in a container. */
     static Path makeTempDir() {
         try {
-            return Files.createTempDirectory("concore_test_");
+            return Files.createTempDirectory("concore_test_").resolve("in");
         } catch (IOException e) {
             throw new RuntimeException("Failed to create temp dir", e);
         }
@@ -61,16 +63,20 @@ public class TestConcoredockerApi {
     static Path makeTempDir(int port) {
         Path tmp = makeTempDir();
         try {
-            Files.createDirectories(tmp.resolve(String.valueOf(port)));
+            Files.createDirectories(portDir(tmp, port));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         return tmp;
     }
 
+    static Path portDir(Path base, int port) {
+        return Paths.get(base.toString() + port);
+    }
+
     static void writeFile(Path base, int port, String name, String content) {
         try {
-            Path dir = base.resolve(String.valueOf(port));
+            Path dir = portDir(base, port);
             Files.createDirectories(dir);
             Files.write(dir.resolve(name), content.getBytes());
         } catch (IOException e) {
@@ -80,7 +86,7 @@ public class TestConcoredockerApi {
 
     static String readFile(Path base, int port, String name) {
         try {
-            return new String(Files.readAllBytes(base.resolve(String.valueOf(port)).resolve(name)));
+            return new String(Files.readAllBytes(portDir(base, port).resolve(name)));
         } catch (IOException e) {
             throw new RuntimeException("Failed to read test file", e);
         }
@@ -252,7 +258,7 @@ public class TestConcoredockerApi {
         concoredocker.setOutPath(tmp.toString());
 
         concoredocker.write(1, "../escape", Collections.singletonList((Object) 1.0), 0);
-        check("write traversal blocked: no escaped file", false, Files.exists(tmp.resolve("escape")));
+        check("write traversal blocked: no escaped file", false, Files.exists(tmp.resolveSibling("escape")));
     }
 
     static void testReqCanSendAfterMissingReply() {

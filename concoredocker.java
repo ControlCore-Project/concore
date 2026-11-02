@@ -7,7 +7,7 @@ import java.util.List;
  * mirroring the functionality of concoredocker.py.
  */
 public class concoredocker {
-    private static final ConcoreJavaRuntimeCore runtime = new ConcoreJavaRuntimeCore("/in", "/out", false);
+    private static final ConcoreJavaRuntimeCore runtime = new ConcoreJavaRuntimeCore("/in", "/out", true);
 
     // initialize on class load, same as Python module-level init
     static {
