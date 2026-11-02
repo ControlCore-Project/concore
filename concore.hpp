@@ -246,7 +246,7 @@ private:
      * @return The numeric part of the string.
      *         Returns -1 if the string does not contain a numeric part.
      */
-    key_t ExtractNumeric(const std::string& str) {
+    int ExtractNumeric(const std::string& str) {
         std::string numberString;
 
         // Find the number of leading digits in the input string

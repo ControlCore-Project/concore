@@ -242,7 +242,7 @@ public:
             inpath + "/1/concore.maxtime", defaultValue);
     }
 
-    key_t ExtractNumeric(const std::string& str) {
+    int ExtractNumeric(const std::string& str) {
         std::string numberString;
         size_t numDigits = 0;
         while (numDigits < str.length() && std::isdigit(str[numDigits])) {
