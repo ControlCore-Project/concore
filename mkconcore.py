@@ -1399,7 +1399,8 @@ for node in nodes_dict:
             else:
                 # FIX: Safer wildcard removal. 
                 # Avoid quoting the wildcard itself ('path/*'). Instead cd into directory and remove contents.
-                fclear.write(f'cd {shlex.quote(path_part)} && rm -f *\n')
+                # The subshell keeps the cd from carrying over to the next edge's line.
+                fclear.write(f'(cd {shlex.quote(path_part)} && rm -f *)\n')
             writeedges = writeedges[writeedges.find(":")+1:]
     i=i+1
 fclear.close()

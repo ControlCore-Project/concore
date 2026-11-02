@@ -2,6 +2,7 @@ import unittest
 import tempfile
 import shutil
 import os
+import subprocess
 import sys
 import json
 from pathlib import Path
@@ -253,6 +254,49 @@ class TestConcoreCLI(unittest.TestCase):
             )
             self.assertNotEqual(result.exit_code, 0)
             self.assertIn("Edge label 'shared' has more than one source", result.output)
+
+    @unittest.skipIf(os.name == "nt", "runs the generated bash scripts")
+    def test_build_command_posix_clear_empties_every_edge(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("src").mkdir()
+            for name in ["a.py", "b.py"]:
+                Path("src", name).write_text("import concore\n")
+            Path("workflow.graphml").write_text(
+                '<graphml xmlns:y="http://www.yworks.com/xml/graphml">\n'
+                '<graph id="G" edgedefault="directed">\n'
+                '<node id="n0"><data key="d0"><y:NodeLabel>A:a.py</y:NodeLabel></data></node>\n'
+                '<node id="n1"><data key="d0"><y:NodeLabel>B:b.py</y:NodeLabel></data></node>\n'
+                '<edge source="n0" target="n1"><data key="d1"><y:EdgeLabel>y</y:EdgeLabel></data></edge>\n'
+                '<edge source="n1" target="n0"><data key="d1"><y:EdgeLabel>u</y:EdgeLabel></data></edge>\n'
+                '<edge source="n1" target="n0"><data key="d1"><y:EdgeLabel>u2</y:EdgeLabel></data></edge>\n'
+                "</graph>\n"
+                "</graphml>\n"
+            )
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "workflow.graphml",
+                    "--source",
+                    "src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            out = Path("out")
+            subprocess.run(["./build"], cwd=out, check=True, capture_output=True)
+            for edge in ["y", "u", "u2"]:
+                (out / edge / "data").write_text("[0, 1.0]")
+
+            cleared = subprocess.run(["./clear"], cwd=out, capture_output=True)
+            self.assertEqual(cleared.returncode, 0, cleared.stderr)
+            for edge in ["y", "u", "u2"]:
+                self.assertEqual(list((out / edge).iterdir()), [], edge)
 
     def test_build_command_from_project_dir(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
