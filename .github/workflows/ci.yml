@@ -115,6 +115,12 @@ jobs:
       - name: Install Icarus Verilog
         run: sudo apt-get update && sudo apt-get install -y iverilog
 
+      - name: Run Verilog read tests
+        run: |
+          mkdir -p "$RUNNER_TEMP/verilog/in1"
+          iverilog -g2012 -I. -o "$RUNNER_TEMP/verilog/test_read_simtime" tests/verilog/test_read_simtime.v
+          cd "$RUNNER_TEMP/verilog" && vvp test_read_simtime
+
       - name: Run Verilog interop tests
         run: julia --color=yes tests/julia/test_verilog_interop.jl
 

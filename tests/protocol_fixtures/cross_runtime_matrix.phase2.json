@@ -268,9 +268,9 @@
           "note": "Audit planned in phase 2."
         },
         "verilog": {
-          "status": "not_audited",
+          "status": "observed_pass",
           "classification": "implementation_defined",
-          "note": "May require binding-specific interpretation."
+          "note": "readdata() falls back to the init string, so data and simtime match the fixture. concore.v has no success flag to return, so the ok=False part has no equivalent. Checked by tests/verilog/test_read_simtime.v."
         }
       }
     },
@@ -304,9 +304,9 @@
           "note": "Audit planned in phase 2."
         },
         "verilog": {
-          "status": "not_audited",
+          "status": "observed_pass",
           "classification": "implementation_defined",
-          "note": "May require binding-specific interpretation."
+          "note": "readdata() only moves simtime forward, an older file timestamp leaves it unchanged. Checked by tests/verilog/test_read_simtime.v."
         }
       }
     }
