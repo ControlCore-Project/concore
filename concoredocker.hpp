@@ -76,6 +76,23 @@ public:
     double maxtime = 100;
     std::unordered_map<std::string, std::string> params;
     ReadStatus last_read_status = ReadStatus::SUCCESS;
+
+    // A write moves simtime forward at the next read (issue #608). write()
+    // itself leaves simtime alone so writes in one step share a timestamp.
+    bool has_write = false;
+    double write_base = 0, write_target = 0;
+    void note_write(int delta) {
+        if (!has_write || write_base != simtime) {
+            has_write = true;
+            write_base = write_target = simtime;
+        }
+        if (simtime + delta > write_target)
+            write_target = simtime + delta;
+    }
+    void apply_write() {
+        if (has_write && write_base == simtime && write_target > simtime)
+            simtime = write_target;
+    }
 #ifdef CONCORE_USE_ZMQ
     std::map<std::string, concore_base::ZeroMQPort*> zmq_ports;
 #endif
@@ -423,6 +440,7 @@ public:
     }
 
     std::vector<double> read(int port, const std::string& name, const std::string& initstr) {
+        apply_write();
 #ifdef __linux__
         if (communication_iport == 1)
             return read_SM(port, name, initstr);
@@ -500,6 +518,7 @@ public:
     }
 
     std::vector<double> read_SM(int port, const std::string& name, const std::string& initstr) {
+        apply_write();
         ReadStatus status = ReadStatus::SUCCESS;
         std::this_thread::sleep_for(std::chrono::seconds(delay));
         std::string ins;
@@ -573,6 +592,7 @@ public:
             }
             outfile << "]";
             // simtime must not be mutated here (issue #385).
+            note_write(delta);
         }
     }
 
@@ -608,6 +628,7 @@ public:
                 (void)__atomic_fetch_add(seqp, uint64_t{1}, __ATOMIC_ACQ_REL); // even = ready
             }
             shm_sem_release(semId_create);
+            note_write(delta);
         } catch (...) {
             std::cerr << "skipping +" << outpath << port << "/" << name << "\n";
         }
@@ -627,6 +648,7 @@ public:
     }
 
     std::vector<double> read_ZMQ(const std::string& port_name, const std::string& name, const std::string& initstr) {
+        apply_write();
         ReadStatus status = ReadStatus::SUCCESS;
         auto it = zmq_ports.find(port_name);
         if (it == zmq_ports.end()) {
@@ -662,6 +684,7 @@ public:
         val.insert(val.begin(), simtime + delta);
         it->second->send_with_retry(val);
         // simtime must not be mutated here.
+        note_write(delta);
     }
 
     std::vector<double> read(const std::string& port_name, const std::string& name, const std::string& initstr) {

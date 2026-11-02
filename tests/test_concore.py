@@ -559,6 +559,69 @@ class TestSimtimeNotMutatedByWrite:
         )
 
 
+class TestWriteAdvancesSimtimeOnNextRead:
+    """Issue #608: write() leaves simtime alone (#385), but the next read()
+    moves it up to simtime + delta. Otherwise a node that only advances
+    through its own writes can miss the end of the run."""
+
+    @pytest.fixture(autouse=True)
+    def restore_state(self, temp_dir):
+        import concore
+
+        saved = (concore.simtime, concore.delay, concore.inpath, concore.outpath)
+        concore.delay = 0
+        concore.inpath = os.path.join(temp_dir, "in")
+        concore.outpath = os.path.join(temp_dir, "out")
+        os.makedirs(os.path.join(temp_dir, "in1"))
+        os.makedirs(os.path.join(temp_dir, "out1"))
+        yield
+        concore.simtime, concore.delay, concore.inpath, concore.outpath = saved
+
+    def test_read_after_write_moves_simtime_forward(self):
+        import concore
+
+        concore.simtime = 10
+        concore.write(1, "u", [1.0], delta=1)
+        assert concore.simtime == 10
+        concore.read(1, "missing", "[0.0, 5.0]")
+        assert concore.simtime == 11
+
+    def test_several_writes_in_one_step_advance_once(self):
+        import concore
+
+        concore.simtime = 10
+        concore.write(1, "u", [1.0], delta=1)
+        concore.write(1, "v", [2.0], delta=2)
+        concore.write(1, "w", [3.0], delta=1)
+        concore.read(1, "missing", "[0.0, 5.0]")
+        assert concore.simtime == 12
+
+    def test_zmq_write_moves_simtime_forward_on_next_read(self):
+        import concore
+
+        class DummyPort:
+            def send_json_with_retry(self, msg):
+                self.sent = msg
+
+        concore.zmq_ports["advance_test"] = DummyPort()
+        try:
+            concore.simtime = 10
+            concore.write("advance_test", "u", [1.0], delta=2)
+            concore.read(1, "missing", "[0.0, 5.0]")
+        finally:
+            del concore.zmq_ports["advance_test"]
+        assert concore.simtime == 12
+
+    def test_simtime_set_by_hand_after_write_is_kept(self):
+        import concore
+
+        concore.simtime = 10
+        concore.write(1, "u", [1.0], delta=1)
+        concore.simtime = 3
+        concore.read(1, "missing", "[0.0, 5.0]")
+        assert concore.simtime == 3
+
+
 class TestZMQRetryExhaustion:
     """Issue #393 – recv_json_with_retry / send_json_with_retry must raise
     TimeoutError instead of silently returning None when retries are

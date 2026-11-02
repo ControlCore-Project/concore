@@ -19,6 +19,7 @@ public class TestConcoreApi {
         testReadParsesFileAndStripsSimtime();
         testReadWriteRoundtrip();
         testSimtimeAdvancesWithDelta();
+        testWriteAdvancesSimtimeOnNextRead();
         testUnchangedReturnsFalseAfterRead();
         testUnchangedReturnsTrueOnSameData();
         testInitValExtractsSimtime();
@@ -163,6 +164,25 @@ public class TestConcoreApi {
         concore.write(1, "tick", v, 1);
         concore.read(1, "tick", "[0.0, 0.0]");
         check("simtime after iter 2", 2.0, concore.getSimtime());
+    }
+
+    // issue #608: the next read moves simtime forward even when it gets no newer timestamp
+    static void testWriteAdvancesSimtimeOnNextRead() {
+        Path tmp = makeTempDir();
+        String base = basePath(tmp);
+        concore.resetState();
+        concore.setInPath(base);
+        concore.setOutPath(base);
+        try {
+            Files.createDirectories(portDir(base, 1));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        concore.write(1, "u", Collections.singletonList((Object) 1.0), 1);
+        check("write leaves simtime alone", 0.0, concore.getSimtime());
+        concore.read(1, "missing", "[0.0, 5.0]");
+        check("next read moves simtime to 1", 1.0, concore.getSimtime());
     }
 
     static void testUnchangedReturnsFalseAfterRead() {

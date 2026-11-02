@@ -132,7 +132,7 @@ jobs:
       - name: Run MATLAB interop and wire-format tests
         uses: matlab-actions/run-command@v3
         with:
-          command: addpath(pwd); addpath(fullfile(pwd, 'tests', 'matlab')); test_julia_interop; test_literal_eval
+          command: addpath(pwd); addpath(fullfile(pwd, 'tests', 'matlab')); test_julia_interop; test_literal_eval; test_write_advance
 
       - name: Read MATLAB data from Julia
         run: julia --color=yes tests/julia/test_matlab_interop.jl read

@@ -77,6 +77,29 @@ global retrycount::Int = 0
 """Current simulation time."""
 global simtime::Float64 = 0.0
 
+# A write moves simtime forward at the next read (issue #608). The write itself
+# leaves simtime alone so writes in one step share a timestamp.
+global write_base::Union{Nothing,Float64} = nothing
+global write_target::Float64 = 0.0
+
+function _note_write(delta::Real)
+    global write_base, write_target
+    if write_base != simtime
+        write_base = simtime
+        write_target = simtime
+    end
+    write_target = max(write_target, simtime + Float64(delta))
+    return nothing
+end
+
+function _apply_write()
+    global simtime
+    if write_base == simtime
+        simtime = max(simtime, write_target)
+    end
+    return nothing
+end
+
 """Maximum simulation time."""
 global maxtime::Float64 = 100.0
 
@@ -253,6 +276,7 @@ function _zmq_read(port_name::AbstractString, initstr::AbstractString)::Vector{F
     port === nothing && error("ZMQ port '$port_name' not registered")
 
     global simtime
+    _apply_write()
     try
         msg = _zmq_recv(port.socket)
         vals = safe_parse_list(msg)
@@ -274,6 +298,7 @@ function _zmq_write(
 
     payload = _zmq_payload(val, delta)
     _zmq_send(port.socket, payload)
+    val isa AbstractString || _note_write(delta)
     return nothing
 end
 
@@ -645,6 +670,7 @@ function concore_read(
     initstr::AbstractString,
 )::Vector{Float64}
     global s, simtime, retrycount
+    _apply_write()
 
     sleep(delay)
 
@@ -727,6 +753,7 @@ function concore_write(
     else
         _write_wire_file(filepath, wire)
     end
+    _note_write(delta)
 
     return nothing
 end

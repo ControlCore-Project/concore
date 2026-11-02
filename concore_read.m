@@ -1,5 +1,9 @@
 function [result] = concore_read(port, name, inistr)
      global concore;
+     % a write since the last read moves simtime forward now (issue #608)
+     if isfield(concore, 'write_base') && concore.write_base == concore.simtime
+         concore.simtime = max(concore.simtime, concore.write_target);
+     end
      pause(concore.delay);
      try
          input1 = fopen(strcat(concore.inpath,num2str(port),'/',name));

@@ -136,6 +136,35 @@ static void test_write_FM_creates_file() {
 
 // ------------- unchanged() -----------------------------------------------
 
+// issue #608: write() leaves simtime alone, the next read moves it forward
+static void test_write_moves_simtime_forward_on_next_read() {
+    setup_dirs();
+    rm("in1/no_port");
+
+    Concore c;
+    c.delay = 0;
+    c.simtime = 10.0;
+
+    c.write_FM(1, "u", std::vector<double>{1.0}, 1);
+    check("write_FM leaves simtime alone", approx(c.simtime, 10.0));
+    c.read_FM(1, "no_port", "[0.0,5.0]");
+    check("read after write moves simtime to 11", approx(c.simtime, 11.0));
+}
+
+static void test_writes_in_one_step_advance_once() {
+    setup_dirs();
+    rm("in1/no_port");
+
+    Concore c;
+    c.delay = 0;
+    c.simtime = 10.0;
+
+    c.write_FM(1, "u", std::vector<double>{1.0}, 1);
+    c.write_FM(1, "v", std::vector<double>{2.0}, 2);
+    c.read_FM(1, "no_port", "[0.0,5.0]");
+    check("several writes advance simtime once to 12", approx(c.simtime, 12.0));
+}
+
 static void test_unchanged_after_read_is_false() {
     setup_dirs();
     write_file("in1/uc", "[1.0,0.1]");
@@ -326,6 +355,8 @@ int main() {
     test_read_FM_missing_file_uses_initstr();
     test_read_result_missing_file_status();
     test_write_FM_creates_file();
+    test_write_moves_simtime_forward_on_next_read();
+    test_writes_in_one_step_advance_once();
 
     // unchanged()
     test_unchanged_after_read_is_false();

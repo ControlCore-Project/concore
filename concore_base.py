@@ -262,6 +262,12 @@ def read(mod, port_identifier, name, initstr_val):
     """
     global last_read_status
 
+    # A write since the last read moves simtime forward now. Without this a
+    # node that only advances through its own writes can miss the end of the
+    # run when its peer resets the port (issue #608).
+    if getattr(mod, "_write_base", None) == mod.simtime:
+        mod.simtime = max(mod.simtime, mod._write_target)
+
     # Default return
     default_return_val = initstr_val
     if isinstance(initstr_val, str):
@@ -374,6 +380,14 @@ def read(mod, port_identifier, name, initstr_val):
         return default_return_val, False
 
 
+def _note_write(mod, delta):
+    """Remember how far this write moves time, read() applies it (#608).
+    Writes in the same step share one base, so they advance it only once."""
+    if getattr(mod, "_write_base", None) != mod.simtime:
+        mod._write_base = mod._write_target = mod.simtime
+    mod._write_target = max(mod._write_target, mod.simtime + delta)
+
+
 def write(mod, port_identifier, name, val, delta=0):
     """
     Write data either to ZMQ port or file.
@@ -395,6 +409,7 @@ def write(mod, port_identifier, name, val, delta=0):
                 zmq_p.send_json_with_retry(payload)
                 # simtime must not be mutated here.
                 # Mutation breaks cross-language determinism (see issue #385).
+                _note_write(mod, delta)
             else:
                 zmq_p.send_json_with_retry(zmq_val)
         except TimeoutError as e:
@@ -432,6 +447,7 @@ def write(mod, port_identifier, name, val, delta=0):
                 outfile.write(str(data_to_write))
                 # simtime must not be mutated here.
                 # Mutation breaks cross-language determinism (see issue #385).
+                _note_write(mod, delta)
             else: 
                 outfile.write(val)
     except Exception as e:

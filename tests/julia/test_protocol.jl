@@ -505,4 +505,28 @@
 
     end
 
+    # issue #608: a write moves simtime forward at the next read
+    @testset "write advances simtime on next read" begin
+        mktempdir() do dir
+            reset_concore_state!()
+            old_in, old_out = Concore.inpath, Concore.outpath
+            Concore.inpath = joinpath(dir, "in")
+            Concore.outpath = joinpath(dir, "out")
+
+            Concore.simtime = 10.0
+            Concore.concore_write(1, "u", [1.0]; delta=1)
+            @test Concore.simtime == 10.0
+            Concore.concore_read(1, "missing", "[0.0, 5.0]")
+            @test Concore.simtime == 11.0
+
+            Concore.simtime = 20.0
+            Concore.concore_write(1, "u", [1.0]; delta=1)
+            Concore.concore_write(1, "v", [2.0]; delta=2)
+            Concore.concore_read(1, "missing", "[0.0, 5.0]")
+            @test Concore.simtime == 22.0
+
+            Concore.inpath, Concore.outpath = old_in, old_out
+        end
+    end
+
 end

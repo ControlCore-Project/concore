@@ -97,6 +97,23 @@ private:
     map <string, string> params;
     ReadStatus last_read_status = ReadStatus::SUCCESS;
 
+    // A write moves simtime forward at the next read (issue #608). write()
+    // itself leaves simtime alone so writes in one step share a timestamp.
+    bool has_write = false;
+    double write_base = 0, write_target = 0;
+    void note_write(int delta) {
+        if (!has_write || write_base != simtime) {
+            has_write = true;
+            write_base = write_target = simtime;
+        }
+        if (simtime + delta > write_target)
+            write_target = simtime + delta;
+    }
+    void apply_write() {
+        if (has_write && write_base == simtime && write_target > simtime)
+            simtime = write_target;
+    }
+
     /**
      * @brief Constructor for Concore class.
      *        Initializes the iport and oport maps by parsing the respective files.
@@ -566,6 +583,7 @@ private:
      * @return a string of file content
      */
     vector<double> read_FM(int port, string name, string initstr){
+        apply_write();
         chrono::milliseconds timespan((int)(1000*delay));
         this_thread::sleep_for(timespan);
         string ins;
@@ -647,6 +665,7 @@ private:
      * @return string of file content
      */
     vector<double> read_SM(int port, string name, string initstr){
+        apply_write();
         chrono::milliseconds timespan((int)(1000*delay));
         this_thread::sleep_for(timespan);
         string ins = "";
@@ -773,6 +792,7 @@ private:
                 outfile<<val[val.size()-1]<<']';
                 outfile.close();
                 // simtime must not be mutated here (issue #385).
+                note_write(delta);
                 }
             else{
                 throw 505;
@@ -875,6 +895,7 @@ private:
             shm_sem_release(semId_create);
 #endif
             // simtime must not be mutated here (issue #385).
+            note_write(delta);
         }
 
         catch (const std::exception &e) {
@@ -968,6 +989,7 @@ private:
      * @return a vector of double values
      */
     vector<double> read_ZMQ(string port_name, string name, string initstr) {
+        apply_write();
         ReadStatus status = ReadStatus::SUCCESS;
         auto it = zmq_ports.find(port_name);
         if (it == zmq_ports.end()) {
@@ -1010,6 +1032,7 @@ private:
         val.insert(val.begin(), simtime + delta);
         it->second->send_with_retry(val);
         // simtime must not be mutated here (issue #385).
+        note_write(delta);
     }
 
     /**

@@ -124,7 +124,26 @@ class ConcoreJavaRuntimeCore {
     void setOutPath(String path) { outpath = path; }
     void setDelay(int ms) { delay = ms; }
     double getSimtime() { return simtime; }
-    void resetState() { s = ""; olds = ""; simtime = 0; }
+    void resetState() { s = ""; olds = ""; simtime = 0; hasWrite = false; }
+
+    // A write moves simtime forward at the next read (issue #608). The write
+    // itself leaves simtime alone so writes in one step share a timestamp.
+    private boolean hasWrite = false;
+    private double writeBase = 0, writeTarget = 0;
+
+    private void noteWrite(int delta) {
+        if (!hasWrite || writeBase != simtime) {
+            hasWrite = true;
+            writeBase = writeTarget = simtime;
+        }
+        writeTarget = Math.max(writeTarget, simtime + delta);
+    }
+
+    private void applyWrite() {
+        if (hasWrite && writeBase == simtime) {
+            simtime = Math.max(simtime, writeTarget);
+        }
+    }
 
     boolean unchanged() {
         if (olds.equals(s)) {
@@ -158,6 +177,7 @@ class ConcoreJavaRuntimeCore {
     }
 
     ReadResult readFilePort(int port, String name, String initstr) {
+        applyWrite();
         List<Object> defaultVal = new ArrayList<>();
         try {
             List<?> parsed = (List<?>) literalEval(initstr);
@@ -259,6 +279,9 @@ class ConcoreJavaRuntimeCore {
                 return;
             }
             Files.write(pathObj, content.toString().getBytes());
+            if (!(val instanceof String)) {
+                noteWrite(delta);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.out.println("skipping " + outpath + "/" + port + "/" + name);
@@ -323,6 +346,7 @@ class ConcoreJavaRuntimeCore {
     }
 
     ReadResult readZmqPort(String portName, String name, String initstr) {
+        applyWrite();
         List<Object> defaultVal = new ArrayList<>();
         try {
             List<?> parsed = (List<?>) literalEval(initstr);
@@ -378,6 +402,9 @@ class ConcoreJavaRuntimeCore {
             return;
         }
         port.sendWithRetry(payload);
+        if (val instanceof List) {
+            noteWrite(delta);
+        }
     }
 
     private static String escapePythonString(String s) {

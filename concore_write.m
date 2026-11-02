@@ -53,6 +53,12 @@ function concore_write(port, name, val, delta)
          fprintf(output1, '%s', outstr);
          fclose(output1);
          % simtime must not be mutated here (issue #385).
+         % the next read moves simtime forward to this (issue #608)
+         if ~isfield(concore, 'write_base') || concore.write_base ~= concore.simtime
+             concore.write_base = concore.simtime;
+             concore.write_target = concore.simtime;
+         end
+         concore.write_target = max(concore.write_target, concore.simtime + delta);
      catch exc
          disp(['skipping ' concore.outpath num2str(port) '/' name]);
      end
