@@ -17,6 +17,10 @@
 #include <stdexcept>
 #include <cctype>
 
+#ifdef CONCORE_USE_ZMQ
+#include <zmq.hpp>
+#endif
+
 namespace concore_base {
 
 // ===================================================================
@@ -408,8 +412,6 @@ inline std::string tryparam(
 // ZeroMQ Transport (opt-in: compile with -DCONCORE_USE_ZMQ)
 // ===================================================================
 #ifdef CONCORE_USE_ZMQ
-#include <zmq.hpp>
-
 /**
  * ZMQ socket wrapper with bind/connect, timeouts, and retry.
  */
@@ -424,9 +426,15 @@ public:
         : context(1), socket(context, socket_type),
           port_type(port_type_), address(address_)
     {
-        socket.setsockopt(ZMQ_RCVTIMEO, 2000);
-        socket.setsockopt(ZMQ_SNDTIMEO, 2000);
-        socket.setsockopt(ZMQ_LINGER,   0);
+        socket.set(zmq::sockopt::rcvtimeo, 2000);
+        socket.set(zmq::sockopt::sndtimeo, 2000);
+        socket.set(zmq::sockopt::linger,   0);
+
+        // Let REQ send again after a missed reply, and drop stale replies
+        if (socket_type == ZMQ_REQ) {
+            socket.set(zmq::sockopt::req_relaxed, 1);
+            socket.set(zmq::sockopt::req_correlate, 1);
+        }
 
         if (port_type == "bind")
             socket.bind(address);
