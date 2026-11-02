@@ -1023,6 +1023,21 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 1)
             self.assertIn("is not a directory", result.output)
 
+    def test_watch_skips_runtime_files_when_detecting_source(self):
+        from concore_cli.commands.watch import _detect_source
+
+        cases = {
+            "pidM.m": ["import_concore.m", "concore_read.m"],
+            "Plant.java": ["ConcoreJavaRuntimeCore.java", "concoredocker.java"],
+        }
+        for source, runtime_files in cases.items():
+            with self.subTest(source=source):
+                node = Path(self.temp_dir) / source.split(".")[0]
+                node.mkdir()
+                for name in [source] + runtime_files:
+                    (node / name).write_text("")
+                self.assertEqual(_detect_source(node), source)
+
 
 if __name__ == "__main__":
     unittest.main()

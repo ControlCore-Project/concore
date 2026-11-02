@@ -192,12 +192,15 @@ def _read_edge_files(edge_path):
     return results
 
 
+_RUNTIME_FILES = {"import_concore.m", "ConcoreJavaRuntimeCore.java"}
+
+
 def _detect_source(node_path):
     for ext in ("*.py", "*.m", "*.cpp", "*.v", "*.sh", "*.java"):
         matches = list(node_path.glob(ext))
         for m in matches:
             # skip concore library copies
-            if m.name.startswith("concore"):
+            if m.name.startswith("concore") or m.name in _RUNTIME_FILES:
                 continue
             return m.name
     return "—"
