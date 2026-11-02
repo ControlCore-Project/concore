@@ -97,6 +97,24 @@
             @test Concore.simtime == 4.0
             reset_zmq_state!()
         end
+
+        @testset "ZMQ read updates unchanged" begin
+            reset_zmq_state!()
+            server = Sockets.listen(Sockets.localhost, 0)
+            tcp_port = Sockets.getsockname(server)[2]
+            close(server)
+            address = "tcp://127.0.0.1:$tcp_port"
+
+            Concore.init_zmq_port("out", "bind", address, "PAIR")
+            Concore.init_zmq_port("in", "connect", address, "PAIR")
+            sleep(0.1)
+
+            Concore.concore_write("out", "signal", [10.0])
+            @test Concore.unchanged()
+            @test Concore.concore_read("in", "signal", "[0.0, 0.0]") == [10.0]
+            @test !Concore.unchanged()
+            reset_zmq_state!()
+        end
     else
         @testset "live ZMQ skipped" begin
             @test_skip "ZMQ.jl not installed"
