@@ -5,6 +5,8 @@ from rich.panel import Panel
 import re
 import xml.etree.ElementTree as ET
 
+from ._source_dir import resolve_source_dir
+
 
 def _classify_message(message, bucket_name):
     if bucket_name == "info":
@@ -132,7 +134,7 @@ def _build_payload(workflow_path, source_root, errors, warnings, info, source_no
 
 def validate_workflow(workflow_file, source_dir, console, output_format="text"):
     workflow_path = Path(workflow_file)
-    source_root = workflow_path.parent / source_dir
+    source_root = resolve_source_dir(workflow_path, source_dir)
 
     if output_format == "text":
         console.print(f"[cyan]Validating:[/cyan] {workflow_path.name}")
