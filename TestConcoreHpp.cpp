@@ -333,7 +333,7 @@ static void test_load_params_semicolon_format() {
 
 static void test_tryparam_comma_in_value() {
     setup_dirs();
-    write_file("in/1/concore.params", "{'channels': [1, 2], 'gain': '0.5'}");
+    write_file("in1/concore.params", "{'channels': [1, 2], 'gain': '0.5'}");
 
     Concore c;
     c.delay = 0;
@@ -342,7 +342,7 @@ static void test_tryparam_comma_in_value() {
     check("tryparam preserves list with comma", c.tryparam("channels", "") == "[1, 2]");
     check("tryparam preserves subsequent key",  c.tryparam("gain", "") == "0.5");
 
-    rm("in/1/concore.params");
+    rm("in1/concore.params");
 }
 
 // ------------- main -------------------------------------------------------
