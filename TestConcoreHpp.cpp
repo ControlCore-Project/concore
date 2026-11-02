@@ -302,6 +302,20 @@ static void test_load_params_semicolon_format() {
     rm("in/1/concore.params");
 }
 
+static void test_tryparam_comma_in_value() {
+    setup_dirs();
+    write_file("in/1/concore.params", "{'channels': [1, 2], 'gain': '0.5'}");
+
+    Concore c;
+    c.delay = 0;
+    c.load_params();
+
+    check("tryparam preserves list with comma", c.tryparam("channels", "") == "[1, 2]");
+    check("tryparam preserves subsequent key",  c.tryparam("gain", "") == "0.5");
+
+    rm("in/1/concore.params");
+}
+
 // ------------- main -------------------------------------------------------
 
 int main() {
@@ -337,6 +351,7 @@ int main() {
     test_tryparam_found();
     test_tryparam_missing_key_uses_default();
     test_load_params_semicolon_format();
+    test_tryparam_comma_in_value();
 
     std::cout << "\n=== Results: " << passed << " passed, " << failed
               << " failed out of " << (passed + failed) << " tests ===\n";

@@ -41,28 +41,7 @@ inline std::string stripquotes(const std::string& str) {
 // Parsing Utilities
 // ===================================================================
 
-/**
- * Parses a Python-style dict string into a string→string map.
- * Format: {'key1': val1, 'key2': val2}
- * Handles both quoted and unquoted keys/values.
- */
-inline std::map<std::string, std::string> parsedict(const std::string& str) {
-    std::map<std::string, std::string> result;
-    std::string trimmed = stripstr(str);
-    if (trimmed.size() < 2 || trimmed.front() != '{' || trimmed.back() != '}')
-        return result;
-    std::string inner = trimmed.substr(1, trimmed.size() - 2);
-    std::stringstream ss(inner);
-    std::string token;
-    while (std::getline(ss, token, ',')) {
-        size_t colon = token.find(':');
-        if (colon == std::string::npos) continue;
-        std::string key = stripquotes(stripstr(token.substr(0, colon)));
-        std::string val = stripquotes(stripstr(token.substr(colon + 1)));
-        if (!key.empty()) result[key] = val;
-    }
-    return result;
-}
+inline std::map<std::string, std::string> parsedict(const std::string& str);
 
 /**
  * Parses a Python-style list string into a vector of strings.
@@ -252,6 +231,49 @@ inline ConcoreValue parse_literal(const std::string& s) {
         throw std::runtime_error(
             "Invalid concore payload: unexpected trailing content");
     return v;
+}
+
+/**
+ * Parses a Python-style dict string into a string→string map.
+ * Format: {'key1': val1, 'key2': val2}
+ * Handles both quoted and unquoted keys/values.
+ */
+inline std::map<std::string, std::string> parsedict(const std::string& str) {
+    std::map<std::string, std::string> result;
+    std::string trimmed = stripstr(str);
+    if (trimmed.size() < 2 || trimmed.front() != '{' || trimmed.back() != '}')
+        return result;
+
+    size_t pos = 1;
+    while (pos < trimmed.size()) {
+        skip_ws(trimmed, pos);
+        if (pos >= trimmed.size() || trimmed[pos] == '}') break;
+
+        std::string key;
+        if (trimmed[pos] == '\'' || trimmed[pos] == '"') {
+            key = parse_literal_string(trimmed, pos).str;
+        } else {
+            size_t key_start = pos;
+            while (pos < trimmed.size() && trimmed[pos] != ':' && !std::isspace(static_cast<unsigned char>(trimmed[pos])))
+                ++pos;
+            key = trimmed.substr(key_start, pos - key_start);
+        }
+
+        skip_ws(trimmed, pos);
+        if (pos >= trimmed.size() || trimmed[pos] != ':') break;
+        ++pos;
+
+        skip_ws(trimmed, pos);
+        size_t val_start = pos;
+        parse_literal_value(trimmed, pos);
+        std::string val = stripquotes(stripstr(trimmed.substr(val_start, pos - val_start)));
+
+        if (!key.empty()) result[key] = val;
+
+        skip_ws(trimmed, pos);
+        if (pos < trimmed.size() && trimmed[pos] == ',') ++pos;
+    }
+    return result;
 }
 
 inline void flatten_numeric_impl(const ConcoreValue& v, std::vector<double>& out) {

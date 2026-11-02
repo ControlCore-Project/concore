@@ -153,7 +153,8 @@ jobs:
 
       - name: Download jeromq
         run: |
-          curl -fsSL -o jeromq.jar https://repo1.maven.org/maven2/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar
+          curl -fsSL --retry 5 --retry-connrefused -A "Mozilla/5.0" -o jeromq.jar https://repo1.maven.org/maven2/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar || \
+          curl -fsSL --retry 5 --retry-connrefused -A "Mozilla/5.0" -o jeromq.jar https://repo.maven.apache.org/maven2/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar
 
       - name: Compile Java tests
         run: |
