@@ -269,7 +269,7 @@ static void test_mapParser_missing_file_is_empty() {
 
 static void test_default_maxtime_reads_file() {
     setup_dirs();
-    write_file("in/1/concore.maxtime", "200");
+    write_file("in1/concore.maxtime", "200");
 
     Concore c;
     c.delay = 0;
@@ -277,11 +277,11 @@ static void test_default_maxtime_reads_file() {
 
     check("default_maxtime from file==200", c.maxtime == 200);
 
-    rm("in/1/concore.maxtime");
+    rm("in1/concore.maxtime");
 }
 
 static void test_default_maxtime_fallback() {
-    rm("in/1/concore.maxtime");
+    rm("in1/concore.maxtime");
 
     Concore c;
     c.delay = 0;
@@ -294,7 +294,7 @@ static void test_default_maxtime_fallback() {
 
 static void test_tryparam_found() {
     setup_dirs();
-    write_file("in/1/concore.params", "{'alpha': '0.5', 'beta': '1.0'}");
+    write_file("in1/concore.params", "{'alpha': '0.5', 'beta': '1.0'}");
 
     Concore c;
     c.delay = 0;
@@ -303,11 +303,11 @@ static void test_tryparam_found() {
     check("tryparam found alpha",  c.tryparam("alpha", "0.0") == "0.5");
     check("tryparam found beta",   c.tryparam("beta",  "0.0") == "1.0");
 
-    rm("in/1/concore.params");
+    rm("in1/concore.params");
 }
 
 static void test_tryparam_missing_key_uses_default() {
-    rm("in/1/concore.params");
+    rm("in1/concore.params");
 
     Concore c;
     c.delay = 0;
@@ -319,7 +319,7 @@ static void test_tryparam_missing_key_uses_default() {
 
 static void test_load_params_semicolon_format() {
     setup_dirs();
-    write_file("in/1/concore.params", "a=1;b=2");
+    write_file("in1/concore.params", "a=1;b=2");
 
     Concore c;
     c.delay = 0;
@@ -328,7 +328,7 @@ static void test_load_params_semicolon_format() {
     check("load_params semicolon parses a", c.tryparam("a", "") == "1");
     check("load_params semicolon parses b", c.tryparam("b", "") == "2");
 
-    rm("in/1/concore.params");
+    rm("in1/concore.params");
 }
 
 static void test_tryparam_comma_in_value() {

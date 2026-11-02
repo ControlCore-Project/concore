@@ -1127,14 +1127,14 @@ private:
      */
     void default_maxtime(int defaultValue){
         maxtime = (int)concore_base::load_maxtime(
-            inpath + "/1/concore.maxtime", (double)defaultValue);
+            inpath + "1/concore.maxtime", (double)defaultValue);
     }
 
     /**
      * @brief Loads simulation parameters from concore.params into the params map.
      */
     void load_params(){
-        params = concore_base::load_params(inpath + "/1/concore.params");
+        params = concore_base::load_params(inpath + "1/concore.params");
     }
 
     /**
