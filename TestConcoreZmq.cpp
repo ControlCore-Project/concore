@@ -50,8 +50,46 @@ static void test_round_trip() {
     check("client simtime after reply", approx(client.simtime, 4));
 }
 
+// Same scenario as the Python test for issue #598: the reply to the first
+// request never comes, the REQ port must still be able to send again.
+static void test_req_recovers_after_missing_reply() {
+    zmq::context_t ctx(1);
+    zmq::socket_t peer(ctx, ZMQ_REP);
+    peer.set(zmq::sockopt::linger, 0);
+    peer.set(zmq::sockopt::rcvtimeo, 2000);
+    peer.bind("tcp://127.0.0.1:5592");
+
+    concore_base::ZeroMQPort req("connect", "tcp://127.0.0.1:5592", ZMQ_REQ);
+    req.socket.set(zmq::sockopt::rcvtimeo, 50);
+
+    auto peer_recv = [&]() {
+        zmq::message_t m;
+        auto res = peer.recv(m, zmq::recv_flags::none);
+        return res ? m.to_string() : std::string("<timeout>");
+    };
+    auto peer_send = [&](const std::string& s) {
+        try {
+            peer.send(zmq::buffer(s), zmq::send_flags::none);
+        } catch (const zmq::error_t&) {}  // peer is out of step when the REQ side is stuck
+    };
+
+    req.send_with_retry({0, 1});
+    check("first request arrives", peer_recv() == "[0, 1]");
+    check("missing reply times out", req.recv_with_retry().empty());
+
+    req.send_with_retry({0, 2});
+    peer_send("[0, 99]");  // late reply to the first request
+    check("second request arrives", peer_recv() == "[0, 2]");
+    peer_send("[0, 7]");
+
+    req.socket.set(zmq::sockopt::rcvtimeo, 2000);
+    std::vector<double> reply = req.recv_with_retry();
+    check("late reply is dropped", reply.size() == 2 && approx(reply[1], 7));
+}
+
 int main() {
     test_round_trip();
+    test_req_recovers_after_missing_reply();
     std::cout << "\n" << passed << " passed, " << failed << " failed" << std::endl;
     return failed ? 1 : 0;
 }
