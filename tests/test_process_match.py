@@ -9,6 +9,8 @@ repo) and has nothing to do with a real concore node.
 
 import os
 
+import pytest
+
 from concore_cli.commands._process_match import has_concore_markers, is_concore_process
 
 
@@ -21,6 +23,16 @@ class TestHasConcoreMarkers:
     def test_true_with_docker_runtime_file(self, tmp_path):
         (tmp_path / "concore.iport").write_text("{}")
         (tmp_path / "concoredocker.py").write_text("")
+        assert has_concore_markers(str(tmp_path)) is True
+
+    @pytest.mark.parametrize(
+        "runtime_file",
+        ["concore.hpp", "concore.java", "concore.v", "concore_read.m"],
+    )
+    def test_true_for_non_python_nodes(self, tmp_path, runtime_file):
+        # C++, Java, Verilog and MATLAB nodes never get concore.py
+        (tmp_path / "concore.iport").write_text("{}")
+        (tmp_path / runtime_file).write_text("")
         assert has_concore_markers(str(tmp_path)) is True
 
     def test_false_without_iport(self, tmp_path):

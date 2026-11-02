@@ -2,19 +2,31 @@ import ntpath
 import os
 
 
+# Runtime files mkconcore.py copies into a node folder, one set per language.
+RUNTIME_FILES = (
+    "concore.py",
+    "concoredocker.py",
+    "concore.hpp",
+    "concoredocker.hpp",
+    "concore.java",
+    "concoredocker.java",
+    "concore.v",
+    "concoredocker.v",
+    "concore_read.m",
+)
+
+
 def has_concore_markers(cwd):
     """True only if `cwd` looks like an actual concore-generated node
     working directory, i.e. it contains the runtime files mkconcore.py
     copies into every generated study (concore.iport/oport plus the
-    runtime module itself)."""
+    runtime module for the node's language)."""
     if not cwd:
         return False
     try:
         if not os.path.isfile(os.path.join(cwd, "concore.iport")):
             return False
-        return os.path.isfile(os.path.join(cwd, "concore.py")) or os.path.isfile(
-            os.path.join(cwd, "concoredocker.py")
-        )
+        return any(os.path.isfile(os.path.join(cwd, name)) for name in RUNTIME_FILES)
     except OSError:
         return False
 
