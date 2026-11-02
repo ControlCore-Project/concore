@@ -378,6 +378,10 @@ def write(mod, port_identifier, name, val, delta=0):
     Write data either to ZMQ port or file.
     `val` is the data payload (list or string); write() prepends [simtime + delta] internally.
     """
+    # Tuples get the same simtime prefix as lists (see issue #605).
+    if isinstance(val, tuple):
+        val = list(val)
+
     # Case 1: ZMQ port
     if isinstance(port_identifier, str) and port_identifier in mod.zmq_ports:
         zmq_p = mod.zmq_ports[port_identifier]
