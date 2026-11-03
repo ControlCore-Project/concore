@@ -35,6 +35,19 @@ TOOL_DEFINITIONS = {
             "Windows": "winget install -e --id Python.Python.3.11",
         },
     },
+    "Java (javac)": {
+        "names": {
+            "posix": ["javac"],
+            "windows": ["javac"],
+        },
+        "version_flag": "-version",
+        "config_keys": ["JAVACEXE", "JAVACWIN"],
+        "install_hints": {
+            "Linux": "sudo apt install default-jdk",
+            "Darwin": "brew install openjdk",
+            "Windows": "winget install -e --id EclipseAdoptium.Temurin.17.JDK",
+        },
+    },
     "Verilog (iverilog)": {
         "names": {
             "posix": ["iverilog"],
@@ -277,8 +290,13 @@ def doctor_check(console):
         else:
             hint = tool_def["install_hints"].get(plat_name, "")
             hint_str = f" (install: {hint})" if hint else ""
-            # Docker, MATLAB, Verilog are optional - show as warning
-            if tool_label in ("MATLAB", "Verilog (iverilog)", "Docker"):
+            # Optional tools - show as warning
+            if tool_label in (
+                "MATLAB",
+                "Verilog (iverilog)",
+                "Docker",
+                "Java (javac)",
+            ):
                 console.print(
                     f"  [yellow]![/yellow] {tool_label} -> Not found{hint_str}"
                 )
