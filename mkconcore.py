@@ -616,7 +616,7 @@ if 'v' in required_langs:
         fcopy.write(fsource.read())
     fsource.close()
 
-if 'java' in required_langs and concoretype != "docker":
+if 'java' in required_langs:
     try:
         fsource = open(CONCOREPATH+"/concore.java")
     except (FileNotFoundError, IOError):
@@ -625,6 +625,10 @@ if 'java' in required_langs and concoretype != "docker":
     with open(outdir+"/src/concore.java","w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
+    if os.path.exists(CONCOREPATH+"/concoredocker.java"):
+        with open(CONCOREPATH+"/concoredocker.java") as fdocker:
+            with open(outdir+"/src/concoredocker.java","w") as fcopy:
+                fcopy.write(fdocker.read())
 
 if 'm' in required_langs:
     try:
@@ -755,6 +759,9 @@ if (concoretype=="docker"):
                     elif langext == "sh":  # 5/19/21
                         src_path = CONCOREPATH+"/Dockerfile.sh"
                         logging.info("assuming .sh extension for Dockerfile")
+                    elif langext == "java":
+                        src_path = CONCOREPATH+"/Dockerfile.java"
+                        logging.info("assuming .java extension for Dockerfile")
                     else:
                         src_path = CONCOREPATH+"/Dockerfile.m"
                         logging.info("assuming .m extension for Dockerfile")
@@ -778,6 +785,9 @@ if (concoretype=="docker"):
                     if langext=="v":
                         fcopy.write('RUN iverilog ./'+sourcecode+'\n')  # 7/02/21
                         fcopy.write('CMD ["./a.out"]\n')  # 7/02/21
+                    if langext=="java":
+                        javaclass = os.path.splitext(os.path.basename(sourcecode))[0]
+                        fcopy.write('CMD ["java", "-cp", ".:/app/jeromq.jar", "'+javaclass+'"]\n')
 
     fbuild.write('#!/bin/bash' + "\n")
     for node in nodes_dict:
@@ -797,6 +807,10 @@ if (concoretype=="docker"):
                 fbuild.write("cp ../src/concore.hpp .\n")
             elif langext == "v": #6/25/21
                 fbuild.write("cp ../src/concore.v .\n")
+            elif langext == "java":
+                fbuild.write("cp ../src/concore.java .\n")
+                if os.path.exists(os.path.join(CONCOREPATH, "concoredocker.java")):
+                    fbuild.write("cp ../src/concoredocker.java .\n")
             if langext == "m":
                 fbuild.write("cp ../src/concore_*.m .\n")
                 fbuild.write("cp ../src/import_concore.m .\n")
@@ -1040,6 +1054,8 @@ for node in nodes_dict:
                 fbuild.write("copy .\\src\\concore.v .\\" + containername + "\\concore.v\n")
             elif langext == "java":
                 fbuild.write("copy .\\src\\concore.java .\\" + containername + "\\concore.java\n")
+                if os.path.exists(os.path.join(CONCOREPATH, "concoredocker.java")):
+                    fbuild.write("copy .\\src\\concoredocker.java .\\" + containername + "\\concoredocker.java\n")
             elif langext == "m":   #  4/2/21
                 fbuild.write("copy .\\src\\concore_*.m .\\" + containername + "\\\n")
                 fbuild.write("copy .\\src\\import_concore.m .\\" + containername + "\\\n")
@@ -1059,6 +1075,8 @@ for node in nodes_dict:
                 fbuild.write("cp ./src/concore.v ./"+containername+"/concore.v\n")
             elif langext == "java":
                 fbuild.write("cp ./src/concore.java ./"+containername+"/concore.java\n")
+                if os.path.exists(os.path.join(CONCOREPATH, "concoredocker.java")):
+                    fbuild.write("cp ./src/concoredocker.java ./"+containername+"/concoredocker.java\n")
             elif langext == "m":  # 4/2/21
                 fbuild.write("cp ./src/concore_*.m ./"+containername+"/\n")
                 fbuild.write("cp ./src/import_concore.m ./"+containername+"/\n")
