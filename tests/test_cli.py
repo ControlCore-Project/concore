@@ -272,6 +272,61 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("cp ../src/subdir/script.iport concore.iport", build_script)
             self.assertIn("cd ..", build_script)
 
+    def test_build_command_docker_java_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            src_dir = Path("test-project/src")
+            script_py = src_dir / "script.py"
+            if script_py.exists():
+                script_py.unlink()
+
+            java_file = src_dir / "Script.java"
+            java_file.write_text(
+                "public class Script { public static void main(String[] args) {} }\n"
+            )
+
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            content = content.replace("N1:script.py", "N1:Script.java")
+            workflow_path.write_text(content)
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "docker",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            dockerfile_path = Path("out/src/Dockerfile.Script")
+            self.assertTrue(dockerfile_path.exists())
+            dockerfile_content = dockerfile_path.read_text()
+            self.assertIn("eclipse-temurin:17-jdk-alpine", dockerfile_content)
+            self.assertNotIn("octave", dockerfile_content.lower())
+            self.assertIn(
+                'CMD ["java", "-cp", ".:/app/jeromq.jar", "Script"]',
+                dockerfile_content,
+            )
+
+            self.assertTrue(Path("out/src/concore.java").exists())
+            self.assertTrue(Path("out/src/concoredocker.java").exists())
+
+            build_script = Path("out/build").read_text()
+            self.assertIn("mkdir docker-Script", build_script)
+            self.assertIn("cp ../src/Dockerfile.Script Dockerfile", build_script)
+            self.assertIn("cp ../src/Script.java .", build_script)
+            self.assertIn("cp ../src/concore.java .", build_script)
+            self.assertIn("cp ../src/concoredocker.java .", build_script)
+
     def test_build_command_compose_requires_docker_type(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
