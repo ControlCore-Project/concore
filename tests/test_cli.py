@@ -1016,6 +1016,34 @@ class TestConcoreCLI(unittest.TestCase):
                     self.assertEqual(result.exit_code, 1)
                     self.assertIn("Not a valid GraphML file", result.output)
 
+    def test_build_command_m_node_copies_literal_helpers(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            Path("test-project/src/script.py").rename("test-project/src/script.m")
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.m"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+            # concore_read.m / concore_write.m call these helpers
+            self.assertTrue(Path("out/src/concore_literal_eval.m").exists())
+            self.assertTrue(Path("out/src/concore_literal_serialize.m").exists())
+
     def test_watch_file_instead_of_dir_exits_nonzero(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             Path("notes.txt").write_text("hi")

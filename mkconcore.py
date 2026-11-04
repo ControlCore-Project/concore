@@ -732,6 +732,14 @@ if 'm' in required_langs:
         with open(outdir+"/src/concore_oport.m","w") as fcopy: fcopy.write(fsource.read())
         fsource.close()
 
+        fsource = open(CONCOREPATH+"/concore_literal_eval.m")
+        with open(outdir+"/src/concore_literal_eval.m","w") as fcopy: fcopy.write(fsource.read())
+        fsource.close()
+
+        fsource = open(CONCOREPATH+"/concore_literal_serialize.m")
+        with open(outdir+"/src/concore_literal_serialize.m","w") as fcopy: fcopy.write(fsource.read())
+        fsource.close()
+
         if concoretype=="docker":
             fsource = open(CONCOREPATH+"/import_concoredocker.m")
         else:
