@@ -1,5 +1,7 @@
 #!/bin/bash
 cd fri/server
+# main.py refuses to start without a secret key; use a throwaway one for local runs
+export FLASK_SECRET_KEY="${FLASK_SECRET_KEY:-$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')}"
 if ! command -v python3 >/dev/null 2>&1; then
     python main.py
 else
@@ -8,7 +10,7 @@ fi
 
 if [ $? -ne 0 ]; then
     echo ""
-    echo "Error: Make sure modules are installed from fri/requirements.txt"
+    echo "Error: the server exited with an error (see above). If a module is missing:"
     echo "Run: pip install -r fri/requirements.txt"
     echo ""
 fi
