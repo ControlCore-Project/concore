@@ -1245,8 +1245,8 @@ for node in nodes_dict:
           q_source = f'"{sourcecode}"'
 
           if langext=="py":
-              frun.write('start /B /D '+q_container+" "+PYTHONWIN+" "+q_source+" >"+q_container+"\\concoreout.txt\n")
-              fdebug.write('start /D '+q_container+" cmd /K "+PYTHONWIN+" "+q_source+"\n")
+              frun.write('start "" /B /D '+q_container+" "+PYTHONWIN+" "+q_source+" >"+q_container+"\\concoreout.txt\n")
+              fdebug.write('start /D '+q_container+' cmd /K "'+PYTHONWIN+" "+q_source+'"\n')
           elif langext=="cpp":  #6/25/21
               frun.write('cd '+q_container+'\n')
               frun.write(CPPWIN+' '+q_source+'\n')
@@ -1281,11 +1281,11 @@ for node in nodes_dict:
           elif langext=="m":  #3/23/21
               # Use q_source in Windows commands to ensure quoting consistency
               if M_IS_OCTAVE:   
-                  frun.write('start /B /D '+q_container+" "+OCTAVEWIN+' -qf --eval "run('+q_source+')"'+" >"+q_container+"\\concoreout.txt\n")
-                  fdebug.write('start /D '+q_container+" cmd /K " +OCTAVEWIN+' -qf --eval "run('+q_source+')"'+"\n")
+                  frun.write('start "" /B /D '+q_container+" "+OCTAVEWIN+' -qf --eval "run('+q_source+')"'+" >"+q_container+"\\concoreout.txt\n")
+                  fdebug.write('start /D '+q_container+' cmd /K "' +OCTAVEWIN+' -qf --eval "run('+q_source+')""'+"\n")
               else:  #  4/2/21
-                  frun.write('start /B /D '+q_container+" "+MATLABWIN+' -batch "run('+q_source+')"'+" >"+q_container+"\\concoreout.txt\n")
-                  fdebug.write('start /D '+q_container+" cmd /K " +MATLABWIN+' -batch "run('+q_source+')"'+"\n")
+                  frun.write('start "" /B /D '+q_container+" "+MATLABWIN+' -batch "run('+q_source+')"'+" >"+q_container+"\\concoreout.txt\n")
+                  fdebug.write('start /D '+q_container+' cmd /K "' +MATLABWIN+' -batch "run('+q_source+')""'+"\n")
       else:
             #use shlex.quote for POSIX systems
             safe_container = shlex.quote(containername)

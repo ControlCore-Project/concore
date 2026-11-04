@@ -406,6 +406,15 @@ class TestConcoreCLI(unittest.TestCase):
                 '"C:\\Program Files\\Python313\\python.exe" "script.py"',
                 run_script,
             )
+            self.assertIn(
+                'start "" /B /D "N1" "C:\\Program Files\\Python313\\python.exe" "script.py"',
+                run_script,
+            )
+            debug_script = Path("out/debug.bat").read_text()
+            self.assertIn(
+                'cmd /K ""C:\\Program Files\\Python313\\python.exe" "script.py""',
+                debug_script,
+            )
 
     def test_build_command_nested_output_path(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
