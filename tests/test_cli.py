@@ -882,6 +882,22 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("PORT_NAME_B_C", content)
             self.assertIn("PORT_B_C", content)
 
+    def test_cli_redirected_output_with_legacy_encoding(self):
+        env = dict(os.environ, PYTHONIOENCODING="cp1252")
+        repo_root = str(Path(__file__).resolve().parent.parent)
+        env["PYTHONPATH"] = repo_root + os.pathsep + env.get("PYTHONPATH", "")
+        result = subprocess.run(
+            [sys.executable, "-c", "from concore_cli.cli import cli; cli()"]
+            + ["init", "demo"],
+            cwd=self.temp_dir,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            timeout=60,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+        self.assertTrue((Path(self.temp_dir) / "demo" / "workflow.graphml").exists())
+
     def test_build_command_existing_output(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
