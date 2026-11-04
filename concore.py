@@ -112,13 +112,19 @@ def _write_kill_script():
     try:
         reg_name = os.path.basename(_PID_REGISTRY_FILE)
         bat_name = os.path.basename(_KILL_SCRIPT_FILE)
+        # nodes run as "python <script>.py", so check for the script name
+        script_name = os.path.basename(sys.argv[0]) if sys.argv else ""
+        marker = script_name if script_name.endswith(".py") else "concore"
+        if not marker.isascii():
+            marker = "concore"
+        marker = marker.replace("%", "%%")
         script = "@echo off\r\n"
         script += 'if not exist "%~dp0' + reg_name + '" (\r\n'
         script += "    echo No PID registry found. Nothing to kill.\r\n"
         script += "    exit /b 0\r\n"
         script += ")\r\n"
         script += 'for /f "usebackq tokens=*" %%p in ("%~dp0' + reg_name + '") do (\r\n'
-        script += '    powershell -NoProfile -Command "(Get-CimInstance Win32_Process -Filter \'ProcessId=%%p\').CommandLine" 2>nul | findstr /i "concore" >nul\r\n'
+        script += '    powershell -NoProfile -Command "(Get-CimInstance Win32_Process -Filter \'ProcessId=%%p\').CommandLine" 2>nul | findstr /i /l /c:"' + marker + '" >nul\r\n'
         script += "    if not errorlevel 1 (\r\n"
         script += "        echo Killing concore process %%p\r\n"
         script += "        taskkill /F /PID %%p >nul 2>&1\r\n"
