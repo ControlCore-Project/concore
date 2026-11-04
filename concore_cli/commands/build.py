@@ -318,9 +318,12 @@ def build_workflow(
                     console.print("[green]✓[/green] Build completed")
                 except subprocess.CalledProcessError as e:
                     progress.stop()
-                    console.print("[yellow]Build failed[/yellow]")
+                    console.print("[red]Build failed:[/red]")
+                    if e.stdout:
+                        console.print(e.stdout)
                     if e.stderr:
                         console.print(e.stderr)
+                    raise
 
     run_command = "docker compose up" if compose else "./run"
     if exec_type == "windows":

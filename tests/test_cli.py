@@ -882,6 +882,39 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("PORT_NAME_B_C", content)
             self.assertIn("PORT_B_C", content)
 
+    def test_build_command_auto_build_failure_exits_nonzero(self):
+        real_run = subprocess.run
+
+        def fake_run(cmd, *args, **kwargs):
+            if Path(str(cmd[0])).name in ("build", "build.bat"):
+                raise subprocess.CalledProcessError(1, cmd, output="", stderr="boom")
+            return real_run(cmd, *args, **kwargs)
+
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            with patch.object(subprocess, "run", side_effect=fake_run):
+                result = self.runner.invoke(
+                    cli,
+                    [
+                        "build",
+                        "test-project/workflow.graphml",
+                        "--source",
+                        "test-project/src",
+                        "--output",
+                        "out",
+                        "--type",
+                        "posix",
+                        "--auto-build",
+                    ],
+                )
+
+            self.assertNotEqual(result.exit_code, 0)
+            self.assertIn("boom", result.output)
+            self.assertIn("Build failed", result.output)
+            self.assertNotIn("Workflow ready", result.output)
+
     def test_build_command_existing_output(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
