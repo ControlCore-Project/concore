@@ -1279,13 +1279,13 @@ for node in nodes_dict:
               fdebug.write('cd ..\n')
               fdebug.write('start /D '+q_container+' cmd /K '+JAVAWIN+' -cp .;..\\src\\jeromq.jar '+javaclass+'\n')
           elif langext=="m":  #3/23/21
-              # Use q_source in Windows commands to ensure quoting consistency
+              # single quotes around the file name, q_source would nest double quotes in "run(...)"
               if M_IS_OCTAVE:   
-                  frun.write('start /B /D '+q_container+" "+OCTAVEWIN+' -qf --eval "run('+q_source+')"'+" >"+q_container+"\\concoreout.txt\n")
-                  fdebug.write('start /D '+q_container+" cmd /K " +OCTAVEWIN+' -qf --eval "run('+q_source+')"'+"\n")
+                  frun.write('start /B /D '+q_container+" "+OCTAVEWIN+' -qf --eval "run('+"'"+sourcecode+"'"+')"'+" >"+q_container+"\\concoreout.txt\n")
+                  fdebug.write('start /D '+q_container+" cmd /K " +OCTAVEWIN+' -qf --eval "run('+"'"+sourcecode+"'"+')"'+"\n")
               else:  #  4/2/21
-                  frun.write('start /B /D '+q_container+" "+MATLABWIN+' -batch "run('+q_source+')"'+" >"+q_container+"\\concoreout.txt\n")
-                  fdebug.write('start /D '+q_container+" cmd /K " +MATLABWIN+' -batch "run('+q_source+')"'+"\n")
+                  frun.write('start /B /D '+q_container+" "+MATLABWIN+' -batch "run('+"'"+sourcecode+"'"+')"'+" >"+q_container+"\\concoreout.txt\n")
+                  fdebug.write('start /D '+q_container+" cmd /K " +MATLABWIN+' -batch "run('+"'"+sourcecode+"'"+')"'+"\n")
       else:
             #use shlex.quote for POSIX systems
             safe_container = shlex.quote(containername)
