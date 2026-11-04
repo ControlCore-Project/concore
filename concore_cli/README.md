@@ -60,7 +60,7 @@ Compiles a concore workflow GraphML file into executable scripts (POSIX, Windows
 **Options:**
 - `-s, --source <dir>` - Source directory (default: src)
 - `-o, --output <dir>` - Output directory (default: out)
-- `-t, --type <type>` - Execution type: windows, posix, or docker (default: windows)
+- `-t, --type <type>` - Execution type: windows, posix, or docker (default: windows on Windows, posix elsewhere)
 - `--auto-build` - Automatically run build script after generation
 - `--compose` - Generate `docker-compose.yml` (only valid with `--type docker`)
 
@@ -152,7 +152,7 @@ concore stop
    ```bash
    concore build workflow.graphml --auto-build
    cd out
-   ./run.bat  # or ./run on Linux/Mac
+   run.bat  # .\run.bat in PowerShell, ./run on Linux/Mac
    ```
 
 6. **Monitor execution**
@@ -193,6 +193,9 @@ Supported file types:
 - Check that your GraphML file is properly formatted
 - Ensure all nodes have labels in the format `ID:filename.ext`
 - Verify that edge connections reference valid nodes
+
+**Issue: `'python' is not recognized as an internal or external command` (Windows)**
+- Install Python 3 and add it to `PATH`, or point the generated scripts at `python.exe` with `PYTHONWIN` in `concore.tools` (in the concore folder) or the `CONCORE_PYTHONWIN` environment variable (see [docs/CONFIG.md](../docs/CONFIG.md))
 
 **Issue: Processes won't stop**
 - Try running `concore stop` with administrator/sudo privileges

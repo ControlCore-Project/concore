@@ -67,6 +67,20 @@ concore stop
 
 For detailed CLI documentation, see [concore_cli/README.md](concore_cli/README.md).
 
+### Running a study on Windows (without the CLI)
+
+From `cmd` in the repository root, with Python 3 on your `PATH` as `python` (`makestudy.bat` calls it directly):
+
+```bat
+makestudy.bat demo\sample.graphml mystudy
+cd mystudy
+build.bat
+maxtime.bat 15
+run.bat
+```
+
+`makestudy.bat` creates the study folder (`mystudy` here) in the current directory; without the second argument it is named after the GraphML file. Each node writes its output to `<node>\concoreout.txt`. Use `stop.bat` to stop the nodes and `clear.bat` to clear the data between runs (this also removes the max time, so run `maxtime.bat` again afterwards). In PowerShell, call the scripts as `.\makestudy.bat`, `.\build.bat`, and so on.
+
 ## Configuration
 
 _concore_ supports customization through configuration files in the `CONCOREPATH` directory (defaults to the _concore_ installation directory):
