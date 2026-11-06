@@ -121,6 +121,13 @@ jobs:
           iverilog -g2012 -I. -o "$RUNNER_TEMP/verilog/test_read_simtime" tests/verilog/test_read_simtime.v
           cd "$RUNNER_TEMP/verilog" && vvp test_read_simtime
 
+      - name: Run Verilog read limit test
+        run: |
+          iverilog -g2012 -I. -o "$RUNNER_TEMP/verilog/test_read_limit" tests/verilog/test_read_limit.v
+          cd "$RUNNER_TEMP/verilog"
+          timeout 60 vvp test_read_limit | tee read_limit.log
+          grep -q "too many reads in loop" read_limit.log
+
       - name: Run Verilog interop tests
         run: julia --color=yes tests/julia/test_verilog_interop.jl
 
