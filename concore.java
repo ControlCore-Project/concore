@@ -39,75 +39,85 @@ public class concore {
 
     private static void registerPid() {
         try {
-            String pid = String.valueOf(ProcessHandle.current().pid());
+            ProcessHandle current = ProcessHandle.current();
+            long pid = current.pid();
+            long startTimeMs = current.info().startInstant()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Process start time is unavailable"))
+                    .toEpochMilli();
+            String record = pid + "|" + startTimeMs + System.lineSeparator();
             try (FileChannel channel = FileChannel.open(PID_REGISTRY_FILE,
-                    StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE,
+                    StandardOpenOption.APPEND)) {
                 try (FileLock lock = channel.lock()) {
-                    channel.write(ByteBuffer.wrap((pid + System.lineSeparator()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                    ByteBuffer buffer = ByteBuffer.wrap(
+                            record.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    while (buffer.hasRemaining()) {
+                        channel.write(buffer);
+                    }
                 }
             }
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
         }
     }
-
     private static void cleanupPid() {
         String pid = String.valueOf(ProcessHandle.current().pid());
         if (!Files.exists(PID_REGISTRY_FILE)) return;
-        List<String> remaining = new ArrayList<>();
         try (FileChannel channel = FileChannel.open(PID_REGISTRY_FILE,
                 StandardOpenOption.READ, StandardOpenOption.WRITE)) {
             try (FileLock lock = channel.lock()) {
                 ByteBuffer buf = ByteBuffer.allocate((int) channel.size());
-                channel.read(buf);
+                while (buf.hasRemaining() && channel.read(buf) != -1) {
+                }
                 buf.flip();
-                String content = java.nio.charset.StandardCharsets.UTF_8.decode(buf).toString();
+                String content = java.nio.charset.StandardCharsets.UTF_8
+                        .decode(buf).toString();
+                List<String> remaining = new ArrayList<>();
                 for (String line : content.split("\\R")) {
                     String trimmed = line.trim();
-                    if (!trimmed.isEmpty() && !trimmed.equals(pid)) {
-                        remaining.add(trimmed);
+                    if (!trimmed.isEmpty()) {
+                        String entryPid = trimmed.split("\\|", 2)[0].trim();
+                        if (!entryPid.equals(pid)) {
+                            remaining.add(trimmed);
+                        }
                     }
+                }
+                StringBuilder sb = new StringBuilder();
+                for (String entry : remaining) {
+                    sb.append(entry).append(System.lineSeparator());
                 }
                 channel.truncate(0);
                 channel.position(0);
-                if (!remaining.isEmpty()) {
-                    StringBuilder sb = new StringBuilder();
-                    for (String r : remaining) sb.append(r).append(System.lineSeparator());
-                    channel.write(ByteBuffer.wrap(sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                ByteBuffer output = ByteBuffer.wrap(
+                        sb.toString().getBytes(
+                                java.nio.charset.StandardCharsets.UTF_8));
+                while (output.hasRemaining()) {
+                    channel.write(output);
                 }
             }
         } catch (IOException e) {
         }
-        if (remaining.isEmpty()) {
-            try { Files.deleteIfExists(PID_REGISTRY_FILE); } catch (IOException e) {}
-            try { Files.deleteIfExists(KILL_SCRIPT_FILE); } catch (IOException e) {}
-        }
     }
-
     private static void writeKillScript() {
         try {
-            String regName = PID_REGISTRY_FILE.getFileName().toString();
-            String batName = KILL_SCRIPT_FILE.getFileName().toString();
-            String script = "@echo off\r\n";
-            script += "if not exist \"%~dp0" + regName + "\" (\r\n";
-            script += "    echo No PID registry found. Nothing to kill.\r\n";
-            script += "    exit /b 0\r\n";
-            script += ")\r\n";
-            script += "for /f \"usebackq tokens=*\" %%p in (\"%~dp0" + regName + "\") do (\r\n";
-            script += "    powershell -NoProfile -Command \"(Get-CimInstance Win32_Process -Filter 'ProcessId=%%p').CommandLine\" 2>nul | findstr /i \"concore\" >nul\r\n";
-            script += "    if not errorlevel 1 (\r\n";
-            script += "        echo Killing concore process %%p\r\n";
-            script += "        taskkill /F /PID %%p >nul 2>&1\r\n";
-            script += "    ) else (\r\n";
-            script += "        echo Skipping PID %%p - not a concore process or not running\r\n";
-            script += "    )\r\n";
-            script += ")\r\n";
-            script += "del /q \"%~dp0" + regName + "\" 2>nul\r\n";
-            script += "del /q \"%~dp0" + batName + "\" 2>nul\r\n";
-            Files.write(KILL_SCRIPT_FILE, script.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            String helperName = "concorekill.ps1";
+            String script =
+                    "@echo off\r\n" +
+                    "setlocal\r\n" +
+                    "if not exist \"%~dp0" + helperName + "\" (\r\n" +
+                    "    echo Missing process cleanup helper: \"%~dp0"
+                            + helperName + "\"\r\n" +
+                    "    exit /b 1\r\n" +
+                    ")\r\n" +
+                    "powershell.exe -NoLogo -NoProfile -NonInteractive "
+                            + "-ExecutionPolicy Bypass -File \"%~dp0"
+                            + helperName + "\"\r\n" +
+                    "exit /b %ERRORLEVEL%\r\n";
+            Files.write(KILL_SCRIPT_FILE,
+                    script.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         } catch (IOException e) {
         }
     }
-
     /**
      * Sets maxtime from concore.maxtime file, or uses defaultValue if file not found.
      * Catches both IOException and RuntimeException to match Python safe_literal_eval.

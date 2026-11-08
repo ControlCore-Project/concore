@@ -770,7 +770,17 @@ class TestPidRegistry:
 
     @pytest.fixture(autouse=True)
     def use_temp_dir(self, temp_dir, monkeypatch):
+        import shutil
         self.temp_dir = temp_dir
+        helper_source = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "concorekill.ps1",
+        )
+        assert os.path.isfile(helper_source), "concorekill.ps1 is missing"
+        shutil.copy2(
+            helper_source,
+            os.path.join(temp_dir, "concorekill.ps1"),
+        )
         monkeypatch.chdir(temp_dir)
         import concore
 
@@ -793,7 +803,7 @@ class TestPidRegistry:
         assert os.path.exists(_PID_REGISTRY_FILE)
         with open(_PID_REGISTRY_FILE) as f:
             pids = [line.strip() for line in f if line.strip()]
-        assert str(os.getpid()) in pids
+        assert any(entry.split("|", 1)[0] == str(os.getpid()) for entry in pids)
 
     def test_register_pid_appends_not_overwrites(self):
         from concore import _register_pid, _PID_REGISTRY_FILE
@@ -806,7 +816,7 @@ class TestPidRegistry:
             pids = [line.strip() for line in f if line.strip()]
         assert "11111" in pids
         assert "22222" in pids
-        assert str(os.getpid()) in pids
+        assert any(entry.split("|", 1)[0] == str(os.getpid()) for entry in pids)
         assert len(pids) == 3
 
     def test_cleanup_pid_removes_current_pid(self):
@@ -824,17 +834,19 @@ class TestPidRegistry:
         assert "99999" in pids
         assert "88888" in pids
 
-    def test_cleanup_pid_deletes_files_when_last_pid(self):
+    def test_cleanup_pid_preserves_files_when_last_pid(self):
         from concore import _cleanup_pid, _PID_REGISTRY_FILE, _KILL_SCRIPT_FILE
-
         current_pid = str(os.getpid())
         with open(_PID_REGISTRY_FILE, "w") as f:
             f.write(current_pid + "\n")
         with open(_KILL_SCRIPT_FILE, "w") as f:
             f.write("@echo off\n")
         _cleanup_pid()
-        assert not os.path.exists(_PID_REGISTRY_FILE)
-        assert not os.path.exists(_KILL_SCRIPT_FILE)
+        assert os.path.isfile(_PID_REGISTRY_FILE)
+        with open(_PID_REGISTRY_FILE) as f:
+            assert f.read().strip() == ""
+        assert os.path.isfile(_KILL_SCRIPT_FILE)
+
 
     def test_cleanup_pid_handles_missing_registry(self):
         from concore import _cleanup_pid, _PID_REGISTRY_FILE
@@ -849,10 +861,10 @@ class TestPidRegistry:
         assert os.path.exists(_KILL_SCRIPT_FILE)
         with open(_KILL_SCRIPT_FILE) as f:
             content = f.read()
-        assert os.path.basename(_PID_REGISTRY_FILE) in content
-        assert "wmic" not in content
-        assert "Get-CimInstance" in content
-        assert "taskkill" in content
+        assert "concorekill.ps1" in content
+        assert "powershell.exe" in content.lower()
+        assert "Get-CimInstance" not in content
+        assert "taskkill" not in content.lower()
         assert "concore" in content.lower()
 
     @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
@@ -875,12 +887,95 @@ class TestPidRegistry:
             )
             assert "Killing concore process " + str(proc.pid) in result.stdout
             proc.wait(timeout=10)
-            assert not os.path.exists(_PID_REGISTRY_FILE)
-            assert not os.path.exists(_KILL_SCRIPT_FILE)
+            assert os.path.isfile(_PID_REGISTRY_FILE)
+            with open(_PID_REGISTRY_FILE) as f:
+                assert f.read().strip() == ""
+            assert os.path.isfile(_KILL_SCRIPT_FILE)
         finally:
             if proc.poll() is None:
                 proc.kill()
 
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+    def test_kill_script_kills_registered_controller(self):
+        import subprocess
+        import time
+        from concore import _write_kill_script, _KILL_SCRIPT_FILE, _PID_REGISTRY_FILE
+        base_python = os.path.join(sys.base_prefix, "python.exe")
+        controller_file = os.path.join(self.temp_dir, "controller.py")
+        assert "concore" not in base_python.lower()
+        assert "concore" not in controller_file.lower()
+        with open(controller_file, "w") as f:
+            f.write("import concore\n")
+            f.write("import time\n")
+            f.write("time.sleep(60)\n")
+        env = os.environ.copy()
+        project_root = os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))
+        )
+        venv_site_packages = os.path.join(
+            sys.prefix, "Lib", "site-packages"
+        )
+        pythonpath_entries = [
+            project_root,
+            venv_site_packages
+        ]
+        existing_path = env.get("PYTHONPATH")
+        if existing_path:
+            pythonpath_entries.append(existing_path)
+        env["PYTHONPATH"] = os.pathsep.join(pythonpath_entries)
+        proc = subprocess.Popen(
+            [base_python, controller_file],
+            cwd=self.temp_dir,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            controller_entry = None
+            deadline = time.monotonic() + 15
+            while time.monotonic() < deadline:
+                if proc.poll() is not None:
+                    raise AssertionError(
+                        f"Controller exited early: {proc.returncode}"
+                    )
+                try:
+                    with open(_PID_REGISTRY_FILE) as f:
+                        pids = [
+                            line.strip()
+                            for line in f
+                            if line.strip()
+                        ]
+                except FileNotFoundError:
+                    pids = []
+                for entry in pids:
+                    if entry.split('|', 1)[0] == str(proc.pid):
+                        controller_entry = entry
+                        break
+                if controller_entry is not None:
+                    break
+                time.sleep(0.1)
+            else:
+                raise AssertionError(
+                    "Controller did not register its PID"
+                )
+            with open(_PID_REGISTRY_FILE, "w") as f:
+                f.write(controller_entry + "\n")
+            _write_kill_script()
+            result = subprocess.run(
+                ["cmd", "/c", _KILL_SCRIPT_FILE],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            assert (
+                f"Killing concore process {proc.pid}" in result.stdout
+            ), f"Unexpected output: {result.stdout!r}"
+            proc.wait(timeout=10)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait(timeout=10)
     def test_multi_node_registration(self):
         from concore import _register_pid, _PID_REGISTRY_FILE
 
@@ -893,7 +988,7 @@ class TestPidRegistry:
             pids = [line.strip() for line in f if line.strip()]
         for pid in fake_pids:
             assert pid in pids
-        assert str(os.getpid()) in pids
+        assert any(entry.split("|", 1)[0] == str(os.getpid()) for entry in pids)
         assert len(pids) == 4
 
     def test_cleanup_preserves_other_pids(self):
@@ -927,5 +1022,5 @@ class TestPidRegistry:
         assert os.path.exists(concore._PID_REGISTRY_FILE)
         with open(concore._PID_REGISTRY_FILE) as f:
             pids = [line.strip() for line in f if line.strip()]
-        assert str(os.getpid()) in pids
+        assert any(entry.split("|", 1)[0] == str(os.getpid()) for entry in pids)
         importlib.reload(concore)
