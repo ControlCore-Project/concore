@@ -31,55 +31,25 @@ _BASE_DIR = os.path.abspath(".")  # capture CWD before atexit can shift it
 _PID_REGISTRY_FILE = os.path.join(_BASE_DIR, "concorekill_pids.txt")
 _KILL_SCRIPT_FILE = os.path.join(_BASE_DIR, "concorekill.bat")
 
+def _current_pid_record():
+    """Return current PID and process creation time in Unix milliseconds."""
+    import psutil
+    process = psutil.Process(os.getpid())
+    start_time_ms = int(process.create_time() * 1000)
+    return f"{process.pid}|{start_time_ms}"
 def _register_pid():
-    """Append current PID to the shared registry file. Uses file locking on Windows."""
+    """Append current process identity to the shared registry."""
+    import psutil
     try:
+        record = _current_pid_record()
         with open(_PID_REGISTRY_FILE, "a") as f:
             if hasattr(sys, 'getwindowsversion'):
                 import msvcrt
                 try:
+                    f.seek(0)
                     msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, _LOCK_LEN)
-                    f.write(str(os.getpid()) + "\n")
-                finally:
-                    try:
-                        f.seek(0)
-                        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, _LOCK_LEN)
-                    except OSError:
-                        pass
-            else:
-                f.write(str(os.getpid()) + "\n")
-    except OSError:
-        pass
-
-def _cleanup_pid():
-    """Remove current PID from registry on exit. Uses file locking on Windows."""
-    pid = str(os.getpid())
-    try:
-        if not os.path.exists(_PID_REGISTRY_FILE):
-            return
-        with open(_PID_REGISTRY_FILE, "r+") as f:
-            if hasattr(sys, 'getwindowsversion'):
-                import msvcrt
-                try:
-                    msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, _LOCK_LEN)
-                    pids = [line.strip() for line in f if line.strip()]
-                    remaining = [p for p in pids if p != pid]
-                    if remaining:
-                        f.seek(0)
-                        f.truncate()
-                        for p in remaining:
-                            f.write(p + "\n")
-                    else:
-                        f.close()
-                        try:
-                            os.remove(_PID_REGISTRY_FILE)
-                        except OSError:
-                            pass
-                        try:
-                            os.remove(_KILL_SCRIPT_FILE)
-                        except OSError:
-                            pass
-                        return
+                    f.write(record + "\n")
+                    f.flush()
                 finally:
                     try:
                         f.seek(0)
@@ -87,47 +57,57 @@ def _cleanup_pid():
                     except (OSError, ValueError):
                         pass
             else:
-                pids = [line.strip() for line in f if line.strip()]
-                remaining = [p for p in pids if p != pid]
-                if remaining:
-                    f.seek(0)
-                    f.truncate()
-                    for p in remaining:
-                        f.write(p + "\n")
-                else:
-                    f.close()
+                f.write(record + "\n")
+    except (OSError, psutil.Error):
+        pass
+def _cleanup_pid():
+    """Remove current process entries while preserving the shared files."""
+    pid = str(os.getpid())
+    try:
+        if not os.path.exists(_PID_REGISTRY_FILE):
+            return
+        with open(_PID_REGISTRY_FILE, "r+") as f:
+            is_windows = hasattr(sys, "getwindowsversion")
+            if is_windows:
+                import msvcrt
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, _LOCK_LEN)
+            try:
+                f.seek(0)
+                entries = [line.strip() for line in f if line.strip()]
+                remaining = [
+                    entry for entry in entries
+                    if entry.split("|", 1)[0].strip() != pid
+                ]
+                f.seek(0)
+                f.truncate()
+                for entry in remaining:
+                    f.write(entry + "\n")
+                f.flush()
+            finally:
+                if is_windows:
                     try:
-                        os.remove(_PID_REGISTRY_FILE)
-                    except OSError:
-                        pass
-                    try:
-                        os.remove(_KILL_SCRIPT_FILE)
-                    except OSError:
+                        f.seek(0)
+                        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, _LOCK_LEN)
+                    except (OSError, ValueError):
                         pass
     except OSError:
         pass
 
 def _write_kill_script():
-    """Generate concorekill.bat that validates each PID before killing."""
+    """Generate a batch launcher for the shared PowerShell cleanup helper."""
     try:
-        reg_name = os.path.basename(_PID_REGISTRY_FILE)
-        bat_name = os.path.basename(_KILL_SCRIPT_FILE)
-        script = "@echo off\r\n"
-        script += 'if not exist "%~dp0' + reg_name + '" (\r\n'
-        script += "    echo No PID registry found. Nothing to kill.\r\n"
-        script += "    exit /b 0\r\n"
-        script += ")\r\n"
-        script += 'for /f "usebackq tokens=*" %%p in ("%~dp0' + reg_name + '") do (\r\n'
-        script += '    powershell -NoProfile -Command "(Get-CimInstance Win32_Process -Filter \'ProcessId=%%p\').CommandLine" 2>nul | findstr /i "concore" >nul\r\n'
-        script += "    if not errorlevel 1 (\r\n"
-        script += "        echo Killing concore process %%p\r\n"
-        script += "        taskkill /F /PID %%p >nul 2>&1\r\n"
-        script += "    ) else (\r\n"
-        script += "        echo Skipping PID %%p - not a concore process or not running\r\n"
-        script += "    )\r\n"
-        script += ")\r\n"
-        script += 'del /q "%~dp0' + reg_name + '" 2>nul\r\n'
-        script += 'del /q "%~dp0' + bat_name + '" 2>nul\r\n'
+        helper_name = "concorekill.ps1"
+        script = (
+            "@echo off\r\n"
+            "setlocal\r\n"
+            'if not exist "%~dp0' + helper_name + '" (\r\n'
+            '    echo Missing process cleanup helper: "%~dp0' + helper_name + '"\r\n'
+            "    exit /b 1\r\n"
+            ")\r\n"
+            'powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%~dp0' + helper_name + '"\r\n'
+            "exit /b %ERRORLEVEL%\r\n"
+        )
         with open(_KILL_SCRIPT_FILE, "w", newline="") as f:
             f.write(script)
     except OSError:

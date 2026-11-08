@@ -702,6 +702,14 @@ if 'java' in required_langs:
         fcopy.write(fcore.read())
     fcore.close()
 
+if concoretype == "windows" and required_langs.intersection({"py", "java"}):
+    helper_source = os.path.join(CONCOREPATH, "concorekill.ps1")
+    if not os.path.isfile(helper_source):
+        logging.error("Missing Windows process cleanup helper: " + helper_source)
+        sys.exit(1)
+    os.makedirs(os.path.join(outdir, "src"), exist_ok=True)
+    shutil.copy2(helper_source, os.path.join(outdir, "src", "concorekill.ps1"))
+
 if 'm' in required_langs:
     try:
         fsource = open(CONCOREPATH+"/concore_default_maxtime.m")
@@ -1128,6 +1136,8 @@ for node in nodes_dict:
                 fbuild.write("mkdir -p ./"+containername+"/"+source_subdir+"\n")
         if concoretype == "windows":
             fbuild.write("copy .\\src\\"+sourcecode+" .\\"+containername+"\\"+sourcecode+"\n")
+            if langext in ("py", "java"):
+                fbuild.write("copy .\\src\\concorekill.ps1 .\\" + containername + "\\concorekill.ps1\n")
             if langext == "py":
                 fbuild.write("copy .\\src\\concore.py .\\" + containername + "\\concore.py\n")
                 fbuild.write("copy .\\src\\concore_base.py .\\" + containername + "\\concore_base.py\n")
@@ -1376,7 +1386,9 @@ for node in nodes_dict:
         if concoretype=="windows":
             q_container = f'"{containername}"'
             fstop.write('cmd /C '+q_container+"\\concorekill\n")
-            fstop.write('del '+q_container+"\\concorekill.bat\n")
+            fstop.write('if not errorlevel 1 (\n')
+            fstop.write('    del '+q_container+"\\concorekill.bat\n")
+            fstop.write(')\n')
         else:
             safe_pidfile = shlex.quote(f"{containername}/concorepid")
             fstop.write('kill -9 `cat '+safe_pidfile+'`\n')
