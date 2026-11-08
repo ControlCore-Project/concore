@@ -102,6 +102,34 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertNotEqual(result.exit_code, 0)
             self.assertIn("Missing source file", result.output)
 
+    def test_validate_rejects_source_path_outside_source_dir(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+            workflow_path = Path("test-project/workflow.graphml")
+            graphml = workflow_path.read_text(encoding="utf-8")
+            self.assertIn("<y:NodeLabel>N1:script.py</y:NodeLabel>", graphml)
+            graphml = graphml.replace("N1:script.py", "N1:../outside.py")
+            workflow_path.write_text(graphml, encoding="utf-8")
+            Path("test-project/outside.py").write_text(
+                "print('outside')", encoding="utf-8"
+            )
+            result = self.runner.invoke(
+                cli,
+                [
+                    "validate",
+                    "test-project/workflow.graphml",
+                    "--format",
+                    "json",
+                ],
+            )
+            self.assertNotEqual(result.exit_code, 0)
+            payload = json.loads(result.output)
+            self.assertFalse(payload["valid"])
+            self.assertEqual(
+                payload["errors"][0]["error_type"], "unsafe_source_path"
+            )
+            self.assertEqual(payload["errors"][0]["node_id"], "n1")
     def test_validate_json_output_for_valid_file(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])

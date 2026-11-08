@@ -8,6 +8,22 @@ import xml.etree.ElementTree as ET
 from ._source_dir import resolve_source_dir
 
 
+def _is_safe_source_path(filename):
+    """Match the generator's safe_relpath() checks for node source paths."""
+    if not filename:
+        return False
+    normalized = filename.replace("\\", "/")
+    if re.search(r"""[\x00-\x1F\x7F*?"<>|;&`$'()]""", normalized):
+        return False
+    if normalized.startswith("/") or normalized.startswith("~"):
+        return False
+    if re.match(r"^[A-Za-z]:", normalized):
+        return False
+    if ":" in normalized:
+        return False
+    if any(part in ("", "..") for part in normalized.split("/")):
+        return False
+    return True
 def _classify_message(message, bucket_name):
     if bucket_name == "info":
         if message.startswith("Found ") and "node(s)" in message:
@@ -52,6 +68,8 @@ def _classify_message(message, bucket_name):
         return {"error_type": "missing_node_filename"}
     if message.startswith("Node '") and message.endswith("has unusual file extension"):
         return {"error_type": "unusual_file_extension"}
+    if message.startswith("Unsafe source file path:"):
+        return {"error_type": "unsafe_source_path"}
     if message.startswith("Missing source file:"):
         return {"error_type": "missing_source_file"}
     if message.startswith("Node ") and message.endswith(" has no label"):
@@ -89,8 +107,10 @@ def _build_entries(bucket_name, messages, source_nodes):
         entry = {"message": message}
         entry.update(_classify_message(message, bucket_name))
 
-        if message.startswith("Missing source file:"):
-            filename = message.split(":", 1)[1].strip()
+        if message.startswith(
+            ("Missing source file:", "Unsafe source file path:")
+        ):
+            filename = message.split(": ", 1)[1].strip()
             node_id = source_nodes.get(filename)
             if node_id:
                 entry["node_id"] = node_id
@@ -256,6 +276,10 @@ def validate_workflow(workflow_file, source_dir, console, output_format="text"):
                             source_nodes[filename] = node_id
                             if not filename:
                                 errors.append(f"Node '{label}' has no filename")
+                            elif not _is_safe_source_path(filename):
+                                errors.append(
+                                    f"Unsafe source file path: {filename}"
+                                )
                             elif not any(
                                 filename.endswith(ext)
                                 for ext in [".py", ".cpp", ".m", ".v", ".java"]
