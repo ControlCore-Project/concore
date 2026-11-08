@@ -103,6 +103,22 @@
         end
     end
 
+    @testset "params and maxtime come from inpath" begin
+        mktempdir() do dir
+            old_inpath = Concore.inpath
+            Concore.inpath = joinpath(dir, "in")
+            mkpath(Concore.inpath * "1")
+            write(joinpath(Concore.inpath * "1", "concore.params"), "gain=2.5")
+            write(joinpath(Concore.inpath * "1", "concore.maxtime"), "42")
+            Concore._backend = Concore.ZmqBackend()
+            Concore.load_params!()
+            @test Concore.tryparam("gain", 0.0) == 2.5
+            @test Concore.default_maxtime!(100) == 42
+            Concore.inpath = old_inpath
+            Concore.params = Dict{String,Any}()
+        end
+    end
+
     reset_zmq_state!()
 
 end

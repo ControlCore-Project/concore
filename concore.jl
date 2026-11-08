@@ -594,7 +594,7 @@ Supports Python dict format and key=value;key2=value2 format.
 """
 function load_params!()
     global params
-    params_path = joinpath(_input_dir(1), "concore.params")
+    params_path = joinpath(inpath * "1", "concore.params")
     isfile(params_path) || return
 
     sparams = try
@@ -643,7 +643,7 @@ Read maximum simulation time from `{inpath}1/concore.maxtime`, or use `default`.
 """
 function default_maxtime!(default::Real)
     global maxtime
-    maxtime_path = joinpath(_input_dir(1), "concore.maxtime")
+    maxtime_path = joinpath(inpath * "1", "concore.maxtime")
     maxtime = try
         parse(Float64, strip(read(maxtime_path, String)))
     catch

@@ -70,6 +70,22 @@ const DockerConcore = DockerRuntime.Concore
         end
     end
 
+    @testset "params and maxtime with ZMQ backend" begin
+        mktempdir() do dir
+            reset_docker_state!()
+            DockerConcore.inpath = joinpath(dir, "in")
+            mkpath(DockerConcore.inpath * "1")
+            write(joinpath(DockerConcore.inpath * "1", "concore.params"), "gain=2.5")
+            write(joinpath(DockerConcore.inpath * "1", "concore.maxtime"), "42")
+            DockerConcore._backend = DockerConcore.ZmqBackend()
+
+            DockerConcore.load_params!()
+            @test DockerConcore.tryparam("gain", 0.0) == 2.5
+            @test DockerConcore.default_maxtime!(100) == 42
+            reset_docker_state!()
+        end
+    end
+
     @testset "maxtime" begin
         mktempdir() do dir
             reset_docker_state!()
