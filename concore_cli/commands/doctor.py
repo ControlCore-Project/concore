@@ -35,6 +35,32 @@ TOOL_DEFINITIONS = {
             "Windows": "winget install -e --id Python.Python.3.11",
         },
     },
+    "Java runtime": {
+        "names": {
+            "posix": ["java"],
+            "windows": ["java"],
+        },
+        "version_flag": "-version",
+        "config_keys": ["JAVAEXE", "JAVAWIN"],
+        "install_hints": {
+            "Linux": "Install a JDK (e.g. sudo apt install default-jdk)",
+            "Darwin": "Install a JDK (e.g. brew install openjdk)",
+            "Windows": "Install a JDK from https://adoptium.net/",
+        },
+    },
+    "Java compiler (javac)": {
+        "names": {
+            "posix": ["javac"],
+            "windows": ["javac"],
+        },
+        "version_flag": "-version",
+        "config_keys": ["JAVACEXE", "JAVACWIN"],
+        "install_hints": {
+            "Linux": "Install a JDK (e.g. sudo apt install default-jdk)",
+            "Darwin": "Install a JDK (e.g. brew install openjdk)",
+            "Windows": "Install a JDK from https://adoptium.net/",
+        },
+    },
     "Verilog (iverilog)": {
         "names": {
             "posix": ["iverilog"],
@@ -153,7 +179,14 @@ def _get_version(path, version_flag):
         )
         output = result.stdout.strip() or result.stderr.strip()
         if output:
-            return output.splitlines()[0]
+            lines = [
+                line.strip()
+                for line in output.splitlines()
+                if line.strip()
+                and not line.strip().startswith("Picked up JAVA_TOOL_OPTIONS:")
+            ]
+            if lines:
+                return lines[0]
     except Exception:
         pass
     return None
@@ -278,7 +311,13 @@ def doctor_check(console):
             hint = tool_def["install_hints"].get(plat_name, "")
             hint_str = f" (install: {hint})" if hint else ""
             # Docker, MATLAB, Verilog are optional - show as warning
-            if tool_label in ("MATLAB", "Verilog (iverilog)", "Docker"):
+            if tool_label in (
+                "MATLAB",
+                "Verilog (iverilog)",
+                "Docker",
+                "Java runtime",
+                "Java compiler (javac)",
+            ):
                 console.print(
                     f"  [yellow]![/yellow] {tool_label} -> Not found{hint_str}"
                 )

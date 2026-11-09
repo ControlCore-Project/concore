@@ -7,6 +7,7 @@ from click.testing import CliRunner
 from concore_cli.cli import cli
 from concore_cli.commands.doctor import (
     _detect_tool,
+    _get_version,
     _get_platform_key,
     _check_package,
     _resolve_concore_path,
@@ -70,6 +71,46 @@ class TestDoctorCommand(unittest.TestCase):
         self.assertIn("Summary", result.output)
         self.assertIn("passed", result.output)
 
+    def test_doctor_checks_java_and_javac_when_missing(self):
+        """Doctor should report missing Java runtime and compiler."""
+        with patch(
+            "concore_cli.commands.doctor._detect_tool",
+            return_value=(None, None),
+        ):
+            result = self.runner.invoke(cli, ["doctor"])
+        self.assertIn("Java runtime", result.output)
+        self.assertIn("Java compiler (javac)", result.output)
+        self.assertIn("Java runtime -> Not found", result.output)
+        self.assertIn("Java compiler (javac) -> Not found", result.output)
+
+    def test_doctor_reports_java_and_javac_versions(self):
+        """Doctor should show Java and Javac versions and paths."""
+        def detect(names):
+            if names == ["java"]:
+                return (r"C:\jdk\bin\java.exe", "java")
+            if names == ["javac"]:
+                return (r"C:\jdk\bin\javac.exe", "javac")
+            return (None, None)
+
+        def version(path, flag):
+            if path.endswith("java.exe"):
+                return 'openjdk version "17.0.21"'
+            if path.endswith("javac.exe"):
+                return "javac 17.0.21"
+            return None
+
+        with (
+            patch("concore_cli.commands.doctor._detect_tool", side_effect=detect),
+            patch("concore_cli.commands.doctor._get_version", side_effect=version),
+        ):
+            result = self.runner.invoke(cli, ["doctor"])
+        self.assertIn("Java runtime", result.output)
+        self.assertIn("openjdk version", result.output)
+        self.assertIn("Java compiler (javac)", result.output)
+        self.assertIn("javac 17.0.21", result.output)
+        self.assertIn(r"C:\jdk\bin\java.exe", result.output)
+        self.assertIn(r"C:\jdk\bin\javac.exe", result.output)
+
 
 class TestDetectTool(unittest.TestCase):
     """Tests for tool detection helpers."""
@@ -97,6 +138,18 @@ class TestDetectTool(unittest.TestCase):
         path, name = _detect_tool([])
         self.assertIsNone(path)
         self.assertIsNone(name)
+
+    @patch("concore_cli.commands.doctor.subprocess.run")
+    def test_get_version_skips_java_tool_options_banner(self, mock_run):
+        mock_run.return_value.stdout = ""
+        mock_run.return_value.stderr = (
+            "Picked up JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Kolkata"
+            + chr(10)
+            + 'openjdk version "17.0.21" 2025-10-21'
+            + chr(10)
+        )
+        version = _get_version("java", "-version")
+        self.assertEqual(version, 'openjdk version "17.0.21" 2025-10-21')
 
 
 class TestGetPlatformKey(unittest.TestCase):
