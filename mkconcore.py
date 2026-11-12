@@ -204,6 +204,8 @@ JAVACEXE  = os.environ.get("CONCORE_JAVACEXE", "javac")      #Ubuntu/macOS javac
 JAVACWIN  = os.environ.get("CONCORE_JAVACWIN", "javac")      #Windows javac
 JAVAEXE   = os.environ.get("CONCORE_JAVAEXE", "java")        #Ubuntu/macOS java
 JAVAWIN   = os.environ.get("CONCORE_JAVAWIN", "java")        #Windows java
+JULIAEXE  = os.environ.get("CONCORE_JULIAEXE", "julia")      #Ubuntu/macOS julia
+JULIAWIN  = os.environ.get("CONCORE_JULIAWIN", "julia")      #Windows julia
 JEROMQ_URL = "https://repo1.maven.org/maven2/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 M_IS_OCTAVE = False      #treat .m as octave
 MCRPATH  = "~/MATLAB/R2021a" #path to local Ubunta Matlab Compiler Runtime
@@ -249,6 +251,8 @@ if os.path.exists(CONCOREPATH+"/concore.tools"):
     JAVACWIN  = _tools.get("JAVACWIN", JAVACWIN)
     JAVAEXE   = _tools.get("JAVAEXE", JAVAEXE)
     JAVAWIN   = _tools.get("JAVAWIN", JAVAWIN)
+    JULIAEXE  = _tools.get("JULIAEXE", JULIAEXE)
+    JULIAWIN  = _tools.get("JULIAWIN", JULIAWIN)
 
 prefixedgenode = ""
 sourcedir = os.path.abspath(sys.argv[2])
@@ -644,11 +648,12 @@ if 'py' in required_langs:
         print(CONCOREPATH+" is not correct path to concore (missing concore_base.py)")
         sys.exit(1)
 
-if 'jl' in required_langs and concoretype=="docker":
+if 'jl' in required_langs:
+    julia_runtime = "concoredocker.jl" if concoretype=="docker" else "concore.jl"
     try:
-        fsource = open(CONCOREPATH+"/concoredocker.jl")
+        fsource = open(CONCOREPATH+"/"+julia_runtime)
     except (FileNotFoundError, IOError):
-        print(CONCOREPATH+" is not correct path to concore (missing concoredocker.jl)")
+        print(CONCOREPATH+" is not correct path to concore (missing "+julia_runtime+")")
         sys.exit(1)
     with open(outdir+"/src/concore.jl","w") as fcopy:
         fcopy.write(fsource.read())
@@ -1140,6 +1145,8 @@ for node in nodes_dict:
                 fbuild.write("copy .\\src\\concore.v .\\" + containername + "\\concore.v\n")
             elif langext == "java":
                 fbuild.write("copy .\\src\\concore.java .\\" + containername + "\\concore.java\n")
+            elif langext == "jl":
+                fbuild.write("copy .\\src\\concore.jl .\\" + containername + "\\concore.jl\n")
             elif langext == "m":   #  4/2/21
                 fbuild.write("copy .\\src\\concore_*.m .\\" + containername + "\\\n")
                 fbuild.write("copy .\\src\\import_concore.m .\\" + containername + "\\\n")
@@ -1160,6 +1167,8 @@ for node in nodes_dict:
                 fbuild.write("cp ./src/concore.v ./"+containername+"/concore.v\n")
             elif langext == "java":
                 fbuild.write("cp ./src/concore.java ./"+containername+"/concore.java\n")
+            elif langext == "jl":
+                fbuild.write("cp ./src/concore.jl ./"+containername+"/concore.jl\n")
             elif langext == "m":  # 4/2/21
                 fbuild.write("cp ./src/concore_*.m ./"+containername+"/\n")
                 fbuild.write("cp ./src/import_concore.m ./"+containername+"/\n")
@@ -1219,6 +1228,7 @@ if concoretype == "windows":
     VWIN = _quote_executable_windows(VWIN)
     JAVACWIN = _quote_executable_windows(JAVACWIN)
     JAVAWIN = _quote_executable_windows(JAVAWIN)
+    JULIAWIN = _quote_executable_windows(JULIAWIN)
     OCTAVEWIN = _quote_executable_windows(OCTAVEWIN)
     MATLABWIN = _quote_executable_windows(MATLABWIN)
 else:
@@ -1227,6 +1237,7 @@ else:
     VEXE = _quote_executable_posix(VEXE)
     JAVACEXE = _quote_executable_posix(JAVACEXE)
     JAVAEXE = _quote_executable_posix(JAVAEXE)
+    JULIAEXE = _quote_executable_posix(JULIAEXE)
     OCTAVEEXE = _quote_executable_posix(OCTAVEEXE)
     MATLABEXE = _quote_executable_posix(MATLABEXE)
 
@@ -1236,7 +1247,7 @@ for node in nodes_dict:
   containername,sourcecode = nodes_dict[node].split(':')
   if len(sourcecode)!=0:
       dockername,langext = sourcecode.rsplit(".", 1)
-      if not (langext in ["py","m","sh","cpp","v","java"]): # 6/22/21
+      if not (langext in ["py","m","sh","cpp","v","java","jl"]): # 6/22/21
           logging.error(f"Extension .{langext} is unsupported")
           sys.exit(1)
       if concoretype=="windows":
@@ -1247,6 +1258,9 @@ for node in nodes_dict:
           if langext=="py":
               frun.write('start /B /D '+q_container+" "+PYTHONWIN+" "+q_source+" >"+q_container+"\\concoreout.txt\n")
               fdebug.write('start /D '+q_container+" cmd /K "+PYTHONWIN+" "+q_source+"\n")
+          elif langext=="jl":
+              frun.write('start /B /D '+q_container+" "+JULIAWIN+" "+q_source+" >"+q_container+"\\concoreout.txt\n")
+              fdebug.write('start /D '+q_container+" cmd /K "+JULIAWIN+" "+q_source+"\n")
           elif langext=="cpp":  #6/25/21
               frun.write('cd '+q_container+'\n')
               frun.write(CPPWIN+' '+q_source+'\n')
@@ -1300,6 +1314,15 @@ for node in nodes_dict:
                 else:
                     fdebug.write('concorewd="$(pwd)"\n')
                     fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\"; ' + PYTHONEXE + ' ' + safe_source + '\\"" \n')
+
+            elif langext == "jl":
+                frun.write('(cd ' + safe_container + '; ' + JULIAEXE + ' ' + safe_source + ' >concoreout.txt & echo $! >concorepid) &\n')
+                if ubuntu:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + safe_container + '\\"; ' + JULIAEXE + ' ' + safe_source + '; bash" &\n')
+                else:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\"; ' + JULIAEXE + ' ' + safe_source + '\\"" \n')
 
             elif langext == "cpp":  # 6/22/21
                 frun.write('(cd ' + safe_container + '; ' + CPPEXE + ' ' + safe_source + '; ./a.out >concoreout.txt & echo $! >concorepid) &\n')

@@ -12,6 +12,8 @@ RUNTIME_FILES = (
     "concoredocker.java",
     "concore.v",
     "concoredocker.v",
+    "concore.jl",
+    "concoredocker.jl",
     "concore_read.m",
 )
 
