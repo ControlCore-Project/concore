@@ -78,7 +78,7 @@ _concore_ supports customization through configuration files in the `CONCOREPATH
   VEXE=/opt/iverilog/bin/iverilog
   OCTAVEEXE=/snap/bin/octave
   ```
-  Supported keys: `CPPWIN`, `CPPEXE`, `VWIN`, `VEXE`, `PYTHONEXE`, `PYTHONWIN`, `MATLABEXE`, `MATLABWIN`, `OCTAVEEXE`, `OCTAVEWIN`
+  Supported keys: `CPPWIN`, `CPPEXE`, `VWIN`, `VEXE`, `PYTHONEXE`, `PYTHONWIN`, `MATLABEXE`, `MATLABWIN`, `OCTAVEEXE`, `OCTAVEWIN`, `JULIAEXE`, `JULIAWIN`
 
 - **concore.octave** - Treat `.m` files as Octave instead of MATLAB (presence = enabled)
 - **concore.mcr** - MATLAB Compiler Runtime path (single line)

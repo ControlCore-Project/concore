@@ -258,7 +258,7 @@ def validate_workflow(workflow_file, source_dir, console, output_format="text"):
                                 errors.append(f"Node '{label}' has no filename")
                             elif not any(
                                 filename.endswith(ext)
-                                for ext in [".py", ".cpp", ".m", ".v", ".java"]
+                                for ext in [".py", ".cpp", ".m", ".v", ".java", ".jl"]
                             ):
                                 warnings.append(
                                     f"Node '{label}' has unusual file extension"
