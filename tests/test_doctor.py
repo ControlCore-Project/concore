@@ -209,5 +209,91 @@ class TestDoctorWithConfig(unittest.TestCase):
         self.assertIsInstance(result, bool)
 
 
+class TestDoctorJavaCheck(unittest.TestCase):
+    """Tests for the optional Java (javac) check."""
+
+    def _run_doctor(self):
+        import io
+        from rich.console import Console
+
+        buffer = io.StringIO()
+        console = Console(file=buffer, no_color=True, width=200)
+        doctor_check(console)
+        return buffer.getvalue()
+
+    def _java_line(self, output):
+        for line in output.splitlines():
+            if "Java (javac)" in line:
+                return line.strip()
+        self.fail("No Java (javac) line in doctor output")
+
+    def _fake_which(self, javac_path):
+        real_which = shutil.which
+
+        def fake_which(name, *args, **kwargs):
+            if name == "javac":
+                return javac_path
+            return real_which(name, *args, **kwargs)
+
+        return fake_which
+
+    def test_java_is_defined(self):
+        """Java should be a known tool on both platforms."""
+        from concore_cli.commands.doctor import TOOL_DEFINITIONS
+
+        java = TOOL_DEFINITIONS["Java (javac)"]
+        self.assertEqual(java["names"]["posix"], ["javac"])
+        self.assertEqual(java["names"]["windows"], ["javac"])
+
+    def test_java_config_keys_match_mkconcore(self):
+        """Config keys should match the Java settings used by mkconcore.py."""
+        from concore_cli.commands.doctor import TOOL_DEFINITIONS
+
+        java = TOOL_DEFINITIONS["Java (javac)"]
+        self.assertEqual(
+            set(java["config_keys"]),
+            {"JAVACEXE", "JAVACWIN", "JAVAEXE", "JAVAWIN"},
+        )
+
+    def test_missing_java_is_a_warning(self):
+        """A missing JDK should warn, not count as an error."""
+        with patch(
+            "concore_cli.commands.doctor.shutil.which",
+            side_effect=self._fake_which(None),
+        ):
+            output = self._run_doctor()
+        line = self._java_line(output)
+        self.assertTrue(line.startswith("!"))
+        self.assertIn("Not found", line)
+
+    def test_failing_javac_stub_is_reported_missing(self):
+        """A javac that exists but cannot run (macOS stub) counts as missing."""
+        with patch(
+            "concore_cli.commands.doctor.shutil.which",
+            side_effect=self._fake_which("/usr/bin/javac"),
+        ):
+            with patch("concore_cli.commands.doctor._tool_runs", return_value=False):
+                output = self._run_doctor()
+        line = self._java_line(output)
+        self.assertTrue(line.startswith("!"))
+        self.assertIn("Not found", line)
+
+    def test_working_javac_is_reported_found(self):
+        """A working javac should be shown as passed with its version."""
+        with patch(
+            "concore_cli.commands.doctor.shutil.which",
+            side_effect=self._fake_which("/usr/bin/javac"),
+        ):
+            with patch("concore_cli.commands.doctor._tool_runs", return_value=True):
+                with patch(
+                    "concore_cli.commands.doctor._get_version",
+                    return_value="javac 21.0.1",
+                ):
+                    output = self._run_doctor()
+        line = self._java_line(output)
+        self.assertTrue(line.startswith("+"))
+        self.assertIn("javac 21.0.1", line)
+
+
 if __name__ == "__main__":
     unittest.main()

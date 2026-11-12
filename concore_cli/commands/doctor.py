@@ -87,7 +87,26 @@ TOOL_DEFINITIONS = {
             "Windows": "winget install -e --id Docker.DockerDesktop",
         },
     },
+    "Java (javac)": {
+        "names": {
+            "posix": ["javac"],
+            "windows": ["javac"],
+        },
+        "version_flag": "-version",
+        "config_keys": ["JAVACEXE", "JAVACWIN", "JAVAEXE", "JAVAWIN"],
+        # On macOS /usr/bin/javac is a stub even without a JDK, so also
+        # confirm that the tool actually runs.
+        "verify_runs": True,
+        "install_hints": {
+            "Linux": "sudo apt install default-jdk",
+            "Darwin": "brew install --cask temurin",
+            "Windows": "winget install -e --id Microsoft.OpenJDK.21",
+        },
+    },
 }
+
+# Tools that are optional: a missing one is a warning, not an error.
+OPTIONAL_TOOLS = ("MATLAB", "Verilog (iverilog)", "Docker", "Java (javac)")
 
 REQUIRED_PACKAGES = [
     "click",
@@ -157,6 +176,23 @@ def _get_version(path, version_flag):
     except Exception:
         pass
     return None
+
+
+def _tool_runs(path, version_flag):
+    """Return True if the tool runs successfully with its version flag.
+
+    Some tools exist on PATH only as a stub (for example /usr/bin/javac on
+    macOS without a JDK), which prints an error and exits non-zero.
+    """
+    try:
+        if isinstance(version_flag, list):
+            cmd = [path] + version_flag
+        else:
+            cmd = [path, version_flag]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        return result.returncode == 0
+    except Exception:
+        return False
 
 
 def _check_docker_daemon(docker_path):
@@ -249,6 +285,9 @@ def doctor_check(console):
     for tool_label, tool_def in TOOL_DEFINITIONS.items():
         candidates = tool_def["names"].get(plat_key, [])
         path, found_name = _detect_tool(candidates)
+        if path and tool_def.get("verify_runs"):
+            if not _tool_runs(path, tool_def["version_flag"]):
+                path, found_name = None, None
 
         if path:
             version = _get_version(path, tool_def["version_flag"])
@@ -277,8 +316,8 @@ def doctor_check(console):
         else:
             hint = tool_def["install_hints"].get(plat_name, "")
             hint_str = f" (install: {hint})" if hint else ""
-            # Docker, MATLAB, Verilog are optional - show as warning
-            if tool_label in ("MATLAB", "Verilog (iverilog)", "Docker"):
+            # Docker, MATLAB, Verilog, Java are optional - show as warning
+            if tool_label in OPTIONAL_TOOLS:
                 console.print(
                     f"  [yellow]![/yellow] {tool_label} -> Not found{hint_str}"
                 )
