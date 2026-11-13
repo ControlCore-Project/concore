@@ -27,7 +27,9 @@ jobs:
         run: ruff check . --output-format=github
 
   test:
-    runs-on: ubuntu-latest
+    # Pinned: the ubuntu-latest label is moving to Ubuntu 26.04, which has no
+    # Python 3.9 build for actions/setup-python.
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12']
