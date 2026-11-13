@@ -7,7 +7,7 @@ if [ "$#" -eq 0 ]; then
     echo "In the first case, the name of the study is the same as the name of the .graphml"
     echo "In either case, source files come from the same path as the .graphml"
     echo "The equivalent mkconcore.py is displayed"
-    exit
+    exit 1
 fi
 
 graphml="$1"
@@ -20,7 +20,7 @@ else
         sourcedir="$(dirname "$graphml")"
     else
         echo "$graphml does not exist"
-        exit
+        exit 1
     fi
 fi
 
@@ -34,7 +34,7 @@ fi
 if [ -e "$studydir" ]; then
     echo "Cannot make $studydir because one already exists with that name"
     echo "Either do ./destroy $studydir, or choose a unique name as 2nd arg"
-    exit
+    exit 1
 else
     if command -v osascript >/dev/null; then
         echo "python3 mkconcore.py \"$graphml\" \"$sourcedir\" \"$studydir\" macos"
