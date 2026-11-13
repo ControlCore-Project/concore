@@ -587,6 +587,46 @@ function load_oport!()
     return oport
 end
 
+"""Split `s` on `delim`, ignoring delimiters inside brackets or quotes."""
+function _split_top_level(s::AbstractString, delim::Char)::Vector{String}
+    parts = String[]
+    depth = 0
+    quote_char = nothing
+    start = firstindex(s)
+    for i in eachindex(s)
+        c = s[i]
+        if quote_char !== nothing
+            c == quote_char && (quote_char = nothing)
+        elseif c == '\'' || c == '"'
+            quote_char = c
+        elseif c in ('[', '(', '{')
+            depth += 1
+        elseif c in (']', ')', '}')
+            depth -= 1
+        elseif c == delim && depth == 0
+            push!(parts, s[start:prevind(s, i)])
+            start = nextind(s, i)
+        end
+    end
+    push!(parts, s[start:end])
+    return parts
+end
+
+"""Parse a single params value as a number, a list of numbers, or a string."""
+function _parse_param_value(val_str::AbstractString)
+    val_str = strip(val_str)
+    num = tryparse(Float64, val_str)
+    num !== nothing && return num
+    if startswith(val_str, "[") && endswith(val_str, "]")
+        isempty(strip(val_str[2:end-1])) && return Float64[]
+        try
+            return safe_parse_list(val_str)
+        catch
+        end
+    end
+    return strip(val_str, ['\'', '"'])
+end
+
 """
     load_params!()
 
@@ -615,21 +655,18 @@ function load_params!()
 
     if startswith(sparams, "{")
         # Python dict format: {'key': value, ...}
-        for m in eachmatch(r"['\"]([^'\"]+)['\"]\s*:\s*([^,}]+)", sparams)
-            key = m.captures[1]
-            val_str = strip(m.captures[2])
-            val = tryparse(Float64, val_str)
-            params[key] = val !== nothing ? val : strip(val_str, ['\'', '"'])
+        inner = endswith(sparams, "}") ? sparams[2:end-1] : sparams[2:end]
+        for item in _split_top_level(inner, ',')
+            m = match(r"^\s*['\"]([^'\"]+)['\"]\s*:(.*)$"s, item)
+            m === nothing && continue
+            params[m.captures[1]] = _parse_param_value(m.captures[2])
         end
     else
         # key=value;key2=value2 format
         for pair in split(sparams, ";")
             kv = split(strip(pair), "="; limit=2)
             length(kv) == 2 || continue
-            key = strip(kv[1])
-            val_str = strip(kv[2])
-            val = tryparse(Float64, val_str)
-            params[key] = val !== nothing ? val : val_str
+            params[strip(kv[1])] = _parse_param_value(kv[2])
         end
     end
 end
