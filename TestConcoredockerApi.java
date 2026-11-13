@@ -1,7 +1,10 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
+import org.zeromq.ZMQ;
+import org.zeromq.ZMQException;
 
 /**
  * Tests for concoredocker read(), write(), unchanged(), initVal()
@@ -27,6 +30,9 @@ public class TestConcoredockerApi {
         testReadFileNotFound();
         testReadRetriesExceeded();
         testReadParseError();
+        testReadTraversalBlocked();
+        testWriteTraversalBlocked();
+        testReqCanSendAfterMissingReply();
 
         System.out.println("\n=== Results: " + passed + " passed, " + failed + " failed out of " + (passed + failed) + " tests ===");
         if (failed > 0) {
@@ -44,9 +50,10 @@ public class TestConcoredockerApi {
         }
     }
 
+    /** Returns an "in" prefix inside a fresh temp dir, same as /in in a container. */
     static Path makeTempDir() {
         try {
-            return Files.createTempDirectory("concore_test_");
+            return Files.createTempDirectory("concore_test_").resolve("in");
         } catch (IOException e) {
             throw new RuntimeException("Failed to create temp dir", e);
         }
@@ -56,16 +63,20 @@ public class TestConcoredockerApi {
     static Path makeTempDir(int port) {
         Path tmp = makeTempDir();
         try {
-            Files.createDirectories(tmp.resolve(String.valueOf(port)));
+            Files.createDirectories(portDir(tmp, port));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         return tmp;
     }
 
+    static Path portDir(Path base, int port) {
+        return Paths.get(base.toString() + port);
+    }
+
     static void writeFile(Path base, int port, String name, String content) {
         try {
-            Path dir = base.resolve(String.valueOf(port));
+            Path dir = portDir(base, port);
             Files.createDirectories(dir);
             Files.write(dir.resolve(name), content.getBytes());
         } catch (IOException e) {
@@ -75,7 +86,7 @@ public class TestConcoredockerApi {
 
     static String readFile(Path base, int port, String name) {
         try {
-            return new String(Files.readAllBytes(base.resolve(String.valueOf(port)).resolve(name)));
+            return new String(Files.readAllBytes(portDir(base, port).resolve(name)));
         } catch (IOException e) {
             throw new RuntimeException("Failed to read test file", e);
         }
@@ -229,5 +240,51 @@ public class TestConcoredockerApi {
         concoredocker.ReadResult result = concoredocker.read(1, "bad", "[0.0, 0.0]");
         check("read parse error: status", concoredocker.ReadStatus.PARSE_ERROR, result.status);
         check("read parse error: data is default", 1, result.data.size());
+    }
+
+    static void testReadTraversalBlocked() {
+        Path tmp = makeTempDir();
+        concoredocker.resetState();
+        concoredocker.setInPath(tmp.toString());
+
+        concoredocker.ReadResult result = concoredocker.read(1, "../escape", "[0.0, 7.0]");
+        check("read traversal blocked: status", concoredocker.ReadStatus.PARSE_ERROR, result.status);
+        check("read traversal blocked: returns default", 1, result.data.size());
+    }
+
+    static void testWriteTraversalBlocked() {
+        Path tmp = makeTempDir(1);
+        concoredocker.resetState();
+        concoredocker.setOutPath(tmp.toString());
+
+        concoredocker.write(1, "../escape", Collections.singletonList((Object) 1.0), 0);
+        check("write traversal blocked: no escaped file", false, Files.exists(tmp.resolveSibling("escape")));
+    }
+
+    static void testReqCanSendAfterMissingReply() {
+        ZMQ.Context context = ZMQ.context(1);
+        ZMQ.Socket peer = context.socket(ZMQ.REP);
+        peer.setReceiveTimeOut(2000);
+        peer.setLinger(0);
+        int port = peer.bindToRandomPort("tcp://127.0.0.1");
+
+        concoredocker.terminateZmq();
+        try {
+            concoredocker.initZmqPort("request", "connect", "tcp://127.0.0.1:" + port, "REQ");
+            concoredocker.write("request", "signal", Collections.singletonList((Object) 1.0), 0);
+            check("REQ peer receives first request", true, peer.recvStr() != null);
+
+            boolean secondWriteSucceeded = true;
+            try {
+                concoredocker.write("request", "signal", Collections.singletonList((Object) 2.0), 0);
+            } catch (ZMQException e) {
+                secondWriteSucceeded = false;
+            }
+            check("REQ can send again when reply is missing", true, secondWriteSucceeded);
+        } finally {
+            concoredocker.terminateZmq();
+            peer.close();
+            context.term();
+        }
     }
 }

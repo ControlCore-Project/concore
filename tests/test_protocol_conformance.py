@@ -102,6 +102,8 @@ def _run_read_file_case(case):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             concore.simtime = case["input"]["initial_simtime"]
+            # fresh node, nothing written before this read (#608)
+            concore._write_base = None
             concore.inpath = os.path.join(temp_dir, "in")
             concore.delay = 0
 
@@ -116,7 +118,7 @@ def _run_read_file_case(case):
                 ) as f:
                     f.write(case["input"]["file_content"])
 
-            result, ok = concore.read(
+            result, ok = concore.read_with_status(
                 case["input"]["port"],
                 case["input"]["name"],
                 case["input"]["initstr_val"],

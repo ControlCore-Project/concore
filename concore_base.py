@@ -42,6 +42,11 @@ class ZeroMQPort:
         self.socket.setsockopt(zmq.SNDTIMEO, 2000)   # 2 sec send timeout
         self.socket.setsockopt(zmq.LINGER, 0)        # Drop pending messages on close
 
+        # Let REQ send again after a missed reply, and drop stale replies
+        if zmq_socket_type == zmq.REQ:
+            self.socket.setsockopt(zmq.REQ_RELAXED, 1)
+            self.socket.setsockopt(zmq.REQ_CORRELATE, 1)
+
         # Bind or connect
         if self.port_type == "bind":
             self.socket.bind(address)
@@ -194,6 +199,15 @@ def parse_params(sparams):
                 params[key] = value
     return params
 
+
+def _resolve_port_file_path(mod, base_path, port_num, name):
+    """Resolve a file path under a port directory and block path traversal."""
+    port_dir = os.path.abspath(mod._port_path(base_path, port_num))
+    file_path = os.path.abspath(os.path.join(port_dir, name))
+    if os.path.commonpath([port_dir, file_path]) != port_dir:
+        raise ValueError(f"Invalid file name '{name}' for port {port_num}")
+    return file_path
+
 def load_params(params_file):
     try:
         if os.path.exists(params_file):
@@ -238,22 +252,21 @@ def read(mod, port_identifier, name, initstr_val):
             Also sets ``concore.last_read_status`` (and
             ``concore_base.last_read_status``) to one of:
             SUCCESS, FILE_NOT_FOUND, TIMEOUT, PARSE_ERROR,
-            EMPTY_DATA, RETRIES_EXCEEDED.
+            READ_ERROR, RETRIES_EXCEEDED.
 
-    Backward compatibility:
-        Legacy callers that do ``value = concore.read(...)`` will
-        receive a tuple.  They can adapt with::
-
-            result = concore.read(...)
-            if isinstance(result, tuple):
-                value, ok = result
-            else:
-                value, ok = result, True
-
-        Alternatively, check ``concore.last_read_status`` after the
-        call.
+    Notes:
+        This low-level helper always returns ``(data, success_flag)``.
+        The wrapper modules expose:
+        - ``read()`` for backward-compatible data-only reads.
+        - ``read_with_status()`` for explicit ``(data, success_flag)``.
     """
     global last_read_status
+
+    # A write since the last read moves simtime forward now. Without this a
+    # node that only advances through its own writes can miss the end of the
+    # run when its peer resets the port (issue #608).
+    if getattr(mod, "_write_base", None) == mod.simtime:
+        mod.simtime = max(mod.simtime, mod._write_target)
 
     # Default return
     default_return_val = initstr_val
@@ -268,6 +281,7 @@ def read(mod, port_identifier, name, initstr_val):
         zmq_p = mod.zmq_ports[port_identifier]
         try:
             message = zmq_p.recv_json_with_retry()
+            mod.s += str(message)  # so unchanged() sees the new data
             # Strip simtime prefix if present (mirroring file-based read behavior)
             if isinstance(message, list) and len(message) > 0:
                 first_element = message[0]
@@ -293,14 +307,16 @@ def read(mod, port_identifier, name, initstr_val):
     # Case 2: File-based port
     try:
         file_port_num = int(port_identifier)
+        file_path = _resolve_port_file_path(mod, mod.inpath, file_port_num, name)
     except ValueError:
-        logger.error(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
+        logger.error(
+            f"Error: Invalid port identifier '{port_identifier}' or file name '{name}' "
+            f"for file operation. Must stay inside the port directory."
+        )
         last_read_status = "PARSE_ERROR"
         return default_return_val, False
 
     time.sleep(mod.delay) 
-    port_dir = mod._port_path(mod.inpath, file_port_num)
-    file_path = os.path.join(port_dir, name)
     ins = ""
 
     file_not_found = False
@@ -313,7 +329,7 @@ def read(mod, port_identifier, name, initstr_val):
         mod.s += ins  # Update s to break unchanged() loop
     except Exception as e:
         logger.error(f"Error reading {file_path}: {e}. Using default value.")
-        last_read_status = "FILE_NOT_FOUND"
+        last_read_status = "READ_ERROR"
         return default_return_val, False
 
     # Retry logic if file is empty
@@ -364,11 +380,23 @@ def read(mod, port_identifier, name, initstr_val):
         return default_return_val, False
 
 
+def _note_write(mod, delta):
+    """Remember how far this write moves time, read() applies it (#608).
+    Writes in the same step share one base, so they advance it only once."""
+    if getattr(mod, "_write_base", None) != mod.simtime:
+        mod._write_base = mod._write_target = mod.simtime
+    mod._write_target = max(mod._write_target, mod.simtime + delta)
+
+
 def write(mod, port_identifier, name, val, delta=0):
     """
     Write data either to ZMQ port or file.
     `val` is the data payload (list or string); write() prepends [simtime + delta] internally.
     """
+    # Tuples get the same simtime prefix as lists (see issue #605).
+    if isinstance(val, tuple):
+        val = list(val)
+
     # Case 1: ZMQ port
     if isinstance(port_identifier, str) and port_identifier in mod.zmq_ports:
         zmq_p = mod.zmq_ports[port_identifier]
@@ -381,6 +409,7 @@ def write(mod, port_identifier, name, val, delta=0):
                 zmq_p.send_json_with_retry(payload)
                 # simtime must not be mutated here.
                 # Mutation breaks cross-language determinism (see issue #385).
+                _note_write(mod, delta)
             else:
                 zmq_p.send_json_with_retry(zmq_val)
         except TimeoutError as e:
@@ -394,10 +423,12 @@ def write(mod, port_identifier, name, val, delta=0):
     # Case 2: File-based port
     try:
         file_port_num = int(port_identifier)
-        port_dir = mod._port_path(mod.outpath, file_port_num)
-        file_path = os.path.join(port_dir, name) 
+        file_path = _resolve_port_file_path(mod, mod.outpath, file_port_num, name)
     except ValueError:
-        logger.error(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
+        logger.error(
+            f"Error: Invalid port identifier '{port_identifier}' or file name '{name}' "
+            f"for file operation. Must stay inside the port directory."
+        )
         return
 
     # File writing rules
@@ -416,6 +447,7 @@ def write(mod, port_identifier, name, val, delta=0):
                 outfile.write(str(data_to_write))
                 # simtime must not be mutated here.
                 # Mutation breaks cross-language determinism (see issue #385).
+                _note_write(mod, delta)
             else: 
                 outfile.write(val)
     except Exception as e:

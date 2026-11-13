@@ -44,6 +44,14 @@ class TestSafeLiteralEval:
         assert result == "fallback"
 
 
+class TestDockerPaths:
+    def test_port_path_matches_docker_mounts(self):
+        from concoredocker import _port_path
+
+        assert _port_path("/in", 1) == "/in1"
+        assert _port_path("/out", 2) == "/out2"
+
+
 class TestUnchanged:
     def test_returns_true_when_unchanged(self):
         import concoredocker
@@ -89,9 +97,10 @@ class TestWrite:
         import concoredocker
 
         old_outpath = concoredocker.outpath
-        outdir = os.path.join(temp_dir, "1")
+        outpath = os.path.join(temp_dir, "out")
+        outdir = outpath + "1"
         os.makedirs(outdir)
-        concoredocker.outpath = temp_dir
+        concoredocker.outpath = outpath
         concoredocker.simtime = 5.0
 
         concoredocker.write(1, "testfile", [1.0, 2.0], delta=0)
@@ -105,9 +114,10 @@ class TestWrite:
         import concoredocker
 
         old_outpath = concoredocker.outpath
-        outdir = os.path.join(temp_dir, "1")
+        outpath = os.path.join(temp_dir, "out")
+        outdir = outpath + "1"
         os.makedirs(outdir)
-        concoredocker.outpath = temp_dir
+        concoredocker.outpath = outpath
         concoredocker.simtime = 10.0
 
         concoredocker.write(1, "testfile", [3.0], delta=2)
@@ -126,9 +136,10 @@ class TestRead:
 
         old_inpath = concoredocker.inpath
         old_delay = concoredocker.delay
-        indir = os.path.join(temp_dir, "1")
+        inpath = os.path.join(temp_dir, "in")
+        indir = inpath + "1"
         os.makedirs(indir)
-        concoredocker.inpath = temp_dir
+        concoredocker.inpath = inpath
         concoredocker.delay = 0.001
 
         with open(os.path.join(indir, "data"), "w") as f:
@@ -136,7 +147,7 @@ class TestRead:
 
         concoredocker.s = ""
         concoredocker.simtime = 0
-        result, ok = concoredocker.read(1, "data", "[0, 0, 0]")
+        result, ok = concoredocker.read_with_status(1, "data", "[0, 0, 0]")
 
         assert result == [100, 200]
         assert ok is True
@@ -149,14 +160,15 @@ class TestRead:
 
         old_inpath = concoredocker.inpath
         old_delay = concoredocker.delay
-        indir = os.path.join(temp_dir, "1")
+        inpath = os.path.join(temp_dir, "in")
+        indir = inpath + "1"
         os.makedirs(indir)
-        concoredocker.inpath = temp_dir
+        concoredocker.inpath = inpath
         concoredocker.delay = 0.001
 
         concoredocker.s = ""
         concoredocker.simtime = 0
-        result, ok = concoredocker.read(1, "nofile", "[0, 5, 5]")
+        result, ok = concoredocker.read_with_status(1, "nofile", "[0, 5, 5]")
 
         assert result == [5, 5]
         assert ok is False
@@ -204,7 +216,7 @@ class TestZMQ:
         concoredocker.zmq_ports["test_zmq"] = DummyPort()
         concoredocker.simtime = 0
 
-        result, ok = concoredocker.read("test_zmq", "data", "[]")
+        result, ok = concoredocker.read_with_status("test_zmq", "data", "[]")
 
         assert result == [4.0, 5.0]
         assert ok is True
@@ -223,6 +235,21 @@ class TestZMQ:
         concoredocker.read("test_zmq", "data", "[]")
 
         assert concoredocker.simtime == 5.0
+
+    def test_read_breaks_unchanged(self, monkeypatch):
+        import concoredocker
+
+        class DummyPort:
+            def recv_json_with_retry(self):
+                return [1.0, 10.0]
+
+        concoredocker.zmq_ports["test_zmq"] = DummyPort()
+        monkeypatch.setattr(concoredocker, "s", "")
+        monkeypatch.setattr(concoredocker, "olds", "")
+
+        assert concoredocker.unchanged() is True
+        concoredocker.read("test_zmq", "data", "[0]")
+        assert concoredocker.unchanged() is False
 
     def test_write_read_roundtrip(self):
         import concoredocker
@@ -243,7 +270,7 @@ class TestZMQ:
 
         original = [1.5, 2.5, 3.5]
         concoredocker.write("roundtrip", "data", original)
-        result, ok = concoredocker.read("roundtrip", "data", "[]")
+        result, ok = concoredocker.read_with_status("roundtrip", "data", "[]")
 
         assert result == original
         assert ok is True
@@ -278,7 +305,7 @@ class TestZMQRetryExhaustion:
             concoredocker.zmq_ports["t_in"] = TimeoutPort()
             concoredocker.simtime = 0
 
-            result, ok = concoredocker.read("t_in", "x", "[0.0]")
+            result, ok = concoredocker.read_with_status("t_in", "x", "[0.0]")
 
             assert result == [0.0]
             assert ok is False

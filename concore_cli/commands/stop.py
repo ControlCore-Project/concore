@@ -4,6 +4,8 @@ import subprocess
 import sys
 from rich.panel import Panel
 
+from concore_cli.commands._process_match import is_concore_process
+
 
 def stop_all(console):
     console.print("[cyan]Finding concore processes...[/cyan]\n")
@@ -18,20 +20,13 @@ def stop_all(console):
                     continue
 
                 cmdline = proc.info.get("cmdline") or []
-                name = proc.info.get("name", "").lower()
-                cmdline_str = " ".join(cmdline) if cmdline else ""
 
-                is_concore = (
-                    "concore" in cmdline_str.lower()
-                    or "concore.py" in cmdline_str.lower()
-                    or any("concorekill.bat" in str(item) for item in cmdline)
-                    or (
-                        name in ["python.exe", "python", "python3"]
-                        and "concore" in cmdline_str
-                    )
-                )
+                try:
+                    cwd = proc.cwd()
+                except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
+                    cwd = None
 
-                if is_concore:
+                if is_concore_process(cmdline, cwd):
                     processes_to_kill.append(proc)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 # Process already exited or access denied; continue

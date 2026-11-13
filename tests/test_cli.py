@@ -2,10 +2,15 @@ import unittest
 import tempfile
 import shutil
 import os
+import subprocess
+import sys
 import json
 from pathlib import Path
+from unittest.mock import patch
 from click.testing import CliRunner
 from concore_cli.cli import cli
+
+cli_module = sys.modules[cli.callback.__module__]
 
 
 class TestConcoreCLI(unittest.TestCase):
@@ -53,6 +58,19 @@ class TestConcoreCLI(unittest.TestCase):
             result = self.runner.invoke(cli, ["init", "existing"])
             self.assertNotEqual(result.exit_code, 0)
             self.assertIn("already exists", result.output)
+
+    def test_init_rejects_path_like_name(self):
+        # init must not create the project outside the current directory (#588)
+        for args in (["init", "../x"], ["init", "../x", "--interactive"]):
+            with self.subTest(args=args):
+                with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+                    with patch.object(
+                        cli_module, "run_wizard", return_value=["python"]
+                    ):
+                        result = self.runner.invoke(cli, args)
+                    self.assertNotEqual(result.exit_code, 0)
+                    self.assertIn("path separators", result.output)
+                    self.assertFalse(Path("../x").exists())
 
     def test_validate_missing_file(self):
         result = self.runner.invoke(cli, ["validate", "nonexistent.graphml"])
@@ -122,6 +140,56 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertEqual(payload["errors"][0]["error_type"], "missing_source_file")
             self.assertEqual(payload["errors"][0]["node_id"], "n1")
 
+    def test_validate_source_relative_to_cwd(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            Path("test-project/src/script.py").unlink()
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "validate",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--format",
+                    "json",
+                ],
+            )
+            self.assertNotEqual(result.exit_code, 0)
+
+            payload = json.loads(result.output)
+            self.assertEqual(payload["errors"][0]["error_type"], "missing_source_file")
+            self.assertEqual(Path(payload["source_dir"]), Path("test-project/src"))
+
+    def test_validate_json_output_for_node_without_label(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("src").mkdir()
+            Path("workflow.graphml").write_text(
+                """<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:y="http://www.yworks.com/xml/graphml">
+  <graph id="G" edgedefault="directed">
+    <node id="n1"></node>
+  </graph>
+</graphml>
+"""
+            )
+
+            result = self.runner.invoke(
+                cli, ["validate", "workflow.graphml", "--format", "json"]
+            )
+
+            payload = json.loads(result.output)
+            warning = next(
+                w
+                for w in payload["warnings"]
+                if w["error_type"] == "missing_node_label"
+            )
+            self.assertEqual(warning["node_id"], "n1")
+            self.assertEqual(payload["summary"]["nodes_affected"], ["n1"])
+
     def test_status_command(self):
         result = self.runner.invoke(cli, ["status"])
         self.assertEqual(result.exit_code, 0)
@@ -134,6 +202,101 @@ class TestConcoreCLI(unittest.TestCase):
                 ["build", "test-project/workflow.graphml", "--source", "nonexistent"],
             )
             self.assertNotEqual(result.exit_code, 0)
+
+    def test_build_command_default_source_next_to_workflow(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertTrue(Path("out/src/script.py").exists())
+
+    def test_build_command_rejects_edge_label_with_multiple_sources(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("src").mkdir()
+            for name in ["a.py", "b.py", "c.py"]:
+                Path("src", name).write_text("import concore\n")
+            Path("workflow.graphml").write_text(
+                '<graphml xmlns:y="http://www.yworks.com/xml/graphml">\n'
+                '<graph id="G" edgedefault="directed">\n'
+                '<node id="n0"><data key="d0"><y:NodeLabel>A:a.py</y:NodeLabel></data></node>\n'
+                '<node id="n1"><data key="d0"><y:NodeLabel>B:b.py</y:NodeLabel></data></node>\n'
+                '<node id="n2"><data key="d0"><y:NodeLabel>C:c.py</y:NodeLabel></data></node>\n'
+                '<edge source="n0" target="n2"><data key="d1"><y:EdgeLabel>shared</y:EdgeLabel></data></edge>\n'
+                '<edge source="n1" target="n2"><data key="d1"><y:EdgeLabel>shared</y:EdgeLabel></data></edge>\n'
+                "</graph>\n"
+                "</graphml>\n"
+            )
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "workflow.graphml",
+                    "--source",
+                    "src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertNotEqual(result.exit_code, 0)
+            self.assertIn("Edge label 'shared' has more than one source", result.output)
+
+    @unittest.skipIf(os.name == "nt", "runs the generated bash scripts")
+    def test_build_command_posix_clear_empties_every_edge(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("src").mkdir()
+            for name in ["a.py", "b.py"]:
+                Path("src", name).write_text("import concore\n")
+            Path("workflow.graphml").write_text(
+                '<graphml xmlns:y="http://www.yworks.com/xml/graphml">\n'
+                '<graph id="G" edgedefault="directed">\n'
+                '<node id="n0"><data key="d0"><y:NodeLabel>A:a.py</y:NodeLabel></data></node>\n'
+                '<node id="n1"><data key="d0"><y:NodeLabel>B:b.py</y:NodeLabel></data></node>\n'
+                '<edge source="n0" target="n1"><data key="d1"><y:EdgeLabel>y</y:EdgeLabel></data></edge>\n'
+                '<edge source="n1" target="n0"><data key="d1"><y:EdgeLabel>u</y:EdgeLabel></data></edge>\n'
+                '<edge source="n1" target="n0"><data key="d1"><y:EdgeLabel>u2</y:EdgeLabel></data></edge>\n'
+                "</graph>\n"
+                "</graphml>\n"
+            )
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "workflow.graphml",
+                    "--source",
+                    "src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            out = Path("out")
+            subprocess.run(["./build"], cwd=out, check=True, capture_output=True)
+            for edge in ["y", "u", "u2"]:
+                (out / edge / "data").write_text("[0, 1.0]")
+
+            cleared = subprocess.run(["./clear"], cwd=out, capture_output=True)
+            self.assertEqual(cleared.returncode, 0, cleared.stderr)
+            for edge in ["y", "u", "u2"]:
+                self.assertEqual(list((out / edge).iterdir()), [], edge)
 
     def test_build_command_from_project_dir(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
@@ -184,6 +347,65 @@ class TestConcoreCLI(unittest.TestCase):
                 self.assertTrue(Path("out/build.bat").exists())
             else:
                 self.assertTrue(Path("out/build").exists())
+
+    def test_build_command_quotes_posix_tool_path_with_spaces(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            with patch.dict(
+                os.environ,
+                {"CONCORE_PYTHONEXE": "/opt/custom tools/python3"},
+                clear=False,
+            ):
+                result = self.runner.invoke(
+                    cli,
+                    [
+                        "build",
+                        "test-project/workflow.graphml",
+                        "--source",
+                        "test-project/src",
+                        "--output",
+                        "out",
+                        "--type",
+                        "posix",
+                    ],
+                )
+
+            self.assertEqual(result.exit_code, 0)
+            run_script = Path("out/run").read_text()
+            self.assertIn("'/opt/custom tools/python3' script.py", run_script)
+
+    def test_build_command_quotes_windows_tool_path_with_spaces(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            with patch.dict(
+                os.environ,
+                {"CONCORE_PYTHONWIN": r"C:\Program Files\Python313\python.exe"},
+                clear=False,
+            ):
+                result = self.runner.invoke(
+                    cli,
+                    [
+                        "build",
+                        "test-project/workflow.graphml",
+                        "--source",
+                        "test-project/src",
+                        "--output",
+                        "out",
+                        "--type",
+                        "windows",
+                    ],
+                )
+
+            self.assertEqual(result.exit_code, 0)
+            run_script = Path("out/run.bat").read_text()
+            self.assertIn(
+                '"C:\\Program Files\\Python313\\python.exe" "script.py"',
+                run_script,
+            )
 
     def test_build_command_nested_output_path(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
@@ -323,9 +545,224 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("services:", compose_content)
             self.assertIn("container_name: 'N1'", compose_content)
             self.assertIn("image: 'docker-script'", compose_content)
+            self.assertIn("networks:", compose_content)
+            self.assertIn("concore_net:", compose_content)
+            self.assertIn("- concore_net", compose_content)
+            self.assertIn("restart: on-failure", compose_content)
 
             metadata = json.loads(Path("out/STUDY.json").read_text())
             self.assertIn("docker-compose.yml", metadata["checksums"])
+
+    def test_build_command_docker_compose_julia_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            script_path = Path("test-project/src/script.py")
+            script_path.rename("test-project/src/script.jl")
+            Path("test-project/src/script.jl").write_text(
+                'include("concore.jl")\nusing .Concore\n'
+            )
+
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.jl"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "docker",
+                    "--compose",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            docker_runtime = Path(__file__).resolve().parents[1] / "concoredocker.jl"
+            self.assertEqual(
+                Path("out/src/concore.jl").read_text(), docker_runtime.read_text()
+            )
+
+            dockerfile = Path("out/src/Dockerfile.script").read_text()
+            self.assertIn("FROM julia:1.10", dockerfile)
+            self.assertIn('CMD ["julia", "script.jl"]', dockerfile)
+
+            build_script = Path("out/build").read_text()
+            self.assertIn("cp ../src/script.jl .", build_script)
+            self.assertIn("cp ../src/concore.jl .", build_script)
+
+            compose_content = Path("out/docker-compose.yml").read_text()
+            self.assertIn("container_name: 'N1'", compose_content)
+            self.assertIn("image: 'docker-script'", compose_content)
+
+    def test_build_command_posix_java_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            script_path = Path("test-project/src/script.py")
+            script_path.rename("test-project/src/script.java")
+            Path("test-project/src/script.java").write_text(
+                "public class script {\n"
+                "    public static void main(String[] args) {\n"
+                "        concore.defaultMaxTime(10);\n"
+                "    }\n"
+                "}\n"
+            )
+
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.java"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            repo_root = Path(__file__).resolve().parents[1]
+            self.assertEqual(
+                Path("out/src/concore.java").read_text(),
+                (repo_root / "concore.java").read_text(),
+            )
+            self.assertEqual(
+                Path("out/src/ConcoreJavaRuntimeCore.java").read_text(),
+                (repo_root / "ConcoreJavaRuntimeCore.java").read_text(),
+            )
+
+            build_script = Path("out/build").read_text()
+            self.assertIn("curl -fsSL -o ./src/jeromq.jar", build_script)
+            self.assertIn("cp ./src/concore.java ./N1/concore.java", build_script)
+
+            run_script = Path("out/run").read_text()
+            self.assertIn(
+                "javac -cp .:../src/jeromq.jar -d . script.java "
+                "concore.java ../src/ConcoreJavaRuntimeCore.java",
+                run_script,
+            )
+
+            debug_script = Path("out/debug").read_text()
+            self.assertIn(
+                "javac -cp .:../src/jeromq.jar -d . script.java "
+                "concore.java ../src/ConcoreJavaRuntimeCore.java",
+                debug_script,
+            )
+
+    def test_build_command_windows_java_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            script_path = Path("test-project/src/script.py")
+            script_path.rename("test-project/src/script.java")
+            Path("test-project/src/script.java").write_text(
+                "public class script {\n"
+                "    public static void main(String[] args) {\n"
+                "        concore.defaultMaxTime(10);\n"
+                "    }\n"
+                "}\n"
+            )
+
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.java"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "windows",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            build_script = Path("out/build.bat").read_text()
+            self.assertIn("Invoke-WebRequest", build_script)
+            self.assertTrue(Path("out/src/ConcoreJavaRuntimeCore.java").exists())
+
+            run_script = Path("out/run.bat").read_text()
+            self.assertIn(
+                '"javac" -cp .;..\\src\\jeromq.jar -d . "script.java" '
+                "concore.java ..\\src\\ConcoreJavaRuntimeCore.java",
+                run_script,
+            )
+
+    def test_build_command_docker_java_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            script_path = Path("test-project/src/script.py")
+            script_path.rename("test-project/src/script.java")
+            Path("test-project/src/script.java").write_text(
+                "public class script {\n"
+                "    public static void main(String[] args) {\n"
+                "        concoredocker.defaultMaxTime(10);\n"
+                "    }\n"
+                "}\n"
+            )
+
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.java"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "docker",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            repo_root = Path(__file__).resolve().parents[1]
+            self.assertEqual(
+                Path("out/src/concoredocker.java").read_text(),
+                (repo_root / "concoredocker.java").read_text(),
+            )
+            self.assertEqual(
+                Path("out/src/ConcoreJavaRuntimeCore.java").read_text(),
+                (repo_root / "ConcoreJavaRuntimeCore.java").read_text(),
+            )
+
+            dockerfile = Path("out/src/Dockerfile.script").read_text()
+            self.assertIn("FROM eclipse-temurin:17-jdk-alpine", dockerfile)
+            self.assertIn(
+                'CMD ["java", "-cp", "/app:/app/jeromq.jar", "script"]',
+                dockerfile,
+            )
+            self.assertNotIn("mtmiller/octave", dockerfile)
+
+            build_script = Path("out/build").read_text()
+            self.assertIn("cp ../src/concoredocker.java .", build_script)
+            self.assertIn("cp ../src/ConcoreJavaRuntimeCore.java .", build_script)
 
     def test_build_command_docker_compose_multi_node(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
@@ -370,6 +807,35 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("container_name: 'B'", compose_content)
             self.assertIn("container_name: 'C'", compose_content)
             self.assertIn("image: 'docker-common'", compose_content)
+
+    def test_build_command_docker_requirements_injection(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            Path("requirements.txt").write_text("pandas==1.0.0")
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "docker",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            req_path = Path("out/src/requirements.txt")
+            self.assertTrue(req_path.exists())
+            self.assertEqual(req_path.read_text(), "pandas==1.0.0")
+
+            build_script = Path("out/build").read_text()
+            self.assertIn("cp ../src/requirements.txt .", build_script)
 
     def test_build_command_shared_source_specialization_merges_edge_params(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
@@ -434,6 +900,33 @@ class TestConcoreCLI(unittest.TestCase):
             )
             self.assertIn("already exists", result.output.lower())
 
+    def test_build_command_fails_on_unsupported_extension(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            Path("test-project/src/script.py").rename("test-project/src/script.rb")
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.rb"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertNotEqual(result.exit_code, 0)
+            self.assertIn("Extension .rb is unsupported", result.output)
+            self.assertFalse(Path("out/STUDY.json").exists())
+
     def test_inspect_command_basic(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
@@ -481,6 +974,69 @@ class TestConcoreCLI(unittest.TestCase):
             )
             self.assertEqual(result.exit_code, 0)
             self.assertIn("Missing files", result.output)
+
+    def test_inspect_source_relative_to_cwd(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "inspect",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--json",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+            self.assertEqual(json.loads(result.output)["missing_files"], [])
+
+    def test_watch_rejects_negative_interval(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            os.mkdir("study")
+            result = self.runner.invoke(cli, ["watch", "study", "--interval", "-1"])
+            self.assertEqual(result.exit_code, 1)
+            self.assertIn("--interval must be greater than 0", result.output)
+
+    def test_watch_rejects_zero_interval(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            os.mkdir("study")
+            result = self.runner.invoke(cli, ["watch", "study", "--interval", "0"])
+            self.assertEqual(result.exit_code, 1)
+            self.assertIn("--interval must be greater than 0", result.output)
+
+    def test_inspect_invalid_graphml_exits_nonzero(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("notes.txt").write_text("not graphml")
+            for args in (["inspect", "notes.txt"], ["inspect", "notes.txt", "--json"]):
+                with self.subTest(args=args):
+                    result = self.runner.invoke(cli, args)
+                    self.assertEqual(result.exit_code, 1)
+                    self.assertIn("Not a valid GraphML file", result.output)
+
+    def test_watch_file_instead_of_dir_exits_nonzero(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("notes.txt").write_text("hi")
+            result = self.runner.invoke(cli, ["watch", "notes.txt", "--once"])
+            self.assertEqual(result.exit_code, 1)
+            self.assertIn("is not a directory", result.output)
+
+    def test_watch_skips_runtime_files_when_detecting_source(self):
+        from concore_cli.commands.watch import _detect_source
+
+        cases = {
+            "pidM.m": ["import_concore.m", "concore_read.m"],
+            "Plant.java": ["ConcoreJavaRuntimeCore.java", "concoredocker.java"],
+        }
+        for source, runtime_files in cases.items():
+            with self.subTest(source=source):
+                node = Path(self.temp_dir) / source.split(".")[0]
+                node.mkdir()
+                for name in [source] + runtime_files:
+                    (node / name).write_text("")
+                self.assertEqual(_detect_source(node), source)
 
 
 if __name__ == "__main__":

@@ -36,7 +36,7 @@ outpath = os.path.abspath("/out")
 simtime = 0
 
 def _port_path(base, port_num):
-    return os.path.join(base, str(port_num))
+    return base + str(port_num)
 
 concore_params_file = os.path.join(_port_path(inpath, 1), "concore.params")
 concore_maxtime_file = os.path.join(_port_path(inpath, 1), "concore.maxtime")
@@ -92,6 +92,12 @@ def unchanged():
 # I/O Handling (File + ZMQ)
 # ===================================================================
 def read(port_identifier, name, initstr_val):
+    global last_read_status
+    result, _ok = concore_base.read(_mod, port_identifier, name, initstr_val)
+    last_read_status = concore_base.last_read_status
+    return result
+
+def read_with_status(port_identifier, name, initstr_val):
     global last_read_status
     result = concore_base.read(_mod, port_identifier, name, initstr_val)
     last_read_status = concore_base.last_read_status

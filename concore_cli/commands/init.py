@@ -258,8 +258,14 @@ def _build_graphml(project_name, selected_langs):
 # ---------------------------------------------------------------------------
 
 
+def _check_project_name(name):
+    if name in (".", "..") or Path(name).name != name:
+        raise ValueError("Project name must not contain path separators")
+
+
 def init_project_interactive(name, selected_langs, console):
     """Create a project with one node per selected language (no edges)."""
+    _check_project_name(name)
     project_path = Path(name)
 
     if project_path.exists():
@@ -327,6 +333,7 @@ def init_project_interactive(name, selected_langs, console):
 
 def init_project(name, template, console):
     """Non-interactive init — single Python node skeleton."""
+    _check_project_name(name)
     project_path = Path(name)
 
     if project_path.exists():

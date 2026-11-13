@@ -5,14 +5,17 @@ from rich.tree import Tree
 from collections import defaultdict
 import re
 
+from ._source_dir import resolve_source_dir
+
 
 def inspect_workflow(workflow_file, source_dir, output_json, console):
     workflow_path = Path(workflow_file)
+    source_dir = resolve_source_dir(workflow_path, source_dir)
 
     if output_json:
         return _inspect_json(workflow_path, source_dir)
 
-    _inspect_rich(workflow_path, source_dir, console)
+    return _inspect_rich(workflow_path, source_dir, console)
 
 
 def _inspect_rich(workflow_path, source_dir, console):
@@ -28,7 +31,7 @@ def _inspect_rich(workflow_path, source_dir, console):
 
         if not soup.find("graphml"):
             console.print("[red]Not a valid GraphML file[/red]")
-            return
+            return False
 
         nodes = soup.find_all("node")
         edges = soup.find_all("edge")
@@ -61,8 +64,7 @@ def _inspect_rich(workflow_path, source_dir, console):
                     else:
                         lang_counts["Other"] += 1
 
-                    src_dir = workflow_path.parent / source_dir
-                    if not (src_dir / filename).exists():
+                    if not (source_dir / filename).exists():
                         missing_files.append(filename)
 
         nodes_branch = tree.add(f"Nodes: [bold]{len(nodes)}[/bold]")
@@ -133,8 +135,7 @@ def _inspect_rich(workflow_path, source_dir, console):
                         }
                         lang = lang_map.get(ext, "Other")
 
-                        src_dir = workflow_path.parent / source_dir
-                        status = "✓" if (src_dir / filename).exists() else "✗"
+                        status = "✓" if (source_dir / filename).exists() else "✗"
 
                         table.add_row(node_id, filename, lang, status)
 
@@ -172,8 +173,12 @@ def _inspect_rich(workflow_path, source_dir, console):
 
     except FileNotFoundError:
         console.print(f"[red]File not found:[/red] {workflow_path}")
+        return False
     except Exception as e:
         console.print(f"[red]Inspection failed:[/red] {str(e)}")
+        return False
+
+    return True
 
 
 def _inspect_json(workflow_path, source_dir):
@@ -187,7 +192,7 @@ def _inspect_json(workflow_path, source_dir):
 
         if not soup.find("graphml"):
             print(json.dumps({"error": "Not a valid GraphML file"}, indent=2))
-            return
+            return False
 
         nodes = soup.find_all("node")
         edges = soup.find_all("edge")
@@ -216,8 +221,7 @@ def _inspect_json(workflow_path, source_dir):
                     lang = lang_map.get(ext, "other")
                     lang_counts[lang] += 1
 
-                    src_dir = workflow_path.parent / source_dir
-                    exists = (src_dir / filename).exists()
+                    exists = (source_dir / filename).exists()
                     if not exists:
                         missing_files.append(filename)
 
@@ -269,3 +273,6 @@ def _inspect_json(workflow_path, source_dir):
 
     except Exception as e:
         print(json.dumps({"error": str(e)}, indent=2))
+        return False
+
+    return True

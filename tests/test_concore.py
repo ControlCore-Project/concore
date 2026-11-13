@@ -69,6 +69,40 @@ class TestZeroMQPort:
 
         assert ZeroMQPort is not None
 
+    @patch("concore_base.time.sleep")
+    def test_req_recovers_after_missing_reply(self, _mock_sleep):
+        """Issue #598 – a REQ port must be able to send again after a
+        receive timeout, and a late reply must not be returned."""
+        import zmq
+        import concore_base
+
+        ctx = zmq.Context()
+        peer = ctx.socket(zmq.REP)
+        peer.setsockopt(zmq.LINGER, 0)
+        peer.setsockopt(zmq.RCVTIMEO, 2000)
+        port_num = peer.bind_to_random_port("tcp://127.0.0.1")
+        req = concore_base.ZeroMQPort(
+            "connect", f"tcp://127.0.0.1:{port_num}", zmq.REQ, ctx
+        )
+        req.socket.setsockopt(zmq.RCVTIMEO, 50)
+        try:
+            req.send_json_with_retry([0, 1.0])
+            assert peer.recv_json() == [0, 1.0]
+            with pytest.raises(TimeoutError):
+                req.recv_json_with_retry()
+
+            req.send_json_with_retry([0, 2.0])
+            peer.send_json("stale")
+            assert peer.recv_json() == [0, 2.0]
+            peer.send_json("fresh")
+
+            req.socket.setsockopt(zmq.RCVTIMEO, 2000)
+            assert req.recv_json_with_retry() == "fresh"
+        finally:
+            req.socket.close()
+            peer.close()
+            ctx.term()
+
 
 class TestDefaultConfiguration:
     def test_default_input_path(self):
@@ -196,6 +230,22 @@ class TestUnchanged:
         assert concore.unchanged() is False
         assert concore.olds == "new"
 
+    def test_unchanged_returns_false_after_zmq_read(self, monkeypatch):
+        """Issue #612 – a successful ZMQ read must count as new data."""
+        import concore
+
+        class DummyPort:
+            def recv_json_with_retry(self):
+                return [1.0, 10.0]
+
+        monkeypatch.setitem(concore.zmq_ports, "test_zmq", DummyPort())
+        concore.s = ""
+        concore.olds = ""
+
+        assert concore.unchanged() is True
+        concore.read("test_zmq", "u", "[0]")
+        assert concore.unchanged() is False
+
 
 class TestParseParams:
     def test_simple_key_value_pairs(self):
@@ -300,9 +350,64 @@ class TestWriteZMQ:
         concore.write("roundtrip_test", "data", original_data)
 
         # Read should return original data (simtime stripped) plus success flag
-        result, ok = concore.read("roundtrip_test", "data", "[]")
+        result, ok = concore.read_with_status("roundtrip_test", "data", "[]")
         assert result == original_data
         assert ok is True
+
+
+class TestWriteTuple:
+    """Regression tests for issue #605: tuples get the simtime prefix like lists."""
+
+    @pytest.fixture(autouse=True)
+    def reset_state(self):
+        import concore
+
+        old_simtime = concore.simtime
+        old_outpath = concore.outpath
+        original_ports = concore.zmq_ports.copy()
+        yield
+        concore.simtime = old_simtime
+        concore.outpath = old_outpath
+        concore.zmq_ports.clear()
+        concore.zmq_ports.update(original_ports)
+
+    def test_zmq_write_tuple_prepends_simtime(self):
+        import concore
+
+        class DummyZMQPort:
+            def __init__(self):
+                self.buffer = None
+
+            def send_json_with_retry(self, message):
+                self.buffer = message
+
+            def recv_json_with_retry(self):
+                return self.buffer
+
+        dummy = DummyZMQPort()
+        concore.zmq_ports["tuple_test"] = dummy
+
+        concore.simtime = 5
+        concore.write("tuple_test", "data", (1.5, 2.0))
+        assert dummy.buffer == [5, 1.5, 2.0]
+
+        concore.simtime = 0
+        result = concore.read("tuple_test", "data", "[0, 0]")
+        assert result == [1.5, 2.0]
+        assert concore.last_read_status == "SUCCESS"
+        assert concore.simtime == 5
+
+    def test_file_write_tuple_prepends_simtime(self, temp_dir):
+        import concore
+
+        concore.simtime = 5
+        os.makedirs(os.path.join(temp_dir, "out1"), exist_ok=True)
+        concore.outpath = os.path.join(temp_dir, "out")
+
+        concore.write(1, "data", (1.5, 2.0))
+
+        with open(os.path.join(temp_dir, "out1", "data")) as f:
+            assert f.read() == "[5, 1.5, 2.0]"
 
 
 class TestSimtimeNotMutatedByWrite:
@@ -454,6 +559,69 @@ class TestSimtimeNotMutatedByWrite:
         )
 
 
+class TestWriteAdvancesSimtimeOnNextRead:
+    """Issue #608: write() leaves simtime alone (#385), but the next read()
+    moves it up to simtime + delta. Otherwise a node that only advances
+    through its own writes can miss the end of the run."""
+
+    @pytest.fixture(autouse=True)
+    def restore_state(self, temp_dir):
+        import concore
+
+        saved = (concore.simtime, concore.delay, concore.inpath, concore.outpath)
+        concore.delay = 0
+        concore.inpath = os.path.join(temp_dir, "in")
+        concore.outpath = os.path.join(temp_dir, "out")
+        os.makedirs(os.path.join(temp_dir, "in1"))
+        os.makedirs(os.path.join(temp_dir, "out1"))
+        yield
+        concore.simtime, concore.delay, concore.inpath, concore.outpath = saved
+
+    def test_read_after_write_moves_simtime_forward(self):
+        import concore
+
+        concore.simtime = 10
+        concore.write(1, "u", [1.0], delta=1)
+        assert concore.simtime == 10
+        concore.read(1, "missing", "[0.0, 5.0]")
+        assert concore.simtime == 11
+
+    def test_several_writes_in_one_step_advance_once(self):
+        import concore
+
+        concore.simtime = 10
+        concore.write(1, "u", [1.0], delta=1)
+        concore.write(1, "v", [2.0], delta=2)
+        concore.write(1, "w", [3.0], delta=1)
+        concore.read(1, "missing", "[0.0, 5.0]")
+        assert concore.simtime == 12
+
+    def test_zmq_write_moves_simtime_forward_on_next_read(self):
+        import concore
+
+        class DummyPort:
+            def send_json_with_retry(self, msg):
+                self.sent = msg
+
+        concore.zmq_ports["advance_test"] = DummyPort()
+        try:
+            concore.simtime = 10
+            concore.write("advance_test", "u", [1.0], delta=2)
+            concore.read(1, "missing", "[0.0, 5.0]")
+        finally:
+            del concore.zmq_ports["advance_test"]
+        assert concore.simtime == 12
+
+    def test_simtime_set_by_hand_after_write_is_kept(self):
+        import concore
+
+        concore.simtime = 10
+        concore.write(1, "u", [1.0], delta=1)
+        concore.simtime = 3
+        concore.read(1, "missing", "[0.0, 5.0]")
+        assert concore.simtime == 3
+
+
 class TestZMQRetryExhaustion:
     """Issue #393 – recv_json_with_retry / send_json_with_retry must raise
     TimeoutError instead of silently returning None when retries are
@@ -520,7 +688,7 @@ class TestZMQRetryExhaustion:
             concore.zmq_ports["t_in"] = TimeoutPort()
             concore.simtime = 0
 
-            result, ok = concore.read("t_in", "x", "[0.0]")
+            result, ok = concore.read_with_status("t_in", "x", "[0.0]")
 
             assert result == [0.0]
             assert ok is False
@@ -580,6 +748,21 @@ class TestZMQRetryExhaustion:
                 concore.simtime = orig_simtime
             elif hasattr(concore, "simtime"):
                 delattr(concore, "simtime")
+
+
+class TestFilePathTraversalGuard:
+    """File write should not allow escaping the target port directory."""
+
+    def test_file_write_blocks_traversal_name(self, temp_dir):
+        import concore
+
+        concore.simtime = 0
+        concore.outpath = os.path.join(temp_dir, "out")
+        os.makedirs(os.path.join(temp_dir, "out1"), exist_ok=True)
+
+        concore.write(1, "../escape.txt", [1.0], delta=0)
+
+        assert not os.path.exists(os.path.join(temp_dir, "escape.txt"))
 
 
 class TestPidRegistry:
@@ -667,9 +850,36 @@ class TestPidRegistry:
         with open(_KILL_SCRIPT_FILE) as f:
             content = f.read()
         assert os.path.basename(_PID_REGISTRY_FILE) in content
-        assert "wmic" in content
+        assert "wmic" not in content
+        assert "Get-CimInstance" in content
         assert "taskkill" in content
         assert "concore" in content.lower()
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+    def test_kill_script_kills_concore_process(self):
+        import subprocess
+        from concore import _write_kill_script, _KILL_SCRIPT_FILE, _PID_REGISTRY_FILE
+
+        proc = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(60)", "concore_node"]
+        )
+        try:
+            with open(_PID_REGISTRY_FILE, "w") as f:
+                f.write(str(proc.pid) + "\n")
+            _write_kill_script()
+            result = subprocess.run(
+                ["cmd", "/c", _KILL_SCRIPT_FILE],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            assert "Killing concore process " + str(proc.pid) in result.stdout
+            proc.wait(timeout=10)
+            assert not os.path.exists(_PID_REGISTRY_FILE)
+            assert not os.path.exists(_KILL_SCRIPT_FILE)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
 
     def test_multi_node_registration(self):
         from concore import _register_pid, _PID_REGISTRY_FILE

@@ -18,8 +18,15 @@
 
 #ifdef __linux__
 #include <sys/ipc.h>
+#include <sys/sem.h>
 #include <sys/shm.h>
 #include <unistd.h>
+#include <cerrno>
+union semun { //not defined by glibc; needed for semctl SETVAL
+    int val;
+    struct semid_ds* buf;
+    unsigned short* array;
+};
 #endif
 
 #include "concore_base.hpp"
@@ -27,6 +34,11 @@
 class Concore {
 private:
     static constexpr size_t SHM_SIZE = 4096;
+    //SHM layout: [0..7]=uint64 seq#, [8..]=payload.  odd=writing, even=ready.
+    //Seqlock-style protocol: writer flips even->odd, memcpy, fence,
+    //flips odd->even.  Reader double-loads seq to validate stability.
+    static constexpr size_t SHM_HEADER_SIZE = 8;
+    static constexpr size_t SHM_PAYLOAD_MAX = SHM_SIZE - SHM_HEADER_SIZE - 1;
 
     int shmId_create = -1;
     int shmId_get = -1;
@@ -34,6 +46,10 @@ private:
     char* sharedData_get = nullptr;
     int communication_iport = 0;  // iport refers to input port
     int communication_oport = 0;  // oport refers to output port
+#ifdef __linux__
+    int semId_create = -1;
+    int semId_get = -1;
+#endif
 
 public:
     enum class ReadStatus {
@@ -60,6 +76,23 @@ public:
     double maxtime = 100;
     std::unordered_map<std::string, std::string> params;
     ReadStatus last_read_status = ReadStatus::SUCCESS;
+
+    // A write moves simtime forward at the next read (issue #608). write()
+    // itself leaves simtime alone so writes in one step share a timestamp.
+    bool has_write = false;
+    double write_base = 0, write_target = 0;
+    void note_write(int delta) {
+        if (!has_write || write_base != simtime) {
+            has_write = true;
+            write_base = write_target = simtime;
+        }
+        if (simtime + delta > write_target)
+            write_target = simtime + delta;
+    }
+    void apply_write() {
+        if (has_write && write_base == simtime && write_target > simtime)
+            simtime = write_target;
+    }
 #ifdef CONCORE_USE_ZMQ
     std::map<std::string, concore_base::ZeroMQPort*> zmq_ports;
 #endif
@@ -114,12 +147,8 @@ public:
         zmq_ports.clear();
 #endif
 #ifdef __linux__
-        if (communication_oport == 1 && sharedData_create != nullptr)
-            shmdt(sharedData_create);
-        if (communication_iport == 1 && sharedData_get != nullptr)
-            shmdt(sharedData_get);
-        if (shmId_create != -1)
-            shmctl(shmId_create, IPC_RMID, nullptr);
+        cleanupSharedMemory(shmId_create, sharedData_create, semId_create);
+        cleanupSharedMemory(shmId_get, sharedData_get, semId_get);
 #endif
     }
 
@@ -136,6 +165,9 @@ public:
           shmId_create(other.shmId_create), shmId_get(other.shmId_get),
           sharedData_create(other.sharedData_create), sharedData_get(other.sharedData_get),
           communication_iport(other.communication_iport), communication_oport(other.communication_oport)
+#ifdef __linux__
+          , semId_create(other.semId_create), semId_get(other.semId_get)
+#endif
     {
 #ifdef CONCORE_USE_ZMQ
         zmq_ports = std::move(other.zmq_ports);
@@ -146,6 +178,10 @@ public:
         other.sharedData_get = nullptr;
         other.communication_iport = 0;
         other.communication_oport = 0;
+#ifdef __linux__
+        other.semId_create = -1;
+        other.semId_get = -1;
+#endif
     }
 
     Concore& operator=(Concore&& other) noexcept
@@ -159,12 +195,8 @@ public:
         zmq_ports = std::move(other.zmq_ports);
 #endif
 #ifdef __linux__
-        if (communication_oport == 1 && sharedData_create != nullptr)
-            shmdt(sharedData_create);
-        if (communication_iport == 1 && sharedData_get != nullptr)
-            shmdt(sharedData_get);
-        if (shmId_create != -1)
-            shmctl(shmId_create, IPC_RMID, nullptr);
+        cleanupSharedMemory(shmId_create, sharedData_create, semId_create);
+        cleanupSharedMemory(shmId_get, sharedData_get, semId_get);
 #endif
 
         iport = std::move(other.iport);
@@ -184,6 +216,10 @@ public:
         sharedData_get = other.sharedData_get;
         communication_iport = other.communication_iport;
         communication_oport = other.communication_oport;
+#ifdef __linux__
+        semId_create = other.semId_create;
+        semId_get = other.semId_get;
+#endif
 
         other.shmId_create = -1;
         other.shmId_get = -1;
@@ -191,6 +227,10 @@ public:
         other.sharedData_get = nullptr;
         other.communication_iport = 0;
         other.communication_oport = 0;
+#ifdef __linux__
+        other.semId_create = -1;
+        other.semId_get = -1;
+#endif
 
         return *this;
     }
@@ -206,7 +246,7 @@ public:
     }
 
     void load_params() {
-        auto ordered = concore_base::load_params(inpath + "/1/concore.params");
+        auto ordered = concore_base::load_params(inpath + "1/concore.params");
         params = std::unordered_map<std::string, std::string>(ordered.begin(), ordered.end());
     }
 
@@ -216,10 +256,10 @@ public:
 
     void default_maxtime(double defaultValue) {
         maxtime = concore_base::load_maxtime(
-            inpath + "/1/concore.maxtime", defaultValue);
+            inpath + "1/concore.maxtime", defaultValue);
     }
 
-    key_t ExtractNumeric(const std::string& str) {
+    int ExtractNumeric(const std::string& str) {
         std::string numberString;
         size_t numDigits = 0;
         while (numDigits < str.length() && std::isdigit(str[numDigits])) {
@@ -234,14 +274,95 @@ public:
     }
 
 #ifdef __linux__
+    static inline uint64_t shm_load_seq(const char* base) {
+        uint64_t v;
+        __atomic_load(reinterpret_cast<const uint64_t*>(base), &v, __ATOMIC_ACQUIRE);
+        return v;
+    }
+
+    static void cleanupSharedMemory(int shm_id, char* shared_data, int sem_id) {
+        if (shared_data == nullptr)
+            return;
+
+        if (!shm_sem_acquire(sem_id)) {
+            shmdt(shared_data);
+            return;
+        }
+
+        shmdt(shared_data);
+
+        struct shmid_ds shm_info;
+        if (shmctl(shm_id, IPC_STAT, &shm_info) == 0 && shm_info.shm_nattch == 0) {
+            shmctl(shm_id, IPC_RMID, nullptr);
+            semctl(sem_id, 0, IPC_RMID);
+            return;
+        }
+
+        shm_sem_release(sem_id);
+    }
+
+    static int shm_sem_create(key_t key) {
+        // Try to create as the original owner. If it already exists,
+        // attach without resetting its value.
+        int id = semget(key, 1, IPC_CREAT | IPC_EXCL | 0666);
+        if (id >= 0) {
+            semun arg{};
+            arg.val = 1;
+            if (semctl(id, 0, SETVAL, arg) < 0) return -1;
+            return id;
+        }
+        // EEXIST means another process got here first; just open it.
+        id = semget(key, 1, 0666);
+        return id < 0 ? -1 : id;
+    }
+
+    static bool shm_sem_acquire(int id) {
+        if (id < 0) return false;
+        sembuf sb{};
+        sb.sem_num = 0;
+        sb.sem_op = -1;
+        sb.sem_flg = SEM_UNDO;
+        while (semop(id, &sb, 1) == -1) {
+            if (errno != EINTR) return false;
+        }
+        return true;
+    }
+
+    static void shm_sem_release(int id) {
+        if (id < 0) return;
+        sembuf sb{};
+        sb.sem_num = 0;
+        sb.sem_op = 1;
+        sb.sem_flg = SEM_UNDO;
+        while (semop(id, &sb, 1) == -1) {
+            if (errno != EINTR) return;
+        }
+    }
+
     void createSharedMemory(key_t key) {
-        shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
+        while (true) {
+            semId_create = shm_sem_create(key + 1);
+            if (semId_create < 0) {
+                std::cerr << "Failed to create shared memory semaphore.\n";
+                return;
+            }
+            if (shm_sem_acquire(semId_create))
+                break;
+        }
+
+        bool created = false;
+        shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | IPC_EXCL | 0666);
+        if (shmId_create != -1) {
+            created = true;
+        } else if (errno == EEXIST) {
+            shmId_create = shmget(key, SHM_SIZE, 0666);
+        }
         if (shmId_create == -1) {
+            shm_sem_release(semId_create);
             std::cerr << "Failed to create shared memory segment.\n";
             return;
         }
 
-        // Verify the segment is large enough (shmget won't resize an existing segment)
         struct shmid_ds shm_info;
         if (shmctl(shmId_create, IPC_STAT, &shm_info) == 0 && shm_info.shm_segsz < SHM_SIZE) {
             std::cerr << "Shared memory segment too small (" << shm_info.shm_segsz
@@ -249,38 +370,63 @@ public:
             shmctl(shmId_create, IPC_RMID, nullptr);
             shmId_create = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
             if (shmId_create == -1) {
+                shm_sem_release(semId_create);
                 std::cerr << "Failed to recreate shared memory segment.\n";
                 return;
             }
+            created = true;
         }
 
         sharedData_create = static_cast<char*>(shmat(shmId_create, NULL, 0));
         if (sharedData_create == reinterpret_cast<char*>(-1)) {
+            shm_sem_release(semId_create);
             std::cerr << "Failed to attach shared memory segment.\n";
             sharedData_create = nullptr;
+            return;
         }
+
+        if (created) {
+            uint64_t zero = 0;
+            __atomic_store(reinterpret_cast<uint64_t*>(sharedData_create), &zero, __ATOMIC_RELEASE);
+            sharedData_create[SHM_HEADER_SIZE] = '\0';
+        }
+        shm_sem_release(semId_create);
     }
 
     void getSharedMemory(key_t key) {
         int retry = 0;
         const int MAX_RETRY = 100;
         while (retry < MAX_RETRY) {
+            semId_get = semget(key + 1, 1, 0666);
+            if (semId_get == -1) {
+                std::cout << "Shared memory does not exist. Make sure the writer process is running.\n";
+                sleep(1);
+                retry++;
+                continue;
+            }
+
+            if (!shm_sem_acquire(semId_get)) {
+                retry++;
+                continue;
+            }
+
             shmId_get = shmget(key, SHM_SIZE, 0666);
-            if (shmId_get != -1)
-                break;
+            if (shmId_get != -1) {
+                sharedData_get = static_cast<char*>(shmat(shmId_get, NULL, 0));
+                if (sharedData_get != reinterpret_cast<char*>(-1)) {
+                    shm_sem_release(semId_get);
+                    return;
+                }
+                sharedData_get = nullptr;
+            }
+
+            shm_sem_release(semId_get);
             std::cout << "Shared memory does not exist. Make sure the writer process is running.\n";
             sleep(1);
             retry++;
         }
-        if (shmId_get == -1) {
-            std::cerr << "Failed to get shared memory segment after max retries.\n";
-            return;
-        }
-        sharedData_get = static_cast<char*>(shmat(shmId_get, NULL, 0));
-        if (sharedData_get == reinterpret_cast<char*>(-1)) {
-            std::cerr << "Failed to attach shared memory segment.\n";
-            sharedData_get = nullptr;
-        }
+
+        std::cerr << "Failed to get shared memory segment after max retries.\n";
     }
 #endif
 
@@ -294,13 +440,14 @@ public:
     }
 
     std::vector<double> read(int port, const std::string& name, const std::string& initstr) {
+        apply_write();
 #ifdef __linux__
         if (communication_iport == 1)
             return read_SM(port, name, initstr);
 #endif
         ReadStatus status = ReadStatus::SUCCESS;
         std::this_thread::sleep_for(std::chrono::seconds(delay));
-        std::string file_path = inpath + "/" + std::to_string(port) + "/" + name;
+        std::string file_path = inpath + std::to_string(port) + "/" + name;
         std::ifstream infile(file_path);
         std::string ins;
 
@@ -355,34 +502,52 @@ public:
     }
 
 #ifdef __linux__
+    // Seqlock-style snapshot read. Returns payload on success or empty
+    // string if seq# is missing, odd (write in progress), or changed
+    // between the two reads.
+    static std::string shm_read_payload(const char* base) {
+        if (base == nullptr) return std::string();
+        uint64_t s1 = shm_load_seq(base);
+        if (s1 == 0 || (s1 & 1u)) return std::string();
+        std::string out(base + SHM_HEADER_SIZE,
+                        strnlen(base + SHM_HEADER_SIZE, SHM_PAYLOAD_MAX));
+        __atomic_thread_fence(__ATOMIC_ACQUIRE);
+        uint64_t s2 = shm_load_seq(base);
+        if (s1 != s2) return std::string();
+        return out;
+    }
+
     std::vector<double> read_SM(int port, const std::string& name, const std::string& initstr) {
+        apply_write();
         ReadStatus status = ReadStatus::SUCCESS;
         std::this_thread::sleep_for(std::chrono::seconds(delay));
         std::string ins;
-        try {
-            if (shmId_get != -1 && sharedData_get && sharedData_get[0] != '\0')
-                ins = std::string(sharedData_get, strnlen(sharedData_get, SHM_SIZE));
-            else
-                throw 505;
-        } catch (...) {
+        if (shmId_get == -1 || sharedData_get == nullptr) {
             status = ReadStatus::FILE_NOT_FOUND;
             ins = initstr;
+        } else {
+            std::string snap = shm_read_payload(sharedData_get);
+            if (snap.empty()) {
+                ins = initstr;
+                if (status == ReadStatus::SUCCESS)
+                    status = ReadStatus::FILE_NOT_FOUND;
+            } else {
+                ins = snap;
+            }
         }
 
         int retry = 0;
         const int MAX_RETRY = 100;
         while ((int)ins.length() == 0 && retry < MAX_RETRY) {
             std::this_thread::sleep_for(std::chrono::seconds(delay));
-            try {
-                if (shmId_get != -1 && sharedData_get) {
-                    ins = std::string(sharedData_get, strnlen(sharedData_get, SHM_SIZE));
+            if (shmId_get != -1 && sharedData_get != nullptr) {
+                std::string snap = shm_read_payload(sharedData_get);
+                if (!snap.empty()) {
+                    ins = snap;
                     retrycount++;
-                } else {
-                    retrycount++;
-                    throw 505;
                 }
-            } catch (...) {
-                std::cerr << "Read error\n";
+            } else {
+                retrycount++;
             }
             retry++;
         }
@@ -414,7 +579,7 @@ public:
             return;
         }
 #endif
-        std::string file_path = outpath + "/" + std::to_string(port) + "/" + name;
+        std::string file_path = outpath + std::to_string(port) + "/" + name;
         std::ofstream outfile(file_path);
         if (!outfile) {
             std::cerr << "Error writing to " << file_path << "\n";
@@ -427,6 +592,7 @@ public:
             }
             outfile << "]";
             // simtime must not be mutated here (issue #385).
+            note_write(delta);
         }
     }
 
@@ -444,13 +610,25 @@ public:
                 outfile << val[i] << ',';
             outfile << val[val.size() - 1] << ']';
             std::string result = outfile.str();
-            if (result.size() >= SHM_SIZE) {
+            if (result.size() > SHM_PAYLOAD_MAX) {
                 std::cerr << "ERROR: write_SM payload (" << result.size()
-                          << " bytes) exceeds " << SHM_SIZE - 1
+                          << " bytes) exceeds " << SHM_PAYLOAD_MAX
                           << "-byte shared memory limit. Data truncated!" << std::endl;
+                result.resize(SHM_PAYLOAD_MAX);
             }
-            std::strncpy(sharedData_create, result.c_str(), SHM_SIZE - 1);
-            sharedData_create[SHM_SIZE - 1] = '\0';
+            if (!shm_sem_acquire(semId_create))
+                throw 507;
+            {
+                auto* seqp = reinterpret_cast<uint64_t*>(sharedData_create);
+                (void)__atomic_fetch_add(seqp, uint64_t{1}, __ATOMIC_ACQ_REL); // odd = writing
+                std::memcpy(sharedData_create + SHM_HEADER_SIZE,
+                            result.c_str(), result.size());
+                sharedData_create[SHM_HEADER_SIZE + result.size()] = '\0';
+                __atomic_thread_fence(__ATOMIC_RELEASE);
+                (void)__atomic_fetch_add(seqp, uint64_t{1}, __ATOMIC_ACQ_REL); // even = ready
+            }
+            shm_sem_release(semId_create);
+            note_write(delta);
         } catch (...) {
             std::cerr << "skipping +" << outpath << port << "/" << name << "\n";
         }
@@ -470,6 +648,7 @@ public:
     }
 
     std::vector<double> read_ZMQ(const std::string& port_name, const std::string& name, const std::string& initstr) {
+        apply_write();
         ReadStatus status = ReadStatus::SUCCESS;
         auto it = zmq_ports.find(port_name);
         if (it == zmq_ports.end()) {
@@ -505,6 +684,7 @@ public:
         val.insert(val.begin(), simtime + delta);
         it->second->send_with_retry(val);
         // simtime must not be mutated here.
+        note_write(delta);
     }
 
     std::vector<double> read(const std::string& port_name, const std::string& name, const std::string& initstr) {

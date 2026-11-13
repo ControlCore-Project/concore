@@ -120,7 +120,7 @@ static void test_write_FM_creates_file() {
     c.delay = 0;
     c.simtime = 2.0;
 
-    c.write_FM(1, "w_out", {10.0, 20.0});
+    c.write_FM(1, "w_out", vector<double>{10.0, 20.0});
 
     std::ifstream f("out1/w_out");
     std::ostringstream ss;
@@ -135,6 +135,35 @@ static void test_write_FM_creates_file() {
 }
 
 // ------------- unchanged() -----------------------------------------------
+
+// issue #608: write() leaves simtime alone, the next read moves it forward
+static void test_write_moves_simtime_forward_on_next_read() {
+    setup_dirs();
+    rm("in1/no_port");
+
+    Concore c;
+    c.delay = 0;
+    c.simtime = 10.0;
+
+    c.write_FM(1, "u", std::vector<double>{1.0}, 1);
+    check("write_FM leaves simtime alone", approx(c.simtime, 10.0));
+    c.read_FM(1, "no_port", "[0.0,5.0]");
+    check("read after write moves simtime to 11", approx(c.simtime, 11.0));
+}
+
+static void test_writes_in_one_step_advance_once() {
+    setup_dirs();
+    rm("in1/no_port");
+
+    Concore c;
+    c.delay = 0;
+    c.simtime = 10.0;
+
+    c.write_FM(1, "u", std::vector<double>{1.0}, 1);
+    c.write_FM(1, "v", std::vector<double>{2.0}, 2);
+    c.read_FM(1, "no_port", "[0.0,5.0]");
+    check("several writes advance simtime once to 12", approx(c.simtime, 12.0));
+}
 
 static void test_unchanged_after_read_is_false() {
     setup_dirs();
@@ -240,7 +269,7 @@ static void test_mapParser_missing_file_is_empty() {
 
 static void test_default_maxtime_reads_file() {
     setup_dirs();
-    write_file("in/1/concore.maxtime", "200");
+    write_file("in1/concore.maxtime", "200");
 
     Concore c;
     c.delay = 0;
@@ -248,11 +277,11 @@ static void test_default_maxtime_reads_file() {
 
     check("default_maxtime from file==200", c.maxtime == 200);
 
-    rm("in/1/concore.maxtime");
+    rm("in1/concore.maxtime");
 }
 
 static void test_default_maxtime_fallback() {
-    rm("in/1/concore.maxtime");
+    rm("in1/concore.maxtime");
 
     Concore c;
     c.delay = 0;
@@ -265,7 +294,7 @@ static void test_default_maxtime_fallback() {
 
 static void test_tryparam_found() {
     setup_dirs();
-    write_file("in/1/concore.params", "{'alpha': '0.5', 'beta': '1.0'}");
+    write_file("in1/concore.params", "{'alpha': '0.5', 'beta': '1.0'}");
 
     Concore c;
     c.delay = 0;
@@ -274,11 +303,11 @@ static void test_tryparam_found() {
     check("tryparam found alpha",  c.tryparam("alpha", "0.0") == "0.5");
     check("tryparam found beta",   c.tryparam("beta",  "0.0") == "1.0");
 
-    rm("in/1/concore.params");
+    rm("in1/concore.params");
 }
 
 static void test_tryparam_missing_key_uses_default() {
-    rm("in/1/concore.params");
+    rm("in1/concore.params");
 
     Concore c;
     c.delay = 0;
@@ -290,7 +319,7 @@ static void test_tryparam_missing_key_uses_default() {
 
 static void test_load_params_semicolon_format() {
     setup_dirs();
-    write_file("in/1/concore.params", "a=1;b=2");
+    write_file("in1/concore.params", "a=1;b=2");
 
     Concore c;
     c.delay = 0;
@@ -298,6 +327,20 @@ static void test_load_params_semicolon_format() {
 
     check("load_params semicolon parses a", c.tryparam("a", "") == "1");
     check("load_params semicolon parses b", c.tryparam("b", "") == "2");
+
+    rm("in1/concore.params");
+}
+
+static void test_tryparam_comma_in_value() {
+    setup_dirs();
+    write_file("in/1/concore.params", "{'channels': [1, 2], 'gain': '0.5'}");
+
+    Concore c;
+    c.delay = 0;
+    c.load_params();
+
+    check("tryparam preserves list with comma", c.tryparam("channels", "") == "[1, 2]");
+    check("tryparam preserves subsequent key",  c.tryparam("gain", "") == "0.5");
 
     rm("in/1/concore.params");
 }
@@ -312,6 +355,8 @@ int main() {
     test_read_FM_missing_file_uses_initstr();
     test_read_result_missing_file_status();
     test_write_FM_creates_file();
+    test_write_moves_simtime_forward_on_next_read();
+    test_writes_in_one_step_advance_once();
 
     // unchanged()
     test_unchanged_after_read_is_false();
@@ -337,6 +382,7 @@ int main() {
     test_tryparam_found();
     test_tryparam_missing_key_uses_default();
     test_load_params_semicolon_format();
+    test_tryparam_comma_in_value();
 
     std::cout << "\n=== Results: " << passed << " passed, " << failed
               << " failed out of " << (passed + failed) << " tests ===\n";

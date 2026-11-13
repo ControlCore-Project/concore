@@ -2,10 +2,12 @@ import re
 import shlex
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from ._source_dir import resolve_source_dir
 from .metadata import write_study_metadata
 
 
@@ -74,9 +76,15 @@ def _parse_docker_run_line(line):
     }
 
 
-def _write_docker_compose(output_path):
+def _write_docker_compose(output_path, console, zmq_mode=False):
     run_script = output_path / "run"
     if not run_script.exists():
+        console.print(
+            f"[yellow]Warning:[/yellow] No docker run script found in {output_path}."
+        )
+        console.print(
+            "[dim]Tip: run concore build --type docker first, then use --compose[/dim]"
+        )
         return None
 
     services = []
@@ -90,13 +98,15 @@ def _write_docker_compose(output_path):
 
     compose_lines = ["services:"]
 
+    named_volumes = set()
+    previous_service_name = None
     for index, service in enumerate(services, start=1):
         service_name = re.sub(r"[^A-Za-z0-9_.-]", "-", service["container_name"]).strip(
             "-."
         )
         if not service_name:
             service_name = f"service-{index}"
-        elif not service_name[0].isalnum():
+        elif not service_name[0].isalpha():
             service_name = f"service-{service_name}"
 
         compose_lines.append(f"  {service_name}:")
@@ -104,10 +114,37 @@ def _write_docker_compose(output_path):
         compose_lines.append(
             f"    container_name: {_yaml_quote(service['container_name'])}"
         )
+
         if service["volumes"]:
             compose_lines.append("    volumes:")
             for volume_spec in service["volumes"]:
                 compose_lines.append(f"      - {_yaml_quote(volume_spec)}")
+                part1 = volume_spec.split(":")[0]
+                if re.match(r"^[a-zA-Z0-9_-]+$", part1):
+                    named_volumes.add(part1)
+
+        compose_lines.append("    restart: on-failure")
+        if zmq_mode:
+            compose_lines.append("    environment:")
+            compose_lines.append("      - CONCORE_TRANSPORT=zmq")
+        if index > 1 and previous_service_name:
+            compose_lines.append("    depends_on:")
+            compose_lines.append(f"      - {previous_service_name}")
+        compose_lines.append("    networks:")
+        compose_lines.append("      - concore_net")
+        previous_service_name = service_name
+
+    if named_volumes:
+        compose_lines.append("")
+        compose_lines.append("volumes:")
+        for v in sorted(named_volumes):
+            compose_lines.append(f"  {v}:")
+            compose_lines.append(f"    name: {_yaml_quote(v)}")
+
+    compose_lines.append("")
+    compose_lines.append("networks:")
+    compose_lines.append("  concore_net:")
+    compose_lines.append("    driver: bridge")
 
     compose_lines.append("")
     compose_path = output_path / "docker-compose.yml"
@@ -123,9 +160,10 @@ def build_workflow(
     auto_build,
     console,
     compose=False,
+    zmq_mode=False,
 ):
     workflow_path = Path(workflow_file).resolve()
-    source_path = Path(source).resolve()
+    source_path = resolve_source_dir(workflow_path, source).resolve()
     output_path = Path(output).resolve()
 
     if not source_path.exists():
@@ -180,6 +218,35 @@ def build_workflow(
 
             progress.update(task, completed=True)
 
+            if exec_type == "docker":
+                req_src = Path.cwd() / "requirements.txt"
+                if not req_src.exists():
+                    req_src = source_path / "requirements.txt"
+                req_dest = output_path / "src" / "requirements.txt"
+                if req_src.exists() and (output_path / "src").exists():
+                    shutil.copy2(req_src, req_dest)
+                elif (output_path / "src").exists():
+                    req_dest.touch()
+
+                # Append requirement copying to generated scripts robustly
+                for s_name in ["build", "build.bat"]:
+                    s_path = output_path / s_name
+                    if s_path.exists():
+                        content = s_path.read_text(encoding="utf-8")
+                        lines = content.splitlines()
+                        if s_name == "build":
+                            insert_line = "cp ../src/requirements.txt ."
+                        else:
+                            insert_line = "copy ..\\src\\requirements.txt ."
+
+                        new_lines = []
+                        for line in lines:
+                            if " build" in line and "-t " in line:
+                                new_lines.append(insert_line)
+                            new_lines.append(line)
+
+                        s_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
             if result.stdout:
                 console.print(result.stdout)
 
@@ -188,7 +255,9 @@ def build_workflow(
             )
 
             if compose:
-                compose_path = _write_docker_compose(output_path)
+                compose_path = _write_docker_compose(
+                    output_path, console, zmq_mode=zmq_mode
+                )
                 if compose_path is not None:
                     console.print(
                         f"[green]✓[/green] Compose file written to [cyan]{compose_path}[/cyan]"

@@ -4,6 +4,8 @@ from rich.table import Table
 from rich.panel import Panel
 from datetime import datetime
 
+from concore_cli.commands._process_match import is_concore_process
+
 
 def show_status(console):
     console.print("[cyan]Scanning for concore processes...[/cyan]\n")
@@ -18,24 +20,18 @@ def show_status(console):
         ):
             try:
                 cmdline = proc.info.get("cmdline") or []
-                name = proc.info.get("name", "").lower()
 
                 if proc.info["pid"] == current_pid:
                     continue
 
                 cmdline_str = " ".join(cmdline) if cmdline else ""
 
-                is_concore = (
-                    "concore" in cmdline_str.lower()
-                    or "concore.py" in cmdline_str.lower()
-                    or any("concorekill.bat" in str(item) for item in cmdline)
-                    or (
-                        name in ["python.exe", "python", "python3"]
-                        and "concore" in cmdline_str
-                    )
-                )
+                try:
+                    cwd = proc.cwd()
+                except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
+                    cwd = None
 
-                if is_concore:
+                if is_concore_process(cmdline, cwd):
                     try:
                         create_time = datetime.fromtimestamp(proc.info["create_time"])
                         uptime = datetime.now() - create_time

@@ -156,6 +156,16 @@ def unchanged():
     olds = s
     return False
 
+def _resolve_port_file_path(base_path, port_num, name):
+    port_dir = os.path.abspath(base_path + str(port_num))
+    file_path = os.path.abspath(os.path.join(port_dir, name))
+    try:
+        if os.path.commonpath([port_dir, file_path]) != port_dir:
+            raise ValueError
+    except ValueError:
+        raise ValueError(f"Invalid file name '{name}' for port {port_num}")
+    return file_path
+
 def read(port_identifier, name, initstr_val):
     global s, simtime, retrycount
     
@@ -180,12 +190,12 @@ def read(port_identifier, name, initstr_val):
 
     try:
         file_port_num = int(port_identifier)
+        file_path = _resolve_port_file_path(inpath, file_port_num, name)
     except ValueError:
-        print(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
+        print(f"Error: Invalid port identifier '{port_identifier}' or file name '{name}' for file operation.")
         return default_return_val
 
     time.sleep(delay) 
-    file_path = os.path.join(inpath+str(file_port_num), name)
     ins = ""
 
     try:
@@ -246,9 +256,9 @@ def write(port_identifier, name, val, delta=0):
             file_path = os.path.join("../"+port_identifier, name)
         else:
             file_port_num = int(port_identifier)
-            file_path = os.path.join(outpath+str(file_port_num), name) 
+            file_path = _resolve_port_file_path(outpath, file_port_num, name)
     except ValueError:
-        print(f"Error: Invalid port identifier '{port_identifier}' for file operation. Must be integer or ZMQ name.")
+        print(f"Error: Invalid port identifier '{port_identifier}' or file name '{name}' for file operation.")
         return
 
     if isinstance(val, str):

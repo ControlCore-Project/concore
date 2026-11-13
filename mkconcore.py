@@ -70,6 +70,7 @@ import sys
 import os
 import shutil
 import stat
+import tempfile
 import copy_with_port_portname
 import numpy as np
 import shlex  # Added for POSIX shell escaping
@@ -111,6 +112,20 @@ def safe_relpath(value, context):
         raise ValueError(f"Unsafe {context}: invalid path segment.")
     return normalized
 
+def _quote_executable_windows(value):
+    value = value.strip()
+    if value.startswith('"') and value.endswith('"'):
+        return value
+    return f'"{value}"'
+
+def _quote_executable_posix(value):
+    value = value.strip()
+    if (value.startswith("'") and value.endswith("'")) or (
+        value.startswith('"') and value.endswith('"')
+    ):
+        return value
+    return shlex.quote(value)
+
 MKCONCORE_VER = "22-09-18"
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -144,6 +159,35 @@ if len(sys.argv) < 4:
 
 ORIGINAL_CWD = os.getcwd()
 GRAPHML_FILE = os.path.abspath(sys.argv[1])
+
+# --- Image input support: extract embedded GraphML from PNG/JPG ---
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg"}
+_tmp_graphml_file = None  # keep reference so the temp file isn't deleted early
+if os.path.splitext(GRAPHML_FILE)[1].lower() in _IMAGE_EXTS:
+    try:
+        import importlib.util
+        _tool_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools", "extract_graphml.py")
+        _spec = importlib.util.spec_from_file_location("extract_graphml", _tool_path)
+        _extract_graphml_module = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_extract_graphml_module)
+        _extract_graphml = _extract_graphml_module.extract_graphml
+        _graphml_str = _extract_graphml(GRAPHML_FILE)
+        if _graphml_str is None:
+            print(f"No embedded GraphML found in '{GRAPHML_FILE}'.")
+            sys.exit(1)
+        _tmp_graphml_file = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".graphml", delete=False, encoding="utf-8"
+        )
+        _tmp_graphml_file.write(_graphml_str)
+        _tmp_graphml_file.close()
+        GRAPHML_FILE = _tmp_graphml_file.name
+        import atexit as _atexit
+        _atexit.register(os.unlink, GRAPHML_FILE)
+    except Exception as _e:
+        print(f"Failed to extract GraphML from image: {_e}")
+        sys.exit(1)
+# ------------------------------------------------------------------
+
 TRIMMED_LOGS = True
 CONCOREPATH = _resolve_concore_path()
 CPPWIN    = os.environ.get("CONCORE_CPPWIN", "g++")          #Windows C++  6/22/21
@@ -160,6 +204,7 @@ JAVACEXE  = os.environ.get("CONCORE_JAVACEXE", "javac")      #Ubuntu/macOS javac
 JAVACWIN  = os.environ.get("CONCORE_JAVACWIN", "javac")      #Windows javac
 JAVAEXE   = os.environ.get("CONCORE_JAVAEXE", "java")        #Ubuntu/macOS java
 JAVAWIN   = os.environ.get("CONCORE_JAVAWIN", "java")        #Windows java
+JEROMQ_URL = "https://repo1.maven.org/maven2/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 M_IS_OCTAVE = False      #treat .m as octave
 MCRPATH  = "~/MATLAB/R2021a" #path to local Ubunta Matlab Compiler Runtime
 DOCKEREXE = os.environ.get("DOCKEREXE", "docker")#default to docker, allow env override
@@ -214,7 +259,7 @@ safe_name(outdir, "Output directory argument", allow_path=True)
 
 if not os.path.isdir(sourcedir):
     logging.error(f"{sourcedir} does not exist")
-    quit()
+    sys.exit(1)
 
 if len(sys.argv) == 4:
     # Use only the output directory name in generated prefixes.
@@ -224,7 +269,7 @@ else:
     concoretype = sys.argv[4]
     if not (concoretype in ["posix","windows","docker","macos","ubuntu"]):
         logging.error(" type must be posix (macos or ubuntu), windows, or docker")
-        quit()
+        sys.exit(1)
 ubuntu = False #6/24/21
 if concoretype == "ubuntu":
     concoretype = "posix"
@@ -235,7 +280,7 @@ if concoretype == "macos":
 if os.path.exists(outdir):
     logging.error(f"{outdir} already exists")
     logging.error(f"if intended, Remove/Rename {outdir} first")
-    quit()
+    sys.exit(1)
 
 os.makedirs(outdir)
 os.chdir(outdir)
@@ -321,7 +366,7 @@ label_values = list(nodes_dict.values())
 duplicates = {label for label in label_values if label_values.count(label) > 1}
 if duplicates:
     logging.error(f"Duplicate node labels found: {sorted(duplicates)}")
-    quit()
+    sys.exit(1)
 
 for edge in edges_text:
     try:
@@ -337,8 +382,17 @@ for edge in edges_text:
                     #Validate edge labels
                     safe_name(edge_label, f"Edge label '{edge_label}'")
 
+                    source_label = nodes_dict[edge['source']]
                     if edge_label not in edges_dict:
-                        edges_dict[edge_label] = [nodes_dict[edge['source']], []]
+                        edges_dict[edge_label] = [source_label, []]
+                    elif edges_dict[edge_label][0] != source_label:
+                        # an edge label is one volume with a single writer, a second
+                        # source would get no out mount and its writes would be lost
+                        logging.error(
+                            f"Edge label '{raw_label}' has more than one source node: "
+                            f"{edges_dict[edge_label][0]} and {source_label}"
+                        )
+                        sys.exit(1)
                     edges_dict[edge_label][1].append(nodes_dict[edge['target']])
     except (IndexError, AttributeError, KeyError):
         logging.debug('An edge with no valid properties or missing node encountered and ignored')
@@ -578,7 +632,7 @@ if 'py' in required_langs:
             fsource = open(CONCOREPATH+"/concore.py")
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing python files)")
-        quit()
+        sys.exit(1)
     with open(outdir+"/src/concore.py","w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
@@ -588,7 +642,17 @@ if 'py' in required_langs:
                 fcopy.write(fbase.read())
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing concore_base.py)")
-        quit()
+        sys.exit(1)
+
+if 'jl' in required_langs and concoretype=="docker":
+    try:
+        fsource = open(CONCOREPATH+"/concoredocker.jl")
+    except (FileNotFoundError, IOError):
+        print(CONCOREPATH+" is not correct path to concore (missing concoredocker.jl)")
+        sys.exit(1)
+    with open(outdir+"/src/concore.jl","w") as fcopy:
+        fcopy.write(fsource.read())
+    fsource.close()
 
 if 'cpp' in required_langs:
     try:
@@ -598,10 +662,17 @@ if 'cpp' in required_langs:
             fsource = open(CONCOREPATH+"/concore.hpp")
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing C++ files)")
-        quit()
+        sys.exit(1)
     with open(outdir+"/src/concore.hpp","w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
+    try:
+        with open(CONCOREPATH+"/concore_base.hpp") as fbase:
+            with open(outdir+"/src/concore_base.hpp","w") as fcopy:
+                fcopy.write(fbase.read())
+    except (FileNotFoundError, IOError):
+        print(CONCOREPATH+" is not correct path to concore (missing concore_base.hpp)")
+        sys.exit(1)
 
 if 'v' in required_langs:
     try:
@@ -611,20 +682,25 @@ if 'v' in required_langs:
             fsource = open(CONCOREPATH+"/concore.v")
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing Verilog files)")
-        quit()
+        sys.exit(1)
     with open(outdir+"/src/concore.v","w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
 
-if 'java' in required_langs and concoretype != "docker":
+if 'java' in required_langs:
+    java_runtime = "concoredocker.java" if concoretype == "docker" else "concore.java"
     try:
-        fsource = open(CONCOREPATH+"/concore.java")
+        fsource = open(CONCOREPATH+"/"+java_runtime)
+        fcore = open(CONCOREPATH+"/ConcoreJavaRuntimeCore.java")
     except (FileNotFoundError, IOError):
         print(CONCOREPATH+" is not correct path to concore (missing Java files)")
-        quit()
-    with open(outdir+"/src/concore.java","w") as fcopy:
+        sys.exit(1)
+    with open(outdir+"/src/"+java_runtime,"w") as fcopy:
         fcopy.write(fsource.read())
     fsource.close()
+    with open(outdir+"/src/ConcoreJavaRuntimeCore.java","w") as fcopy:
+        fcopy.write(fcore.read())
+    fcore.close()
 
 if 'm' in required_langs:
     try:
@@ -669,7 +745,7 @@ if 'm' in required_langs:
         os.chmod(outdir+"/src/mkcompile",stat.S_IRWXU)
     except Exception as e:
         print(CONCOREPATH+" is not correct path to concore (missing MATLAB files):", e)
-        quit()
+        sys.exit(1)
 
 # --- Generate iport and oport mappings ---
 logging.info("Generating iport/oport mappings...")
@@ -746,6 +822,12 @@ if (concoretype=="docker"):
                     if langext=="py":
                         src_path = CONCOREPATH+"/Dockerfile.py"
                         logging.info("assuming .py extension for Dockerfile")
+                    elif langext == "jl":
+                        src_path = CONCOREPATH+"/Dockerfile.jl"
+                        logging.info("assuming .jl extension for Dockerfile")
+                    elif langext == "java":
+                        src_path = CONCOREPATH+"/Dockerfile.java"
+                        logging.info("assuming .java extension for Dockerfile")
                     elif langext == "cpp":  # 6/22/21
                         src_path = CONCOREPATH+"/Dockerfile.cpp"
                         logging.info("assuming .cpp extension for Dockerfile")
@@ -762,7 +844,7 @@ if (concoretype=="docker"):
                         source_content = fsource.read()
                 except:
                     logging.error(f"{CONCOREPATH} is not correct path to concore")
-                    quit()
+                    sys.exit(1)
                 dockerfile_parent = os.path.dirname(dockerfile_path)
                 if dockerfile_parent:
                     os.makedirs(dockerfile_parent, exist_ok=True)
@@ -770,6 +852,11 @@ if (concoretype=="docker"):
                     fcopy.write(source_content)
                     if langext=="py":
                         fcopy.write('CMD ["python", "-i", "'+sourcecode+'"]\n')
+                    if langext=="jl":
+                        fcopy.write('CMD ["julia", "'+sourcecode+'"]\n')
+                    if langext=="java":
+                        javaclass = os.path.splitext(os.path.basename(sourcecode))[0]
+                        fcopy.write('CMD ["java", "-cp", "/app:/app/jeromq.jar", "'+javaclass+'"]\n')
                     if langext=="m":
                         fcopy.write('CMD ["octave", "-qf", "--eval", "run('+"'"+sourcecode+"'"+')"]\n') #3/28/21
                     if langext=="sh":
@@ -793,8 +880,14 @@ if (concoretype=="docker"):
             if langext == "py": #4/29/21
                 fbuild.write("cp ../src/concore.py .\n")
                 fbuild.write("cp ../src/concore_base.py .\n")
+            elif langext == "jl":
+                fbuild.write("cp ../src/concore.jl .\n")
+            elif langext == "java":
+                fbuild.write("cp ../src/concoredocker.java .\n")
+                fbuild.write("cp ../src/ConcoreJavaRuntimeCore.java .\n")
             elif langext == "cpp": #6/22/21
                 fbuild.write("cp ../src/concore.hpp .\n")
+                fbuild.write("cp ../src/concore_base.hpp .\n")
             elif langext == "v": #6/25/21
                 fbuild.write("cp ../src/concore.v .\n")
             if langext == "m":
@@ -1013,12 +1106,18 @@ if (concoretype=="docker"):
 if concoretype=="posix":
     fbuild.write('#!/bin/bash' + "\n")
 
+if 'java' in required_langs:
+    if concoretype == "windows":
+        fbuild.write('if not exist .\\src\\jeromq.jar powershell -NoProfile -Command "Invoke-WebRequest -Uri \''+JEROMQ_URL+'\' -OutFile \'.\\src\\jeromq.jar\'"\n')
+    else:
+        fbuild.write("[ -f ./src/jeromq.jar ] || curl -fsSL -o ./src/jeromq.jar "+JEROMQ_URL+"\n")
+
 for node in nodes_dict:
     containername,sourcecode = nodes_dict[node].split(':')
     if len(sourcecode)!=0:
         if sourcecode.find(".")==-1:
             logging.error("cannot pull container "+sourcecode+" with control core type "+concoretype) #3/28/21
-            quit()
+            sys.exit(1)
         dockername,langext = sourcecode.rsplit(".", 1)
         fbuild.write('mkdir '+containername+"\n")
         source_subdir = os.path.dirname(sourcecode).replace("\\", "/")
@@ -1035,6 +1134,7 @@ for node in nodes_dict:
             elif langext == "cpp":
  # 6/22/21
                 fbuild.write("copy .\\src\\concore.hpp .\\" + containername + "\\concore.hpp\n")
+                fbuild.write("copy .\\src\\concore_base.hpp .\\" + containername + "\\concore_base.hpp\n")
             elif langext == "v":
  # 6/25/21
                 fbuild.write("copy .\\src\\concore.v .\\" + containername + "\\concore.v\n")
@@ -1055,6 +1155,7 @@ for node in nodes_dict:
                 fbuild.write("cp ./src/concore_base.py ./"+containername+"/concore_base.py\n")
             elif langext == "cpp":
                 fbuild.write("cp ./src/concore.hpp ./"+containername+"/concore.hpp\n")
+                fbuild.write("cp ./src/concore_base.hpp ./"+containername+"/concore_base.hpp\n")
             elif langext == "v":
                 fbuild.write("cp ./src/concore.v ./"+containername+"/concore.v\n")
             elif langext == "java":
@@ -1111,6 +1212,24 @@ if concoretype=="posix":
     fdebug.write('#!/bin/bash' + "\n")
     frun.write('#!/bin/bash' + "\n")
 
+# Normalize tool executable quoting once, then reuse existing script templates.
+if concoretype == "windows":
+    PYTHONWIN = _quote_executable_windows(PYTHONWIN)
+    CPPWIN = _quote_executable_windows(CPPWIN)
+    VWIN = _quote_executable_windows(VWIN)
+    JAVACWIN = _quote_executable_windows(JAVACWIN)
+    JAVAWIN = _quote_executable_windows(JAVAWIN)
+    OCTAVEWIN = _quote_executable_windows(OCTAVEWIN)
+    MATLABWIN = _quote_executable_windows(MATLABWIN)
+else:
+    PYTHONEXE = _quote_executable_posix(PYTHONEXE)
+    CPPEXE = _quote_executable_posix(CPPEXE)
+    VEXE = _quote_executable_posix(VEXE)
+    JAVACEXE = _quote_executable_posix(JAVACEXE)
+    JAVAEXE = _quote_executable_posix(JAVAEXE)
+    OCTAVEEXE = _quote_executable_posix(OCTAVEEXE)
+    MATLABEXE = _quote_executable_posix(MATLABEXE)
+
 
 i=0
 for node in nodes_dict:
@@ -1119,7 +1238,7 @@ for node in nodes_dict:
       dockername,langext = sourcecode.rsplit(".", 1)
       if not (langext in ["py","m","sh","cpp","v","java"]): # 6/22/21
           logging.error(f"Extension .{langext} is unsupported")
-          quit()
+          sys.exit(1)
       if concoretype=="windows":
           # manual double quoting for Windows + Input validation above prevents breakout
           q_container = f'"{containername}"'
@@ -1152,11 +1271,11 @@ for node in nodes_dict:
           elif langext=="java":
               javaclass = os.path.splitext(os.path.basename(sourcecode))[0]
               frun.write('cd '+q_container+'\n')
-              frun.write(JAVACWIN+' '+q_source+'\n')
+              frun.write(JAVACWIN+' -cp .;..\\src\\jeromq.jar -d . '+q_source+' concore.java ..\\src\\ConcoreJavaRuntimeCore.java\n')
               frun.write('cd ..\n')
               frun.write('start /B /D '+q_container+' cmd /c '+JAVAWIN+' -cp .;..\\src\\jeromq.jar '+javaclass+' >'+q_container+'\\concoreout.txt\n')
               fdebug.write('cd '+q_container+'\n')
-              fdebug.write(JAVACWIN+' '+q_source+'\n')
+              fdebug.write(JAVACWIN+' -cp .;..\\src\\jeromq.jar -d . '+q_source+' concore.java ..\\src\\ConcoreJavaRuntimeCore.java\n')
               fdebug.write('cd ..\n')
               fdebug.write('start /D '+q_container+' cmd /K '+JAVAWIN+' -cp .;..\\src\\jeromq.jar '+javaclass+'\n')
           elif langext=="m":  #3/23/21
@@ -1203,13 +1322,13 @@ for node in nodes_dict:
             elif langext == "java":
                 javaclass = os.path.splitext(os.path.basename(sourcecode))[0]
                 safe_javaclass = shlex.quote(javaclass)
-                frun.write('(cd ' + safe_container + '; ' + JAVACEXE + ' ' + safe_source + '; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + ' >concoreout.txt & echo $! >concorepid) &\n')
+                frun.write('(cd ' + safe_container + '; ' + JAVACEXE + ' -cp .:../src/jeromq.jar -d . ' + safe_source + ' concore.java ../src/ConcoreJavaRuntimeCore.java; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + ' >concoreout.txt & echo $! >concorepid) &\n')
                 if ubuntu:
                     fdebug.write('concorewd="$(pwd)"\n')
-                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + safe_container + '\\"; ' + JAVACEXE + ' ' + safe_source + '; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + '; bash" &\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + safe_container + '\\"; ' + JAVACEXE + ' -cp .:../src/jeromq.jar -d . ' + safe_source + ' concore.java ../src/ConcoreJavaRuntimeCore.java; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + '; bash" &\n')
                 else:
                     fdebug.write('concorewd="$(pwd)"\n')
-                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\\"; ' + JAVACEXE + ' ' + safe_source + '; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + '\\"" \n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\\"; ' + JAVACEXE + ' -cp .:../src/jeromq.jar -d . ' + safe_source + ' concore.java ../src/ConcoreJavaRuntimeCore.java; ' + JAVAEXE + ' -cp .:../src/jeromq.jar ' + safe_javaclass + '\\"" \n')
 
             elif langext == "sh":   # 5/19/21
                 # FIX: Escape MCRPATH to prevent shell injection
@@ -1280,7 +1399,8 @@ for node in nodes_dict:
             else:
                 # FIX: Safer wildcard removal. 
                 # Avoid quoting the wildcard itself ('path/*'). Instead cd into directory and remove contents.
-                fclear.write(f'cd {shlex.quote(path_part)} && rm -f *\n')
+                # The subshell keeps the cd from carrying over to the next edge's line.
+                fclear.write(f'(cd {shlex.quote(path_part)} && rm -f *)\n')
             writeedges = writeedges[writeedges.find(":")+1:]
     i=i+1
 fclear.close()
