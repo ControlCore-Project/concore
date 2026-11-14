@@ -842,8 +842,8 @@ if (concoretype=="docker"):
                         logging.info("assuming .m extension for Dockerfile")
                     with open(src_path) as fsource:
                         source_content = fsource.read()
-                except:
-                    logging.error(f"{CONCOREPATH} is not correct path to concore")
+                except OSError as e:
+                    logging.error(f"Cannot read Dockerfile template '{src_path}': {e}")
                     sys.exit(1)
                 dockerfile_parent = os.path.dirname(dockerfile_path)
                 if dockerfile_parent:
@@ -862,6 +862,9 @@ if (concoretype=="docker"):
                     if langext=="sh":
                         fcopy.write('CMD ["./'+sourcecode+'" ,"/opt/mcr/v910"]')  # 5/19/21
                     #["./run_pmmat.sh", "/opt/mcr/MATLAB/MATLAB_Runtime/v910"]
+                    if langext=="cpp":
+                        fcopy.write('RUN g++ ./'+sourcecode+'\n')
+                        fcopy.write('CMD ["./a.out"]\n')
                     if langext=="v":
                         fcopy.write('RUN iverilog ./'+sourcecode+'\n')  # 7/02/21
                         fcopy.write('CMD ["./a.out"]\n')  # 7/02/21
