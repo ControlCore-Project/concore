@@ -842,9 +842,10 @@ class TestPidRegistry:
         assert not os.path.exists(_PID_REGISTRY_FILE)
         _cleanup_pid()  # Should not raise
 
-    def test_write_kill_script_generates_bat_file(self):
+    def test_write_kill_script_generates_bat_file(self, monkeypatch):
         from concore import _write_kill_script, _KILL_SCRIPT_FILE, _PID_REGISTRY_FILE
 
+        monkeypatch.setattr(sys, "argv", ["controller.py"])
         _write_kill_script()
         assert os.path.exists(_KILL_SCRIPT_FILE)
         with open(_KILL_SCRIPT_FILE) as f:
@@ -853,19 +854,34 @@ class TestPidRegistry:
         assert "wmic" not in content
         assert "Get-CimInstance" in content
         assert "taskkill" in content
-        assert "concore" in content.lower()
+        assert 'findstr /i /l /c:"controller.py"' in content
 
     @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
-    def test_kill_script_kills_concore_process(self):
+    def test_kill_script_kills_concore_process(self, monkeypatch):
         import subprocess
+        import time
         from concore import _write_kill_script, _KILL_SCRIPT_FILE, _PID_REGISTRY_FILE
 
-        proc = subprocess.Popen(
-            [sys.executable, "-c", "import time; time.sleep(60)", "concore_node"]
-        )
+        # a node runs as "python controller.py" and registers its own PID
+        with open("controller.py", "w") as f:
+            f.write(
+                "import os, time\n"
+                "with open('concorekill_pids.txt', 'a') as f:\n"
+                "    f.write(str(os.getpid()) + '\\n')\n"
+                "time.sleep(60)\n"
+            )
+        monkeypatch.setattr(sys, "argv", ["controller.py"])
+        proc = subprocess.Popen([sys.executable, "controller.py"])
         try:
-            with open(_PID_REGISTRY_FILE, "w") as f:
-                f.write(str(proc.pid) + "\n")
+            node_pid = ""
+            for _ in range(100):
+                if os.path.exists(_PID_REGISTRY_FILE):
+                    with open(_PID_REGISTRY_FILE) as f:
+                        node_pid = f.read().strip()
+                if node_pid:
+                    break
+                time.sleep(0.1)
+            assert node_pid
             _write_kill_script()
             result = subprocess.run(
                 ["cmd", "/c", _KILL_SCRIPT_FILE],
@@ -873,7 +889,7 @@ class TestPidRegistry:
                 text=True,
                 timeout=60,
             )
-            assert "Killing concore process " + str(proc.pid) in result.stdout
+            assert "Killing concore process " + node_pid in result.stdout
             proc.wait(timeout=10)
             assert not os.path.exists(_PID_REGISTRY_FILE)
             assert not os.path.exists(_KILL_SCRIPT_FILE)
