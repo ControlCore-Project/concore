@@ -365,19 +365,18 @@ inline std::map<std::string, std::string> load_params(const std::string& params_
         try { return parsedict(sparams); } catch (...) {}
     }
 
-    // Otherwise convert semicolon-separated key=value to dict format
-    // e.g. "a=1;b=2" -> {"a":"1","b":"2"}
-    std::string normalized = std::regex_replace(sparams, std::regex(";"), ",");
-    std::string converted = "{\"" +
-        std::regex_replace(
-            std::regex_replace(
-                std::regex_replace(normalized, std::regex(","), ",\""),
-                std::regex("="), "\":"),
-            std::regex(" "), "") +
-        "}";
-    try { return parsedict(converted); } catch (...) {}
-
-    return {};
+    // Otherwise split semicolon-separated key=value, keeping bare words as strings
+    std::map<std::string, std::string> result;
+    std::stringstream items(sparams);
+    std::string item;
+    while (std::getline(items, item, ';')) {
+        size_t eq = item.find('=');
+        if (eq == std::string::npos) continue;
+        std::string key = stripstr(item.substr(0, eq));
+        if (key.empty()) continue;
+        result[key] = stripquotes(stripstr(item.substr(eq + 1)));
+    }
+    return result;
 }
 
 /**
