@@ -23,6 +23,9 @@ concore validate workflow.graphml
 # Build your workflow
 concore build workflow.graphml
 
+# Start the built study and wait for it to finish
+concore run out --wait
+
 # Check running processes
 concore status
 
@@ -102,6 +105,27 @@ Checks:
 concore validate workflow.graphml
 concore validate workflow.graphml --source ./src
 ```
+
+### `concore run <study_dir>`
+
+Starts a built study (the folder `concore build` created) by running its generated `run` script, so you do not have to `cd` into it.
+
+**Options:**
+- `--build` - Run the study's `build` script first (stops if the build fails)
+- `--wait` - Wait until every node has exited. `Ctrl+C` stops the study's nodes
+- `--timeout <seconds>` - With `--wait`, stop the study after this many seconds (exit code 124)
+
+**Examples:**
+```bash
+concore run out
+concore run out --build --wait
+concore run out --wait --timeout 300
+```
+
+**Notes:**
+- `--wait` needs the node process ids that POSIX and macOS builds record; for Docker and Windows builds the study is started and a warning explains there is nothing to wait for.
+- `--wait` reports when the nodes have exited, not whether they succeeded. Check each node's `concoreout.txt` for errors.
+- Exit codes: `0` success, `124` timeout, `130` interrupted, or the exit code of the failing script.
 
 ### `concore status`
 
