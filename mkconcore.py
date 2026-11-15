@@ -350,7 +350,9 @@ for node in nodes_text:
                 if ':' in node_label:
                     container_part, source_part = node_label.split(':', 1)
                     safe_name(container_part, f"Node container name '{container_part}'")
-                    source_part = safe_relpath(source_part, f"Node source file '{source_part}'")
+                    # A node may have no source file (port endpoints such as 'IN:' / 'OUT:').
+                    if source_part:
+                        source_part = safe_relpath(source_part, f"Node source file '{source_part}'")
                     node_label = f"{container_part}:{source_part}"
                 else:
                     safe_name(node_label, f"Node label '{node_label}'")
