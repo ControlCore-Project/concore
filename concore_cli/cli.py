@@ -10,6 +10,7 @@ from .commands.status import show_status
 from .commands.stop import stop_all
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
+from .commands.completion import SHELLS, completion_script
 from .commands.doctor import doctor_check
 from .commands.setup import setup_concore
 from . import __version__
@@ -179,6 +180,13 @@ def watch(study_dir, interval, once):
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
+
+
+@cli.command()
+@click.argument("shell", type=click.Choice(SHELLS))
+def completion(shell):
+    """Print the tab-completion script for bash, zsh or fish"""
+    click.echo(completion_script(cli, shell), nl=False)
 
 
 @cli.command()
