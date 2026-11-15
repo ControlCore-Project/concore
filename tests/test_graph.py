@@ -96,22 +96,28 @@ class TestGraphValidation(unittest.TestCase):
         self.assertIn("Validation failed", result.output)
         self.assertIn("Edge references non-existent target node", result.output)
 
-    def test_validate_node_missing_filename(self):
+    def test_validate_port_only_node_is_valid(self):
         content = """
         <graphml xmlns:y="http://www.yworks.com/xml/graphml">
             <graph id="G" edgedefault="directed">
                 <node id="n0">
-                    <data key="d0"><y:NodeLabel>n0:</y:NodeLabel></data>
+                    <data key="d0"><y:NodeLabel>IN:</y:NodeLabel></data>
                 </node>
+                <node id="n1">
+                    <data key="d0"><y:NodeLabel>OUT:</y:NodeLabel></data>
+                </node>
+                <edge id="e0" source="n0" target="n1">
+                    <data key="d1"><y:EdgeLabel>0x1000_a</y:EdgeLabel></data>
+                </edge>
             </graph>
         </graphml>
         """
-        filepath = self.create_graph_file("bad_node.graphml", content)
+        filepath = self.create_graph_file("port_only.graphml", content)
 
         result = self.runner.invoke(cli, ["validate", filepath])
 
-        self.assertIn("Validation failed", result.output)
-        self.assertIn("has no filename", result.output)
+        self.assertNotIn("has no filename", result.output)
+        self.assertNotIn("Validation failed", result.output)
 
     def test_validate_unsafe_node_label(self):
         content = """
