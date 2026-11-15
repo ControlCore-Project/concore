@@ -10,6 +10,7 @@ from .commands.status import show_status
 from .commands.stop import stop_all
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
+from .commands.graph import FORMATS, graph_workflow
 from .commands.doctor import doctor_check
 from .commands.setup import setup_concore
 from . import __version__
@@ -179,6 +180,38 @@ def watch(study_dir, interval, once):
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
+
+
+@cli.command()
+@click.argument("workflow_file", type=click.Path(exists=True))
+@click.option(
+    "--format",
+    "-f",
+    "output_format",
+    default="mermaid",
+    show_default=True,
+    type=click.Choice(FORMATS),
+    help="Diagram format",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False),
+    help="Write to this file instead of printing",
+)
+def graph(workflow_file, output_format, output):
+    """Print a workflow as a Mermaid or Graphviz (dot) diagram"""
+    try:
+        text = graph_workflow(workflow_file, output_format)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+    if output:
+        with open(output, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        console.print(f"[green]Wrote[/green] {output}")
+    else:
+        click.echo(text, nl=False)
 
 
 @cli.command()
