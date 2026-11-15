@@ -69,6 +69,8 @@ Compiles a concore workflow GraphML file into executable scripts (POSIX, Windows
 concore build workflow.graphml --source ./src --output ./build --auto-build
 ```
 
+Build stops before generating anything if a node's source file (the part after `:` in its label, such as `controller.py`) is missing from the source directory, and lists the missing files. Labels with no extension (pulled containers) and port-only nodes (`IN:`) are not checked.
+
 Docker compose example:
 
 ```bash

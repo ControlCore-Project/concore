@@ -4,6 +4,7 @@ import subprocess
 import sys
 import shutil
 from pathlib import Path
+from bs4 import BeautifulSoup
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -17,6 +18,32 @@ def _find_mkconcore_path():
         if candidate.exists():
             return candidate
     return None
+
+
+def _missing_sources(workflow_path, source_path):
+    """Source files named by node labels ('ID:file.ext') that are not in source_path.
+
+    Labels without an extension (pulled containers) and labels without a file
+    part (port-only nodes such as 'IN:') have nothing to check.
+    """
+    try:
+        soup = BeautifulSoup(workflow_path.read_text(encoding="utf-8"), "xml")
+    except (OSError, UnicodeDecodeError):
+        return []
+    missing = set()
+    for node in soup.find_all("node"):
+        tag = node.find("y:NodeLabel")
+        if tag is None:
+            tag = node.find("NodeLabel")
+        if tag is None or not tag.text:
+            continue
+        parts = tag.text.strip().split(":")
+        if len(parts) != 2:
+            continue
+        name = parts[1]
+        if "." in name and not (source_path / name).exists():
+            missing.add(name)
+    return sorted(missing)
 
 
 def _yaml_quote(value):
@@ -186,6 +213,12 @@ def build_workflow(
 
     if compose and exec_type != "docker":
         raise ValueError("--compose can only be used with --type docker")
+
+    missing = _missing_sources(workflow_path, source_path)
+    if missing:
+        raise FileNotFoundError(
+            f"Node source file(s) not found in '{source_path}': {', '.join(missing)}"
+        )
 
     mkconcore_path = _find_mkconcore_path()
     if mkconcore_path is None:
