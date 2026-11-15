@@ -10,6 +10,7 @@ from .commands.status import show_status
 from .commands.stop import stop_all
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
+from .commands.add_node import LANGUAGES, add_node
 from .commands.doctor import doctor_check
 from .commands.setup import setup_concore
 from . import __version__
@@ -176,6 +177,24 @@ def watch(study_dir, interval, once):
         ok = watch_study(study_dir, interval, once, console)
         if not ok:
             sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command("add-node")
+@click.argument("project_dir", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--lang",
+    "-l",
+    required=True,
+    type=click.Choice(LANGUAGES),
+    help="Language of the new node",
+)
+def add_node_command(project_dir, lang):
+    """Add a starter node (source file + workflow entry) to an existing project"""
+    try:
+        add_node(project_dir, lang, console)
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)

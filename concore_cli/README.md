@@ -53,6 +53,15 @@ my-workflow/
 └── README.md          # Project documentation
 ```
 
+### `concore add-node <project_dir> --lang <language>`
+
+Adds a starter node to an existing project: a source stub in `src/` and a matching (unconnected) node in `workflow.graphml`. Languages: `python`, `cpp`, `octave`, `verilog`, `java` (the same stubs `concore init --interactive` creates). If the default file name is taken it uses the next free one (`script2.py`, `Script2.java`), and the node is placed below the existing nodes. Connect it to the others in yEd afterwards.
+
+**Example:**
+```bash
+concore add-node my-project --lang cpp
+```
+
 ### `concore build <workflow_file>`
 
 Compiles a concore workflow GraphML file into executable scripts (POSIX, Windows, or Docker).
