@@ -8,6 +8,12 @@ A command-line interface for managing concore neuromodulation workflows.
 pip install -e .
 ```
 
+If the `concore` command is not on your `PATH`, the same CLI runs as a module:
+
+```bash
+python3 -m concore_cli --help
+```
+
 ## Quick Start
 
 ```bash
