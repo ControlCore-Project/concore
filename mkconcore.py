@@ -331,6 +331,10 @@ soup = BeautifulSoup(text_str, 'xml')
 edges_text = soup.find_all('edge')
 nodes_text = soup.find_all('node')
 
+if not nodes_text:
+    logging.error(f"No nodes found in {GRAPHML_FILE}. Is it a valid GraphML workflow?")
+    sys.exit(1)
+
 # Store the edges and nodes in a dictionary
 edge_label_regex = re.compile(r"0x([a-fA-F0-9]+)_(\S+)")
 edges_dict = dict()
