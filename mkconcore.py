@@ -339,7 +339,8 @@ node_id_to_label_map = dict() # Helper to get clean node labels from GraphML ID
 
 for node in nodes_text:
     try:
-        data = node.find('data', recursive=False)
+        # yEd can put the label in any <data> child, not only the first one
+        data = next((d for d in node.find_all('data', recursive=False) if d.find('y:NodeLabel')), None)
         if data:
             node_label_tag = data.find('y:NodeLabel')
             if node_label_tag:
@@ -359,8 +360,12 @@ for node in nodes_text:
 
                 nodes_dict[node['id']] = node_label
                 node_id_to_label_map[node['id']] = node_label.split(':')[0]
+            else:
+                logging.warning(f"Node '{node.get('id')}' has no label and was ignored")
+        else:
+            logging.warning(f"Node '{node.get('id')}' has no label and was ignored")
     except (IndexError, AttributeError):
-        logging.debug('A node with no valid properties encountered and ignored')
+        logging.warning(f"Node '{node.get('id')}' has no valid properties and was ignored")
 
 label_values = list(nodes_dict.values())
 duplicates = {label for label in label_values if label_values.count(label) > 1}
@@ -370,7 +375,7 @@ if duplicates:
 
 for edge in edges_text:
     try:
-        data = edge.find('data', recursive=False)
+        data = next((d for d in edge.find_all('data', recursive=False) if d.find('y:EdgeLabel')), None)
         if data:
             edge_label_tag = data.find('y:EdgeLabel')
             if edge_label_tag:
@@ -394,8 +399,12 @@ for edge in edges_text:
                         )
                         sys.exit(1)
                     edges_dict[edge_label][1].append(nodes_dict[edge['target']])
-    except (IndexError, AttributeError, KeyError):
-        logging.debug('An edge with no valid properties or missing node encountered and ignored')
+            else:
+                logging.warning(f"Edge '{edge.get('source')}' -> '{edge.get('target')}' has no label and was ignored")
+        else:
+            logging.warning(f"Edge '{edge.get('source')}' -> '{edge.get('target')}' has no label and was ignored")
+    except (IndexError, AttributeError, KeyError) as e:
+        logging.warning(f"Edge '{edge.get('source')}' -> '{edge.get('target')}' refers to a missing node or has no valid properties ({e!r}) and was ignored")
 
 
 ############## Mark's Docker
