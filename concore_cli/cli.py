@@ -1,12 +1,13 @@
 import click
 from rich.console import Console
+import json
 import os
 import sys
 
 from .commands.init import init_project, init_project_interactive, run_wizard
 from .commands.build import build_workflow
 from .commands.validate import validate_workflow
-from .commands.status import show_status
+from .commands.status import show_status, status_data
 from .commands.stop import stop_all
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
@@ -143,10 +144,14 @@ def inspect(workflow_file, source, output_json):
 
 
 @cli.command()
-def status():
+@click.option("--json", "output_json", is_flag=True, help="Output in JSON format")
+def status(output_json):
     """Show running concore processes"""
     try:
-        show_status(console)
+        if output_json:
+            click.echo(json.dumps(status_data(), indent=2))
+        else:
+            show_status(console)
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
