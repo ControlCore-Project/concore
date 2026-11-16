@@ -34,7 +34,13 @@ concore = "concore_cli.cli:cli"
 
 [tool.setuptools]
 packages = ["concore_cli", "concore_cli.commands"]
-py-modules = ["concore", "concoredocker", "concore_base", "mkconcore"]
+py-modules = [
+    "concore",
+    "concoredocker",
+    "concore_base",
+    "mkconcore",
+    "copy_with_port_portname",
+]
 
 [tool.setuptools.dynamic]
 version = {attr = "concore_cli.__version__"}
