@@ -442,6 +442,7 @@ if not os.path.exists(copy_script_py_path):
 node_edge_params = {}
 edge_label_regex = re.compile(r"0x([^_]+)_(\S+)")
 
+missing_sources = []
 logging.info("Aggregating ZMQ edge parameters for nodes...")
 if copy_script_py_path:
     for edge_element in soup.find_all('edge'):
@@ -537,6 +538,7 @@ if node_edge_params:
         template_script_full_path = os.path.join(sourcedir, original_script)
         if not os.path.exists(template_script_full_path):
             logging.error(f"Cannot specialize: Original script '{template_script_full_path}' not found in '{sourcedir}'.")
+            missing_sources.append(original_script)
             continue
 
         new_script_relpath = copy_with_port_portname.run_specialization_script(
@@ -606,6 +608,8 @@ for node_id_key in list(nodes_dict.keys()):
             shutil.copy2(script_source_path, script_target_path)
         else:
             logging.error(f"Script '{sourcecode}' not found in sourcedir '{sourcedir}'")
+            if "." in sourcecode:  # pulled containers have no source file
+                missing_sources.append(sourcecode)
 
     # The rest of the file handling (Dockerfiles, .dir) uses 'dockername',
     # which is now derived from the specialized script name, maintaining consistency.
@@ -618,6 +622,10 @@ for node_id_key in list(nodes_dict.keys()):
     if os.path.isdir(os.path.join(sourcedir, dir_for_node)):
         shutil.copytree(os.path.join(sourcedir, dir_for_node), os.path.join(outdir, "src", dir_for_node), dirs_exist_ok=True)
 
+
+if missing_sources:
+    logging.error(f"Node source file(s) not found in {sourcedir}: {', '.join(sorted(set(missing_sources)))}")
+    sys.exit(1)
 
 #determine languages used in the graphml
 required_langs = set()
