@@ -112,6 +112,13 @@ Shows all currently running concore processes with details:
 - Memory usage
 - Command
 
+**Options:**
+- `--json` - Print machine-readable JSON instead of the table, for scripts and CI. Output is `{"count": N, "processes": [{"pid", "name", "command", "uptime_seconds", "memory_mb"}]}`; `uptime_seconds` and `memory_mb` are `null` if they cannot be read.
+
+```bash
+concore status --json
+```
+
 **Example:**
 ```bash
 concore status
