@@ -82,4 +82,26 @@ const DockerConcore = DockerRuntime.Concore
         end
     end
 
+    if DockerConcore.HAS_ZMQ
+        @testset "ZMQ read updates unchanged" begin
+            using Sockets
+
+            reset_docker_state!()
+            server = Sockets.listen(Sockets.localhost, 0)
+            tcp_port = Sockets.getsockname(server)[2]
+            close(server)
+            address = "tcp://127.0.0.1:$tcp_port"
+
+            DockerConcore.init_zmq_port("out", "bind", address, "PAIR")
+            DockerConcore.init_zmq_port("in", "connect", address, "PAIR")
+            sleep(0.1)
+
+            DockerConcore.concore_write("out", "signal", [10.0])
+            @test DockerConcore.unchanged()
+            @test DockerConcore.concore_read("in", "signal", "[0.0, 0.0]") == [10.0]
+            @test !DockerConcore.unchanged()
+            DockerConcore.terminate_zmq()
+        end
+    end
+
 end

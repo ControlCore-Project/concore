@@ -275,10 +275,11 @@ function _zmq_read(port_name::AbstractString, initstr::AbstractString)::Vector{F
     port = get(zmq_ports, String(port_name), nothing)
     port === nothing && error("ZMQ port '$port_name' not registered")
 
-    global simtime
+    global s, simtime
     _apply_write()
     try
         msg = _zmq_recv(port.socket)
+        s = _cap_s(s, msg)
         vals = safe_parse_list(msg)
         simtime = max(simtime, vals[1])
         return vals[2:end]
