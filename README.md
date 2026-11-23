@@ -129,7 +129,7 @@ For a detailed and more scientific documentation, please read our extensive [ope
 
 `concore.hpp` supports ZMQ-based communication as an opt-in transport alongside the default file-based I/O.
 
-To enable it, compile with `-DCONCORE_USE_ZMQ` and link against cppzmq:
+To enable it, compile with `-DCONCORE_USE_ZMQ` and link against cppzmq (4.7 or newer):
 
 ```bash
 g++ -DCONCORE_USE_ZMQ my_node.cpp -lzmq -o my_node
