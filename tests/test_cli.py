@@ -1029,6 +1029,7 @@ class TestConcoreCLI(unittest.TestCase):
         cases = {
             "pidM.m": ["import_concore.m", "concore_read.m"],
             "Plant.java": ["ConcoreJavaRuntimeCore.java", "concoredocker.java"],
+            "ctrl.jl": ["concore.jl", "concoredocker.jl"],
         }
         for source, runtime_files in cases.items():
             with self.subTest(source=source):
@@ -1037,6 +1038,44 @@ class TestConcoreCLI(unittest.TestCase):
                 for name in [source] + runtime_files:
                     (node / name).write_text("")
                 self.assertEqual(_detect_source(node), source)
+
+    def test_validate_and_inspect_julia_node(self):
+        graphml = """<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+         xmlns:y="http://www.yworks.com/xml/graphml">
+  <key for="node" id="d0" yfiles.type="nodegraphics"/>
+  <key for="edge" id="d1" yfiles.type="edgegraphics"/>
+  <graph id="G" edgedefault="directed">
+    <node id="n0">
+      <data key="d0">
+        <y:ShapeNode>
+          <y:NodeLabel>0:ctrl.jl</y:NodeLabel>
+        </y:ShapeNode>
+      </data>
+    </node>
+  </graph>
+</graphml>"""
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            Path("workflow.graphml").write_text(graphml)
+            src_dir = Path("src")
+            src_dir.mkdir()
+            (src_dir / "ctrl.jl").write_text("# julia controller")
+
+            # validate passes with no unusual file extension warning
+            val_res = self.runner.invoke(cli, ["validate", "workflow.graphml", "--format", "json"])
+            self.assertEqual(val_res.exit_code, 0)
+            val_payload = json.loads(val_res.output)
+            self.assertTrue(val_payload["valid"])
+            self.assertEqual(val_payload["summary"]["error_count"], 0)
+            warning_messages = [w["message"] for w in val_payload["warnings"]]
+            self.assertFalse(any("unusual file extension" in m for m in warning_messages))
+
+            # inspect reports Julia language
+            insp_res = self.runner.invoke(cli, ["inspect", "workflow.graphml", "--json"])
+            self.assertEqual(insp_res.exit_code, 0)
+            insp_payload = json.loads(insp_res.output)
+            self.assertEqual(insp_payload["nodes"]["by_language"].get("julia"), 1)
+            self.assertEqual(insp_payload["nodes"]["list"][0]["language"], "julia")
 
 
 if __name__ == "__main__":
