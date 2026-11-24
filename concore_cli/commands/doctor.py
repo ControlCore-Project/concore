@@ -290,13 +290,8 @@ def doctor_check(console):
         else:
             hint = tool_def["install_hints"].get(plat_name, "")
             hint_str = f" (install: {hint})" if hint else ""
-            # Optional tools - show as warning
-            if tool_label in (
-                "MATLAB",
-                "Verilog (iverilog)",
-                "Docker",
-                "Java (javac)",
-            ):
+            # Docker, MATLAB, Verilog, and Java are optional - show as warning
+            if tool_label in ("MATLAB", "Verilog (iverilog)", "Docker", "Java (javac)"):
                 console.print(
                     f"  [yellow]![/yellow] {tool_label} -> Not found{hint_str}"
                 )
