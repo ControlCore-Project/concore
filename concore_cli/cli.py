@@ -80,7 +80,12 @@ def init(name, template, interactive):
     is_flag=True,
     help="Configure compose for ZMQ networking mode (requires --compose)",
 )
-def build(workflow_file, source, output, type, auto_build, compose, zmq):
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Replace the output directory if it holds a previously generated study",
+)
+def build(workflow_file, source, output, type, auto_build, compose, zmq, force):
     """Compile a concore workflow into executable scripts"""
     if zmq and not compose:
         console.print("[red]Error:[/red] --zmq requires --compose")
@@ -95,6 +100,7 @@ def build(workflow_file, source, output, type, auto_build, compose, zmq):
             console,
             compose=compose,
             zmq_mode=zmq,
+            force=force,
         )
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
