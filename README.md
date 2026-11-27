@@ -58,6 +58,9 @@ concore validate workflow.graphml
 # Compile your workflow
 concore build workflow.graphml --auto-build
 
+# Start the built study
+concore run out --wait
+
 # Monitor running processes
 concore status
 
