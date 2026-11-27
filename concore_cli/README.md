@@ -150,6 +150,21 @@ Stops all running concore processes. Prompts for confirmation before proceeding.
 concore stop
 ```
 
+### `concore logs <study_dir> [node]`
+
+Shows the output (`concoreout.txt`) that each node of a built study has written.
+
+**Options:**
+- `-n, --lines N` - Lines to show per node (default: 20)
+- `-f, --follow` - Keep printing new output until Ctrl+C
+
+**Example:**
+```bash
+concore logs out                # last 20 lines of every node
+concore logs out CZ -n 100      # one node
+concore logs out -f             # follow all nodes live
+```
+
 ## Development Workflow
 
 1. **Create a new project**

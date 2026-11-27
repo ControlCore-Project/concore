@@ -11,6 +11,7 @@ from .commands.stop import stop_all
 from .commands.run import run_study
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
+from .commands.logs import logs_study
 from .commands.doctor import doctor_check
 from .commands.setup import setup_concore
 from . import __version__
@@ -205,6 +206,31 @@ def watch(study_dir, interval, once):
         sys.exit(1)
     try:
         ok = watch_study(study_dir, interval, once, console)
+        if not ok:
+            sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("study_dir", type=click.Path(exists=True))
+@click.argument("node", required=False, default=None)
+@click.option(
+    "-n",
+    "--lines",
+    default=20,
+    show_default=True,
+    type=click.IntRange(min=0),
+    help="Lines to show per node",
+)
+@click.option(
+    "-f", "--follow", is_flag=True, help="Keep printing new output (Ctrl+C to stop)"
+)
+def logs(study_dir, node, lines, follow):
+    """Show the output of a study's nodes (concoreout.txt)"""
+    try:
+        ok = logs_study(study_dir, node, lines, follow, console)
         if not ok:
             sys.exit(1)
     except Exception as e:
