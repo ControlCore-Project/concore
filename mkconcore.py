@@ -89,9 +89,10 @@ def safe_name(value, context, allow_path=False):
         pattern = r'[\x00-\x1F\x7F*?"<>|;&`$\'()]'
     else:
         # blocks path traversal (/, \, :) in addition to shell metacharacters
-        pattern = r'[\x00-\x1F\x7F\\/:*?"<>|;&`$\'()]'
+        pattern = r'[\x00-\x1F\x7F\\/:*?"<>|;&`$\'() ]'
     if re.search(pattern, value):
-        raise ValueError(f"Unsafe {context}: '{value}' contains illegal characters.")
+        hint = " Spaces are not allowed in names; use '_' instead." if " " in value and not allow_path else ""
+        raise ValueError(f"Unsafe {context}: '{value}' contains illegal characters.{hint}")
     return value
 
 def safe_relpath(value, context):
