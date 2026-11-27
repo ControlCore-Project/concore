@@ -1145,16 +1145,22 @@ class TestConcoreCLI(unittest.TestCase):
             (src_dir / "ctrl.jl").write_text("# julia controller")
 
             # validate passes with no unusual file extension warning
-            val_res = self.runner.invoke(cli, ["validate", "workflow.graphml", "--format", "json"])
+            val_res = self.runner.invoke(
+                cli, ["validate", "workflow.graphml", "--format", "json"]
+            )
             self.assertEqual(val_res.exit_code, 0)
             val_payload = json.loads(val_res.output)
             self.assertTrue(val_payload["valid"])
             self.assertEqual(val_payload["summary"]["error_count"], 0)
             warning_messages = [w["message"] for w in val_payload["warnings"]]
-            self.assertFalse(any("unusual file extension" in m for m in warning_messages))
+            self.assertFalse(
+                any("unusual file extension" in m for m in warning_messages)
+            )
 
             # inspect reports Julia language
-            insp_res = self.runner.invoke(cli, ["inspect", "workflow.graphml", "--json"])
+            insp_res = self.runner.invoke(
+                cli, ["inspect", "workflow.graphml", "--json"]
+            )
             self.assertEqual(insp_res.exit_code, 0)
             insp_payload = json.loads(insp_res.output)
             self.assertEqual(insp_payload["nodes"]["by_language"].get("julia"), 1)

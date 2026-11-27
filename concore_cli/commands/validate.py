@@ -48,8 +48,6 @@ def _classify_message(message, bucket_name):
         return {"error_type": "invalid_node_label_format"}
     if message.startswith("Node '") and message.endswith("has invalid format"):
         return {"error_type": "invalid_node_label_format"}
-    if message.startswith("Node '") and message.endswith("has no filename"):
-        return {"error_type": "missing_node_filename"}
     if message.startswith("Node '") and message.endswith("has unusual file extension"):
         return {"error_type": "unusual_file_extension"}
     if message.startswith("Missing source file:"):
@@ -257,29 +255,39 @@ def validate_workflow(
                             warnings.append(f"Node '{label}' has invalid format")
                         else:
                             nodeId_part, filename = parts
-                            source_nodes[filename] = node_id
-                            if not filename:
-                                errors.append(f"Node '{label}' has no filename")
-                            elif (
-                                exec_type in ("posix", "windows")
-                                and "." not in filename
-                            ):
-                                errors.append(
-                                    f"Node '{label}' is a pulled container (no file "
-                                    f"extension); pulled containers need --type docker, "
-                                    f"not {exec_type}"
-                                )
-                            elif not any(
-                                filename.endswith(ext)
-                                for ext in [".py", ".cpp", ".m", ".v", ".java", ".jl"]
-                            ):
-                                warnings.append(
-                                    f"Node '{label}' has unusual file extension"
-                                )
-                            elif source_root.exists():
-                                file_path = source_root / filename
-                                if not file_path.exists():
-                                    errors.append(f"Missing source file: {filename}")
+                            # A node with no filename ('IN:' / 'OUT:') is a
+                            # port-only input/output source: nothing to check.
+                            if filename:
+                                source_nodes[filename] = node_id
+                                if (
+                                    exec_type in ("posix", "windows")
+                                    and "." not in filename
+                                ):
+                                    errors.append(
+                                        f"Node '{label}' is a pulled container (no file "
+                                        f"extension); pulled containers need --type docker, "
+                                        f"not {exec_type}"
+                                    )
+                                elif not any(
+                                    filename.endswith(ext)
+                                    for ext in [
+                                        ".py",
+                                        ".cpp",
+                                        ".m",
+                                        ".v",
+                                        ".java",
+                                        ".jl",
+                                    ]
+                                ):
+                                    warnings.append(
+                                        f"Node '{label}' has unusual file extension"
+                                    )
+                                elif source_root.exists():
+                                    file_path = source_root / filename
+                                    if not file_path.exists():
+                                        errors.append(
+                                            f"Missing source file: {filename}"
+                                        )
                 else:
                     warnings.append(f"Node {node_id} has no label")
             except Exception as e:
