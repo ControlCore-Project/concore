@@ -182,6 +182,21 @@ concore logs out CZ -n 100      # one node
 concore logs out -f             # follow all nodes live
 ```
 
+### `concore graph <workflow_file>`
+
+Prints a workflow as a diagram you can paste into a README or docs. Nodes are shown with their labels and edges with their edge labels.
+
+**Options:**
+- `-f, --format <format>` - `mermaid` (default) or `dot` (Graphviz)
+- `-o, --output <file>` - Write to a file instead of printing
+
+**Example:**
+```bash
+concore graph workflow.graphml
+concore graph workflow.graphml -f dot -o workflow.dot
+dot -Tsvg workflow.dot -o workflow.svg
+```
+
 ## Development Workflow
 
 1. **Create a new project**
