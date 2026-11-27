@@ -132,7 +132,9 @@ def _build_payload(workflow_path, source_root, errors, warnings, info, source_no
     }
 
 
-def validate_workflow(workflow_file, source_dir, console, output_format="text"):
+def validate_workflow(
+    workflow_file, source_dir, console, output_format="text", exec_type=None
+):
     workflow_path = Path(workflow_file)
     source_root = resolve_source_dir(workflow_path, source_dir)
 
@@ -256,6 +258,15 @@ def validate_workflow(workflow_file, source_dir, console, output_format="text"):
                             source_nodes[filename] = node_id
                             if not filename:
                                 errors.append(f"Node '{label}' has no filename")
+                            elif (
+                                exec_type in ("posix", "windows")
+                                and "." not in filename
+                            ):
+                                errors.append(
+                                    f"Node '{label}' is a pulled container (no file "
+                                    f"extension); pulled containers need --type docker, "
+                                    f"not {exec_type}"
+                                )
                             elif not any(
                                 filename.endswith(ext)
                                 for ext in [".py", ".cpp", ".m", ".v", ".java", ".jl"]

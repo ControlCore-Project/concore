@@ -94,6 +94,7 @@ Validates a GraphML workflow file before running.
 
 **Options:**
 - `-s, --source <dir>` - Source directory to verify file references exist
+- `-t, --type <type>` - Also check the workflow can be built for this execution type (`windows`, `posix` or `docker`). Pulled containers (a node label with no file extension, such as `CZ:cpymat`) are only valid with `docker`
 
 Checks:
 - Valid XML structure

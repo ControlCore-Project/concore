@@ -116,7 +116,15 @@ def build(workflow_file, source, output, type, auto_build, compose, zmq):
     type=click.Choice(["text", "json"]),
     help="Validation output format",
 )
-def validate(workflow_file, source, output_format):
+@click.option(
+    "--type",
+    "-t",
+    "exec_type",
+    default=None,
+    type=click.Choice(["windows", "posix", "docker"]),
+    help="Also check the workflow can be built for this execution type",
+)
+def validate(workflow_file, source, output_format, exec_type):
     """Validate a workflow file"""
     try:
         ok = validate_workflow(
@@ -124,6 +132,7 @@ def validate(workflow_file, source, output_format):
             source,
             console,
             output_format=output_format,
+            exec_type=exec_type,
         )
         if not ok:
             sys.exit(1)
