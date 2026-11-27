@@ -42,12 +42,23 @@ def test_port_only_workflows_were_found():
     ids=[str(p.relative_to(REPO_ROOT)) for p in PORT_ONLY_WORKFLOWS],
 )
 def test_workflow_with_port_only_node_builds(tmp_path, workflow, build_type):
+    # mkconcore refuses nodes whose source file is missing, and not every
+    # bundled workflow ships its node scripts, so give each node an empty file.
+    src = tmp_path / "src"
+    src.mkdir()
+    for label in LABEL_RE.findall(workflow.read_text(errors="ignore")):
+        label = re.sub(r"\s+", " ", label)
+        if ":" in label:
+            name = label.split(":", 1)[1].strip()
+            if name:
+                (src / name).parent.mkdir(parents=True, exist_ok=True)
+                (src / name).write_text("")
     result = subprocess.run(
         [
             sys.executable,
             str(REPO_ROOT / "mkconcore.py"),
             str(workflow),
-            str(workflow.parent),
+            str(src),
             str(tmp_path / "study"),
             build_type,
         ],
