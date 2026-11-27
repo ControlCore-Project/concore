@@ -58,6 +58,9 @@ concore validate workflow.graphml
 # Compile your workflow
 concore build workflow.graphml --auto-build
 
+# Start the built study
+concore run out --wait
+
 # Monitor running processes
 concore status
 
@@ -66,6 +69,20 @@ concore stop
 ```
 
 For detailed CLI documentation, see [concore_cli/README.md](concore_cli/README.md).
+
+### Running a study on Windows (without the CLI)
+
+From `cmd` in the repository root, with Python 3 on your `PATH` as `python` (`makestudy.bat` calls it directly):
+
+```bat
+makestudy.bat demo\sample.graphml mystudy
+cd mystudy
+build.bat
+maxtime.bat 15
+run.bat
+```
+
+`makestudy.bat` creates the study folder (`mystudy` here) in the current directory; without the second argument it is named after the GraphML file. Each node writes its output to `<node>\concoreout.txt`. Use `stop.bat` to stop the nodes and `clear.bat` to clear the data between runs (this also removes the max time, so run `maxtime.bat` again afterwards). In PowerShell, call the scripts as `.\makestudy.bat`, `.\build.bat`, and so on.
 
 ## Configuration
 
@@ -78,7 +95,7 @@ _concore_ supports customization through configuration files in the `CONCOREPATH
   VEXE=/opt/iverilog/bin/iverilog
   OCTAVEEXE=/snap/bin/octave
   ```
-  Supported keys: `CPPWIN`, `CPPEXE`, `VWIN`, `VEXE`, `PYTHONEXE`, `PYTHONWIN`, `MATLABEXE`, `MATLABWIN`, `OCTAVEEXE`, `OCTAVEWIN`
+  Supported keys: `CPPWIN`, `CPPEXE`, `VWIN`, `VEXE`, `PYTHONEXE`, `PYTHONWIN`, `MATLABEXE`, `MATLABWIN`, `OCTAVEEXE`, `OCTAVEWIN`, `JULIAEXE`, `JULIAWIN`
 
 - **concore.octave** - Treat `.m` files as Octave instead of MATLAB (presence = enabled)
 - **concore.mcr** - MATLAB Compiler Runtime path (single line)
@@ -129,7 +146,7 @@ For a detailed and more scientific documentation, please read our extensive [ope
 
 `concore.hpp` supports ZMQ-based communication as an opt-in transport alongside the default file-based I/O.
 
-To enable it, compile with `-DCONCORE_USE_ZMQ` and link against cppzmq:
+To enable it, compile with `-DCONCORE_USE_ZMQ` and link against cppzmq (4.7 or newer):
 
 ```bash
 g++ -DCONCORE_USE_ZMQ my_node.cpp -lzmq -o my_node

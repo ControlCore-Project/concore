@@ -89,9 +89,10 @@ def safe_name(value, context, allow_path=False):
         pattern = r'[\x00-\x1F\x7F*?"<>|;&`$\'()]'
     else:
         # blocks path traversal (/, \, :) in addition to shell metacharacters
-        pattern = r'[\x00-\x1F\x7F\\/:*?"<>|;&`$\'()]'
+        pattern = r'[\x00-\x1F\x7F\\/:*?"<>|;&`$\'() ]'
     if re.search(pattern, value):
-        raise ValueError(f"Unsafe {context}: '{value}' contains illegal characters.")
+        hint = " Spaces are not allowed in names; use '_' instead." if " " in value and not allow_path else ""
+        raise ValueError(f"Unsafe {context}: '{value}' contains illegal characters.{hint}")
     return value
 
 def safe_relpath(value, context):
@@ -204,6 +205,8 @@ JAVACEXE  = os.environ.get("CONCORE_JAVACEXE", "javac")      #Ubuntu/macOS javac
 JAVACWIN  = os.environ.get("CONCORE_JAVACWIN", "javac")      #Windows javac
 JAVAEXE   = os.environ.get("CONCORE_JAVAEXE", "java")        #Ubuntu/macOS java
 JAVAWIN   = os.environ.get("CONCORE_JAVAWIN", "java")        #Windows java
+JULIAEXE  = os.environ.get("CONCORE_JULIAEXE", "julia")      #Ubuntu/macOS julia
+JULIAWIN  = os.environ.get("CONCORE_JULIAWIN", "julia")      #Windows julia
 JEROMQ_URL = "https://repo1.maven.org/maven2/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 M_IS_OCTAVE = False      #treat .m as octave
 MCRPATH  = "~/MATLAB/R2021a" #path to local Ubunta Matlab Compiler Runtime
@@ -249,6 +252,8 @@ if os.path.exists(CONCOREPATH+"/concore.tools"):
     JAVACWIN  = _tools.get("JAVACWIN", JAVACWIN)
     JAVAEXE   = _tools.get("JAVAEXE", JAVAEXE)
     JAVAWIN   = _tools.get("JAVAWIN", JAVAWIN)
+    JULIAEXE  = _tools.get("JULIAEXE", JULIAEXE)
+    JULIAWIN  = _tools.get("JULIAWIN", JULIAWIN)
 
 prefixedgenode = ""
 sourcedir = os.path.abspath(sys.argv[2])
@@ -331,6 +336,10 @@ soup = BeautifulSoup(text_str, 'xml')
 edges_text = soup.find_all('edge')
 nodes_text = soup.find_all('node')
 
+if not nodes_text:
+    logging.error(f"No nodes found in {GRAPHML_FILE}. Is it a valid GraphML workflow?")
+    sys.exit(1)
+
 # Store the edges and nodes in a dictionary
 edge_label_regex = re.compile(r"0x([a-fA-F0-9]+)_(\S+)")
 edges_dict = dict()
@@ -366,6 +375,16 @@ label_values = list(nodes_dict.values())
 duplicates = {label for label in label_values if label_values.count(label) > 1}
 if duplicates:
     logging.error(f"Duplicate node labels found: {sorted(duplicates)}")
+    sys.exit(1)
+
+# Two nodes with the same container name would share one directory
+containers = {}
+for _label in label_values:
+    containers.setdefault(_label.split(':')[0], []).append(_label)
+shared = {name: labels for name, labels in containers.items() if len(labels) > 1}
+if shared:
+    for name, labels in sorted(shared.items()):
+        logging.error(f"Container name '{name}' is used by more than one node: {', '.join(labels)}")
     sys.exit(1)
 
 for edge in edges_text:
@@ -438,6 +457,7 @@ if not os.path.exists(copy_script_py_path):
 node_edge_params = {}
 edge_label_regex = re.compile(r"0x([^_]+)_(\S+)")
 
+missing_sources = []
 logging.info("Aggregating ZMQ edge parameters for nodes...")
 if copy_script_py_path:
     for edge_element in soup.find_all('edge'):
@@ -533,6 +553,7 @@ if node_edge_params:
         template_script_full_path = os.path.join(sourcedir, original_script)
         if not os.path.exists(template_script_full_path):
             logging.error(f"Cannot specialize: Original script '{template_script_full_path}' not found in '{sourcedir}'.")
+            missing_sources.append(original_script)
             continue
 
         new_script_relpath = copy_with_port_portname.run_specialization_script(
@@ -602,6 +623,8 @@ for node_id_key in list(nodes_dict.keys()):
             shutil.copy2(script_source_path, script_target_path)
         else:
             logging.error(f"Script '{sourcecode}' not found in sourcedir '{sourcedir}'")
+            if "." in sourcecode:  # pulled containers have no source file
+                missing_sources.append(sourcecode)
 
     # The rest of the file handling (Dockerfiles, .dir) uses 'dockername',
     # which is now derived from the specialized script name, maintaining consistency.
@@ -614,6 +637,10 @@ for node_id_key in list(nodes_dict.keys()):
     if os.path.isdir(os.path.join(sourcedir, dir_for_node)):
         shutil.copytree(os.path.join(sourcedir, dir_for_node), os.path.join(outdir, "src", dir_for_node), dirs_exist_ok=True)
 
+
+if missing_sources:
+    logging.error(f"Node source file(s) not found in {sourcedir}: {', '.join(sorted(set(missing_sources)))}")
+    sys.exit(1)
 
 #determine languages used in the graphml
 required_langs = set()
@@ -644,11 +671,12 @@ if 'py' in required_langs:
         print(CONCOREPATH+" is not correct path to concore (missing concore_base.py)")
         sys.exit(1)
 
-if 'jl' in required_langs and concoretype=="docker":
+if 'jl' in required_langs:
+    julia_runtime = "concoredocker.jl" if concoretype=="docker" else "concore.jl"
     try:
-        fsource = open(CONCOREPATH+"/concoredocker.jl")
+        fsource = open(CONCOREPATH+"/"+julia_runtime)
     except (FileNotFoundError, IOError):
-        print(CONCOREPATH+" is not correct path to concore (missing concoredocker.jl)")
+        print(CONCOREPATH+" is not correct path to concore (missing "+julia_runtime+")")
         sys.exit(1)
     with open(outdir+"/src/concore.jl","w") as fcopy:
         fcopy.write(fsource.read())
@@ -730,6 +758,14 @@ if 'm' in required_langs:
 
         fsource = open(CONCOREPATH+"/concore_oport.m")
         with open(outdir+"/src/concore_oport.m","w") as fcopy: fcopy.write(fsource.read())
+        fsource.close()
+
+        fsource = open(CONCOREPATH+"/concore_literal_eval.m")
+        with open(outdir+"/src/concore_literal_eval.m","w") as fcopy: fcopy.write(fsource.read())
+        fsource.close()
+
+        fsource = open(CONCOREPATH+"/concore_literal_serialize.m")
+        with open(outdir+"/src/concore_literal_serialize.m","w") as fcopy: fcopy.write(fsource.read())
         fsource.close()
 
         if concoretype=="docker":
@@ -842,8 +878,8 @@ if (concoretype=="docker"):
                         logging.info("assuming .m extension for Dockerfile")
                     with open(src_path) as fsource:
                         source_content = fsource.read()
-                except:
-                    logging.error(f"{CONCOREPATH} is not correct path to concore")
+                except OSError as e:
+                    logging.error(f"Cannot read Dockerfile template '{src_path}': {e}")
                     sys.exit(1)
                 dockerfile_parent = os.path.dirname(dockerfile_path)
                 if dockerfile_parent:
@@ -862,6 +898,9 @@ if (concoretype=="docker"):
                     if langext=="sh":
                         fcopy.write('CMD ["./'+sourcecode+'" ,"/opt/mcr/v910"]')  # 5/19/21
                     #["./run_pmmat.sh", "/opt/mcr/MATLAB/MATLAB_Runtime/v910"]
+                    if langext=="cpp":
+                        fcopy.write('RUN g++ ./'+sourcecode+'\n')
+                        fcopy.write('CMD ["./a.out"]\n')
                     if langext=="v":
                         fcopy.write('RUN iverilog ./'+sourcecode+'\n')  # 7/02/21
                         fcopy.write('CMD ["./a.out"]\n')  # 7/02/21
@@ -1140,6 +1179,8 @@ for node in nodes_dict:
                 fbuild.write("copy .\\src\\concore.v .\\" + containername + "\\concore.v\n")
             elif langext == "java":
                 fbuild.write("copy .\\src\\concore.java .\\" + containername + "\\concore.java\n")
+            elif langext == "jl":
+                fbuild.write("copy .\\src\\concore.jl .\\" + containername + "\\concore.jl\n")
             elif langext == "m":   #  4/2/21
                 fbuild.write("copy .\\src\\concore_*.m .\\" + containername + "\\\n")
                 fbuild.write("copy .\\src\\import_concore.m .\\" + containername + "\\\n")
@@ -1160,6 +1201,8 @@ for node in nodes_dict:
                 fbuild.write("cp ./src/concore.v ./"+containername+"/concore.v\n")
             elif langext == "java":
                 fbuild.write("cp ./src/concore.java ./"+containername+"/concore.java\n")
+            elif langext == "jl":
+                fbuild.write("cp ./src/concore.jl ./"+containername+"/concore.jl\n")
             elif langext == "m":  # 4/2/21
                 fbuild.write("cp ./src/concore_*.m ./"+containername+"/\n")
                 fbuild.write("cp ./src/import_concore.m ./"+containername+"/\n")
@@ -1219,6 +1262,7 @@ if concoretype == "windows":
     VWIN = _quote_executable_windows(VWIN)
     JAVACWIN = _quote_executable_windows(JAVACWIN)
     JAVAWIN = _quote_executable_windows(JAVAWIN)
+    JULIAWIN = _quote_executable_windows(JULIAWIN)
     OCTAVEWIN = _quote_executable_windows(OCTAVEWIN)
     MATLABWIN = _quote_executable_windows(MATLABWIN)
 else:
@@ -1227,6 +1271,7 @@ else:
     VEXE = _quote_executable_posix(VEXE)
     JAVACEXE = _quote_executable_posix(JAVACEXE)
     JAVAEXE = _quote_executable_posix(JAVAEXE)
+    JULIAEXE = _quote_executable_posix(JULIAEXE)
     OCTAVEEXE = _quote_executable_posix(OCTAVEEXE)
     MATLABEXE = _quote_executable_posix(MATLABEXE)
 
@@ -1236,7 +1281,7 @@ for node in nodes_dict:
   containername,sourcecode = nodes_dict[node].split(':')
   if len(sourcecode)!=0:
       dockername,langext = sourcecode.rsplit(".", 1)
-      if not (langext in ["py","m","sh","cpp","v","java"]): # 6/22/21
+      if not (langext in ["py","m","sh","cpp","v","java","jl"]): # 6/22/21
           logging.error(f"Extension .{langext} is unsupported")
           sys.exit(1)
       if concoretype=="windows":
@@ -1247,6 +1292,9 @@ for node in nodes_dict:
           if langext=="py":
               frun.write('start /B /D '+q_container+" "+PYTHONWIN+" "+q_source+" >"+q_container+"\\concoreout.txt\n")
               fdebug.write('start /D '+q_container+" cmd /K "+PYTHONWIN+" "+q_source+"\n")
+          elif langext=="jl":
+              frun.write('start /B /D '+q_container+" "+JULIAWIN+" "+q_source+" >"+q_container+"\\concoreout.txt\n")
+              fdebug.write('start /D '+q_container+" cmd /K "+JULIAWIN+" "+q_source+"\n")
           elif langext=="cpp":  #6/25/21
               frun.write('cd '+q_container+'\n')
               frun.write(CPPWIN+' '+q_source+'\n')
@@ -1279,13 +1327,13 @@ for node in nodes_dict:
               fdebug.write('cd ..\n')
               fdebug.write('start /D '+q_container+' cmd /K '+JAVAWIN+' -cp .;..\\src\\jeromq.jar '+javaclass+'\n')
           elif langext=="m":  #3/23/21
-              # Use q_source in Windows commands to ensure quoting consistency
+              # single quotes around the file name, q_source would nest double quotes in "run(...)"
               if M_IS_OCTAVE:   
-                  frun.write('start /B /D '+q_container+" "+OCTAVEWIN+' -qf --eval "run('+q_source+')"'+" >"+q_container+"\\concoreout.txt\n")
-                  fdebug.write('start /D '+q_container+" cmd /K " +OCTAVEWIN+' -qf --eval "run('+q_source+')"'+"\n")
+                  frun.write('start /B /D '+q_container+" "+OCTAVEWIN+' -qf --eval "run('+"'"+sourcecode+"'"+')"'+" >"+q_container+"\\concoreout.txt\n")
+                  fdebug.write('start /D '+q_container+" cmd /K " +OCTAVEWIN+' -qf --eval "run('+"'"+sourcecode+"'"+')"'+"\n")
               else:  #  4/2/21
-                  frun.write('start /B /D '+q_container+" "+MATLABWIN+' -batch "run('+q_source+')"'+" >"+q_container+"\\concoreout.txt\n")
-                  fdebug.write('start /D '+q_container+" cmd /K " +MATLABWIN+' -batch "run('+q_source+')"'+"\n")
+                  frun.write('start /B /D '+q_container+" "+MATLABWIN+' -batch "run('+"'"+sourcecode+"'"+')"'+" >"+q_container+"\\concoreout.txt\n")
+                  fdebug.write('start /D '+q_container+" cmd /K " +MATLABWIN+' -batch "run('+"'"+sourcecode+"'"+')"'+"\n")
       else:
             #use shlex.quote for POSIX systems
             safe_container = shlex.quote(containername)
@@ -1300,6 +1348,15 @@ for node in nodes_dict:
                 else:
                     fdebug.write('concorewd="$(pwd)"\n')
                     fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\"; ' + PYTHONEXE + ' ' + safe_source + '\\"" \n')
+
+            elif langext == "jl":
+                frun.write('(cd ' + safe_container + '; ' + JULIAEXE + ' ' + safe_source + ' >concoreout.txt & echo $! >concorepid) &\n')
+                if ubuntu:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + safe_container + '\\"; ' + JULIAEXE + ' ' + safe_source + '; bash" &\n')
+                else:
+                    fdebug.write('concorewd="$(pwd)"\n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\"; ' + JULIAEXE + ' ' + safe_source + '\\"" \n')
 
             elif langext == "cpp":  # 6/22/21
                 frun.write('(cd ' + safe_container + '; ' + CPPEXE + ' ' + safe_source + '; ./a.out >concoreout.txt & echo $! >concorepid) &\n')

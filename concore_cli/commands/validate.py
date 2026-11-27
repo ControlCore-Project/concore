@@ -58,6 +58,8 @@ def _classify_message(message, bucket_name):
         return {"error_type": "missing_node_label"}
     if message.startswith("Error parsing node:"):
         return {"error_type": "node_parse_error"}
+    if message.startswith("Duplicate node container name:"):
+        return {"error_type": "duplicate_container_name"}
     if message.startswith("Duplicate node label:"):
         return {"error_type": "duplicate_node_label"}
     if message == "Edge missing source or target":
@@ -132,7 +134,9 @@ def _build_payload(workflow_path, source_root, errors, warnings, info, source_no
     }
 
 
-def validate_workflow(workflow_file, source_dir, console, output_format="text"):
+def validate_workflow(
+    workflow_file, source_dir, console, output_format="text", exec_type=None
+):
     workflow_path = Path(workflow_file)
     source_root = resolve_source_dir(workflow_path, source_dir)
 
@@ -256,9 +260,18 @@ def validate_workflow(workflow_file, source_dir, console, output_format="text"):
                             source_nodes[filename] = node_id
                             if not filename:
                                 errors.append(f"Node '{label}' has no filename")
+                            elif (
+                                exec_type in ("posix", "windows")
+                                and "." not in filename
+                            ):
+                                errors.append(
+                                    f"Node '{label}' is a pulled container (no file "
+                                    f"extension); pulled containers need --type docker, "
+                                    f"not {exec_type}"
+                                )
                             elif not any(
                                 filename.endswith(ext)
-                                for ext in [".py", ".cpp", ".m", ".v", ".java"]
+                                for ext in [".py", ".cpp", ".m", ".v", ".java", ".jl"]
                             ):
                                 warnings.append(
                                     f"Node '{label}' has unusual file extension"
@@ -278,6 +291,18 @@ def validate_workflow(workflow_file, source_dir, console, output_format="text"):
             if label in seen:
                 errors.append(f"Duplicate node label: '{label}'")
             seen.add(label)
+
+        # two nodes with the same container name share one directory
+        containers = {}
+        for label in set(node_labels):
+            if ":" in label:
+                containers.setdefault(label.split(":")[0], []).append(label)
+        for container, labels in sorted(containers.items()):
+            if len(labels) > 1:
+                errors.append(
+                    f"Duplicate node container name: '{container}' "
+                    f"used by {', '.join(sorted(labels))}"
+                )
 
         node_ids = {node.get("id") for node in nodes if node.get("id")}
         for edge in edges:
