@@ -708,6 +708,45 @@ class TestConcoreCLI(unittest.TestCase):
                 run_script,
             )
 
+    def test_build_command_windows_matlab_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            Path("test-project/src/script.py").rename("test-project/src/script.m")
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.m"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "windows",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            # the file name has to be single quoted, nested double quotes
+            # turn it into run(script.m)
+            run_script = Path("out/run.bat").read_text()
+            debug_script = Path("out/debug.bat").read_text()
+            repo_root = Path(__file__).resolve().parents[1]
+            if (repo_root / "concore.octave").exists():
+                expected = "-qf --eval \"run('script.m')\""
+            else:
+                expected = "-batch \"run('script.m')\""
+            self.assertIn(expected, run_script)
+            self.assertIn(expected, debug_script)
+            self.assertNotIn('run("script.m")', run_script)
+            self.assertNotIn('run("script.m")', debug_script)
+
     def test_build_command_docker_java_node(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
