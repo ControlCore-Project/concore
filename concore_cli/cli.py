@@ -8,6 +8,7 @@ from .commands.build import build_workflow
 from .commands.validate import validate_workflow
 from .commands.status import show_status
 from .commands.stop import stop_all
+from .commands.run import run_study
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
 from .commands.doctor import doctor_check
@@ -21,7 +22,10 @@ DEFAULT_EXEC_TYPE = "windows" if os.name == "nt" else "posix"
 @click.group()
 @click.version_option(version=__version__, prog_name="concore")
 def cli():
-    pass
+    # Legacy code pages (e.g. cp1252 when output is redirected on Windows) can't
+    # encode symbols like the check mark; replace them instead of crashing.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")
 
 
 @cli.command()
@@ -150,6 +154,33 @@ def status():
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
+
+
+@cli.command()
+@click.argument("study_dir", type=click.Path(exists=True))
+@click.option(
+    "--build", "build_first", is_flag=True, help="Run the study's build script first"
+)
+@click.option(
+    "--wait", is_flag=True, help="Wait until every node exits (Ctrl+C stops the study)"
+)
+@click.option(
+    "--timeout",
+    type=click.FloatRange(min=0, min_open=True),
+    default=None,
+    help="With --wait: stop the study after this many seconds",
+)
+def run(study_dir, build_first, wait, timeout):
+    """Start a built study (the folder created by concore build)"""
+    try:
+        code = run_study(
+            study_dir, console, build=build_first, wait=wait, timeout=timeout
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+    if code:
+        sys.exit(code)
 
 
 @cli.command()
