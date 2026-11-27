@@ -377,6 +377,16 @@ if duplicates:
     logging.error(f"Duplicate node labels found: {sorted(duplicates)}")
     sys.exit(1)
 
+# Two nodes with the same container name would share one directory
+containers = {}
+for _label in label_values:
+    containers.setdefault(_label.split(':')[0], []).append(_label)
+shared = {name: labels for name, labels in containers.items() if len(labels) > 1}
+if shared:
+    for name, labels in sorted(shared.items()):
+        logging.error(f"Container name '{name}' is used by more than one node: {', '.join(labels)}")
+    sys.exit(1)
+
 for edge in edges_text:
     try:
         data = edge.find('data', recursive=False)
