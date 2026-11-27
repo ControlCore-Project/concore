@@ -331,6 +331,22 @@ static void test_load_params_semicolon_format() {
     rm("in1/concore.params");
 }
 
+static void test_load_params_semicolon_bare_words() {
+    setup_dirs();
+    write_file("in1/concore.params", "n=3;mode=fast;name=hello world;url=http://x.org/a?b=c");
+
+    Concore c;
+    c.delay = 0;
+    c.load_params();
+
+    check("bare word keeps numeric param", c.tryparam("n", "") == "3");
+    check("bare word value",               c.tryparam("mode", "") == "fast");
+    check("bare word keeps spaces",        c.tryparam("name", "") == "hello world");
+    check("bare word keeps '=' in value",  c.tryparam("url", "") == "http://x.org/a?b=c");
+
+    rm("in1/concore.params");
+}
+
 static void test_tryparam_comma_in_value() {
     setup_dirs();
     write_file("in1/concore.params", "{'channels': [1, 2], 'gain': '0.5'}");
@@ -382,6 +398,7 @@ int main() {
     test_tryparam_found();
     test_tryparam_missing_key_uses_default();
     test_load_params_semicolon_format();
+    test_load_params_semicolon_bare_words();
     test_tryparam_comma_in_value();
 
     std::cout << "\n=== Results: " << passed << " passed, " << failed
