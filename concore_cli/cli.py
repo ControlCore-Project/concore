@@ -1,15 +1,18 @@
 import click
 from rich.console import Console
+import json
 import os
 import sys
 
 from .commands.init import init_project, init_project_interactive, run_wizard
 from .commands.build import build_workflow
 from .commands.validate import validate_workflow
-from .commands.status import show_status
+from .commands.status import show_status, status_data
 from .commands.stop import stop_all
+from .commands.run import run_study
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
+from .commands.logs import logs_study
 from .commands.add_node import LANGUAGES, add_node
 from .commands.doctor import doctor_check
 from .commands.setup import setup_concore
@@ -22,7 +25,10 @@ DEFAULT_EXEC_TYPE = "windows" if os.name == "nt" else "posix"
 @click.group()
 @click.version_option(version=__version__, prog_name="concore")
 def cli():
-    pass
+    # Legacy code pages (e.g. cp1252 when output is redirected on Windows) can't
+    # encode symbols like the check mark; replace them instead of crashing.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")
 
 
 @cli.command()
@@ -112,7 +118,15 @@ def build(workflow_file, source, output, type, auto_build, compose, zmq):
     type=click.Choice(["text", "json"]),
     help="Validation output format",
 )
-def validate(workflow_file, source, output_format):
+@click.option(
+    "--type",
+    "-t",
+    "exec_type",
+    default=None,
+    type=click.Choice(["windows", "posix", "docker"]),
+    help="Also check the workflow can be built for this execution type",
+)
+def validate(workflow_file, source, output_format, exec_type):
     """Validate a workflow file"""
     try:
         ok = validate_workflow(
@@ -120,6 +134,7 @@ def validate(workflow_file, source, output_format):
             source,
             console,
             output_format=output_format,
+            exec_type=exec_type,
         )
         if not ok:
             sys.exit(1)
@@ -144,13 +159,44 @@ def inspect(workflow_file, source, output_json):
 
 
 @cli.command()
-def status():
+@click.option("--json", "output_json", is_flag=True, help="Output in JSON format")
+def status(output_json):
     """Show running concore processes"""
     try:
-        show_status(console)
+        if output_json:
+            click.echo(json.dumps(status_data(), indent=2))
+        else:
+            show_status(console)
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
+
+
+@cli.command()
+@click.argument("study_dir", type=click.Path(exists=True))
+@click.option(
+    "--build", "build_first", is_flag=True, help="Run the study's build script first"
+)
+@click.option(
+    "--wait", is_flag=True, help="Wait until every node exits (Ctrl+C stops the study)"
+)
+@click.option(
+    "--timeout",
+    type=click.FloatRange(min=0, min_open=True),
+    default=None,
+    help="With --wait: stop the study after this many seconds",
+)
+def run(study_dir, build_first, wait, timeout):
+    """Start a built study (the folder created by concore build)"""
+    try:
+        code = run_study(
+            study_dir, console, build=build_first, wait=wait, timeout=timeout
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+    if code:
+        sys.exit(code)
 
 
 @cli.command()
@@ -175,6 +221,31 @@ def watch(study_dir, interval, once):
         sys.exit(1)
     try:
         ok = watch_study(study_dir, interval, once, console)
+        if not ok:
+            sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("study_dir", type=click.Path(exists=True))
+@click.argument("node", required=False, default=None)
+@click.option(
+    "-n",
+    "--lines",
+    default=20,
+    show_default=True,
+    type=click.IntRange(min=0),
+    help="Lines to show per node",
+)
+@click.option(
+    "-f", "--follow", is_flag=True, help="Keep printing new output (Ctrl+C to stop)"
+)
+def logs(study_dir, node, lines, follow):
+    """Show the output of a study's nodes (concoreout.txt)"""
+    try:
+        ok = logs_study(study_dir, node, lines, follow, console)
         if not ok:
             sys.exit(1)
     except Exception as e:

@@ -27,7 +27,7 @@ jobs:
         run: ruff check . --output-format=github
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12']
@@ -121,6 +121,13 @@ jobs:
           iverilog -g2012 -I. -o "$RUNNER_TEMP/verilog/test_read_simtime" tests/verilog/test_read_simtime.v
           cd "$RUNNER_TEMP/verilog" && vvp test_read_simtime
 
+      - name: Run Verilog read limit test
+        run: |
+          iverilog -g2012 -I. -o "$RUNNER_TEMP/verilog/test_read_limit" tests/verilog/test_read_limit.v
+          cd "$RUNNER_TEMP/verilog"
+          timeout 60 vvp test_read_limit | tee read_limit.log
+          grep -q "too many reads in loop" read_limit.log
+
       - name: Run Verilog interop tests
         run: julia --color=yes tests/julia/test_verilog_interop.jl
 
@@ -189,8 +196,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install g++
-        run: sudo apt-get update && sudo apt-get install -y g++
+      - name: Install g++ and ZeroMQ
+        run: sudo apt-get update && sudo apt-get install -y g++ libzmq3-dev cppzmq-dev
 
       - name: Parse concore.hpp standalone
         # -fsyntax-only parses concore.hpp without producing an object
@@ -209,6 +216,13 @@ jobs:
           g++ -std=c++11 -Wall -Wextra -I. -o TestConcoreHpp TestConcoreHpp.cpp
           ./TestConcoreHpp
 
+      - name: Build and run C++ ZMQ tests
+        run: |
+          g++ -std=c++11 -Wall -Wextra -DCONCORE_USE_ZMQ -I. -o TestConcoreZmq TestConcoreZmq.cpp -lzmq
+          ./TestConcoreZmq
+          g++ -std=c++11 -Wall -Wextra -DCONCORE_USE_ZMQ -DTEST_DOCKER_HEADER -I. -o TestConcoreZmqDocker TestConcoreZmq.cpp -lzmq
+          ./TestConcoreZmqDocker
+
   cpp-test-windows:
     runs-on: windows-latest
     defaults:
@@ -220,7 +234,7 @@ jobs:
       - uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
-          install: mingw-w64-ucrt-x86_64-gcc
+          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cppzmq
 
       - name: Build and run C++ tests
         run: |
@@ -228,15 +242,23 @@ jobs:
           ./TestLiteralEvalCpp
           g++ -std=c++11 -I. -o TestConcoreHpp TestConcoreHpp.cpp
           ./TestConcoreHpp
+          g++ -std=c++11 -DCONCORE_USE_ZMQ -I. -o TestConcoreZmq TestConcoreZmq.cpp -lzmq
+          ./TestConcoreZmq
 
   cpp-test-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install ZeroMQ
+        run: brew install cppzmq
+
       - name: Build and run C++ tests
         run: |
           g++ -std=c++11 -I. -o TestLiteralEvalCpp TestLiteralEvalCpp.cpp
           ./TestLiteralEvalCpp
           g++ -std=c++11 -I. -o TestConcoreHpp TestConcoreHpp.cpp
           ./TestConcoreHpp
+          BREW=$(brew --prefix)
+          g++ -std=c++11 -DCONCORE_USE_ZMQ -I. -I$BREW/include -L$BREW/lib -o TestConcoreZmq TestConcoreZmq.cpp -lzmq
+          ./TestConcoreZmq

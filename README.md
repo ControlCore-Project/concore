@@ -58,6 +58,9 @@ concore validate workflow.graphml
 # Compile your workflow
 concore build workflow.graphml --auto-build
 
+# Start the built study
+concore run out --wait
+
 # Monitor running processes
 concore status
 
@@ -78,7 +81,7 @@ _concore_ supports customization through configuration files in the `CONCOREPATH
   VEXE=/opt/iverilog/bin/iverilog
   OCTAVEEXE=/snap/bin/octave
   ```
-  Supported keys: `CPPWIN`, `CPPEXE`, `VWIN`, `VEXE`, `PYTHONEXE`, `PYTHONWIN`, `MATLABEXE`, `MATLABWIN`, `OCTAVEEXE`, `OCTAVEWIN`
+  Supported keys: `CPPWIN`, `CPPEXE`, `VWIN`, `VEXE`, `PYTHONEXE`, `PYTHONWIN`, `MATLABEXE`, `MATLABWIN`, `OCTAVEEXE`, `OCTAVEWIN`, `JULIAEXE`, `JULIAWIN`
 
 - **concore.octave** - Treat `.m` files as Octave instead of MATLAB (presence = enabled)
 - **concore.mcr** - MATLAB Compiler Runtime path (single line)
@@ -129,7 +132,7 @@ For a detailed and more scientific documentation, please read our extensive [ope
 
 `concore.hpp` supports ZMQ-based communication as an opt-in transport alongside the default file-based I/O.
 
-To enable it, compile with `-DCONCORE_USE_ZMQ` and link against cppzmq:
+To enable it, compile with `-DCONCORE_USE_ZMQ` and link against cppzmq (4.7 or newer):
 
 ```bash
 g++ -DCONCORE_USE_ZMQ my_node.cpp -lzmq -o my_node
