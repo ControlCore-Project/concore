@@ -56,6 +56,19 @@ const DockerConcore = DockerRuntime.Concore
         end
     end
 
+    @testset "list values in params" begin
+        mktempdir() do dir
+            reset_docker_state!()
+            DockerConcore.inpath = joinpath(dir, "in")
+            mkpath(DockerConcore.inpath * "1")
+            write(joinpath(DockerConcore.inpath * "1", "concore.params"),
+                  "{'setpoint': [1.0, 2.0, 3.0], 'gain': 2.5}")
+            DockerConcore.load_params!()
+            @test DockerConcore.params["setpoint"] == [1.0, 2.0, 3.0]
+            @test DockerConcore.params["gain"] == 2.5
+        end
+    end
+
     @testset "aliases" begin
         mktempdir() do dir
             reset_docker_state!()
