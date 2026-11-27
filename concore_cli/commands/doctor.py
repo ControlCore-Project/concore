@@ -172,6 +172,23 @@ def _get_version(path, version_flag):
     return None
 
 
+def _tool_runs(path, version_flag):
+    """Return True if the tool exits successfully for its version flag.
+
+    macOS ships /usr/bin/javac as a stub that is on PATH but exits non-zero
+    when no JDK is installed, so finding it on PATH is not enough.
+    """
+    try:
+        if isinstance(version_flag, list):
+            cmd = [path] + version_flag
+        else:
+            cmd = [path, version_flag]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def _check_docker_daemon(docker_path):
     """Check if Docker daemon is running."""
     try:
@@ -262,6 +279,20 @@ def doctor_check(console):
     for tool_label, tool_def in TOOL_DEFINITIONS.items():
         candidates = tool_def["names"].get(plat_key, [])
         path, found_name = _detect_tool(candidates)
+
+        if (
+            path
+            and tool_label == "Java (javac)"
+            and not _tool_runs(path, tool_def["version_flag"])
+        ):
+            hint = tool_def["install_hints"].get(plat_name, "")
+            hint_str = f" (install: {hint})" if hint else ""
+            console.print(
+                f"  [yellow]![/yellow] {tool_label} -> Found at {path} "
+                f"but it does not run{hint_str}"
+            )
+            warnings += 1
+            continue
 
         if path:
             version = _get_version(path, tool_def["version_flag"])
