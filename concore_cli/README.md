@@ -8,6 +8,12 @@ A command-line interface for managing concore neuromodulation workflows.
 pip install -e .
 ```
 
+If the `concore` command is not on your `PATH`, the same CLI runs as a module:
+
+```bash
+python3 -m concore_cli --help
+```
+
 ## Quick Start
 
 ```bash
@@ -22,6 +28,9 @@ concore validate workflow.graphml
 
 # Build your workflow
 concore build workflow.graphml
+
+# Start the built study and wait for it to finish
+concore run out --wait
 
 # Check running processes
 concore status
@@ -69,6 +78,8 @@ Compiles a concore workflow GraphML file into executable scripts (POSIX, Windows
 concore build workflow.graphml --source ./src --output ./build --auto-build
 ```
 
+Build stops before generating anything if a node's source file (the part after `:` in its label, such as `controller.py`) is missing from the source directory, and lists the missing files. Labels with no extension (pulled containers) and port-only nodes (`IN:`) are not checked.
+
 Docker compose example:
 
 ```bash
@@ -83,6 +94,7 @@ Validates a GraphML workflow file before running.
 
 **Options:**
 - `-s, --source <dir>` - Source directory to verify file references exist
+- `-t, --type <type>` - Also check the workflow can be built for this execution type (`windows`, `posix` or `docker`). Pulled containers (a node label with no file extension, such as `CZ:cpymat`) are only valid with `docker`
 
 Checks:
 - Valid XML structure
@@ -102,6 +114,27 @@ Checks:
 concore validate workflow.graphml
 concore validate workflow.graphml --source ./src
 ```
+
+### `concore run <study_dir>`
+
+Starts a built study (the folder `concore build` created) by running its generated `run` script, so you do not have to `cd` into it.
+
+**Options:**
+- `--build` - Run the study's `build` script first (stops if the build fails)
+- `--wait` - Wait until every node has exited. `Ctrl+C` stops the study's nodes
+- `--timeout <seconds>` - With `--wait`, stop the study after this many seconds (exit code 124)
+
+**Examples:**
+```bash
+concore run out
+concore run out --build --wait
+concore run out --wait --timeout 300
+```
+
+**Notes:**
+- `--wait` needs the node process ids that POSIX and macOS builds record; for Docker and Windows builds the study is started and a warning explains there is nothing to wait for.
+- `--wait` reports when the nodes have exited, not whether they succeeded. Check each node's `concoreout.txt` for errors.
+- Exit codes: `0` success, `124` timeout, `130` interrupted, or the exit code of the failing script.
 
 ### `concore status`
 
@@ -124,6 +157,21 @@ Stops all running concore processes. Prompts for confirmation before proceeding.
 **Example:**
 ```bash
 concore stop
+```
+
+### `concore logs <study_dir> [node]`
+
+Shows the output (`concoreout.txt`) that each node of a built study has written.
+
+**Options:**
+- `-n, --lines N` - Lines to show per node (default: 20)
+- `-f, --follow` - Keep printing new output until Ctrl+C
+
+**Example:**
+```bash
+concore logs out                # last 20 lines of every node
+concore logs out CZ -n 100      # one node
+concore logs out -f             # follow all nodes live
 ```
 
 ### `concore graph <workflow_file>`

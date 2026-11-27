@@ -250,6 +250,38 @@
             end
         end
 
+        @testset "list values in dict format" begin
+            mktempdir() do dir
+                old_inpath = Concore.inpath
+                Concore.inpath = joinpath(dir, "in")
+                mkpath(Concore.inpath * "1")
+                write(joinpath(Concore.inpath * "1", "concore.params"),
+                      "{'setpoint': [1.0, 2.0, 3.0], 'gain': 2.5, 'name': 'a, b', 'empty': []}")
+                Concore.params = Dict{String,Any}()
+                Concore.load_params()
+                @test Concore.params["setpoint"] == [1.0, 2.0, 3.0]
+                @test Concore.params["gain"] == 2.5
+                @test Concore.params["name"] == "a, b"
+                @test Concore.params["empty"] == Float64[]
+                Concore.inpath = old_inpath
+            end
+        end
+
+        @testset "list values in key=value format" begin
+            mktempdir() do dir
+                old_inpath = Concore.inpath
+                Concore.inpath = joinpath(dir, "in")
+                mkpath(Concore.inpath * "1")
+                write(joinpath(Concore.inpath * "1", "concore.params"),
+                      "setpoint=[1.0,2.0];gain=2.5")
+                Concore.params = Dict{String,Any}()
+                Concore.load_params()
+                @test Concore.params["setpoint"] == [1.0, 2.0]
+                @test Concore.params["gain"] == 2.5
+                Concore.inpath = old_inpath
+            end
+        end
+
     end
 
     # tryparam

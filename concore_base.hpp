@@ -17,6 +17,10 @@
 #include <stdexcept>
 #include <cctype>
 
+#ifdef CONCORE_USE_ZMQ
+#include <zmq.hpp>
+#endif
+
 namespace concore_base {
 
 // ===================================================================
@@ -365,19 +369,18 @@ inline std::map<std::string, std::string> load_params(const std::string& params_
         try { return parsedict(sparams); } catch (...) {}
     }
 
-    // Otherwise convert semicolon-separated key=value to dict format
-    // e.g. "a=1;b=2" -> {"a":"1","b":"2"}
-    std::string normalized = std::regex_replace(sparams, std::regex(";"), ",");
-    std::string converted = "{\"" +
-        std::regex_replace(
-            std::regex_replace(
-                std::regex_replace(normalized, std::regex(","), ",\""),
-                std::regex("="), "\":"),
-            std::regex(" "), "") +
-        "}";
-    try { return parsedict(converted); } catch (...) {}
-
-    return {};
+    // Otherwise split semicolon-separated key=value, keeping bare words as strings
+    std::map<std::string, std::string> result;
+    std::stringstream items(sparams);
+    std::string item;
+    while (std::getline(items, item, ';')) {
+        size_t eq = item.find('=');
+        if (eq == std::string::npos) continue;
+        std::string key = stripstr(item.substr(0, eq));
+        if (key.empty()) continue;
+        result[key] = stripquotes(stripstr(item.substr(eq + 1)));
+    }
+    return result;
 }
 
 /**
@@ -408,8 +411,6 @@ inline std::string tryparam(
 // ZeroMQ Transport (opt-in: compile with -DCONCORE_USE_ZMQ)
 // ===================================================================
 #ifdef CONCORE_USE_ZMQ
-#include <zmq.hpp>
-
 /**
  * ZMQ socket wrapper with bind/connect, timeouts, and retry.
  */
@@ -424,9 +425,15 @@ public:
         : context(1), socket(context, socket_type),
           port_type(port_type_), address(address_)
     {
-        socket.setsockopt(ZMQ_RCVTIMEO, 2000);
-        socket.setsockopt(ZMQ_SNDTIMEO, 2000);
-        socket.setsockopt(ZMQ_LINGER,   0);
+        socket.set(zmq::sockopt::rcvtimeo, 2000);
+        socket.set(zmq::sockopt::sndtimeo, 2000);
+        socket.set(zmq::sockopt::linger,   0);
+
+        // Let REQ send again after a missed reply, and drop stale replies
+        if (socket_type == ZMQ_REQ) {
+            socket.set(zmq::sockopt::req_relaxed, 1);
+            socket.set(zmq::sockopt::req_correlate, 1);
+        }
 
         if (port_type == "bind")
             socket.bind(address);
