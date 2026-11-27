@@ -61,6 +61,8 @@ def _inspect_rich(workflow_path, source_dir, console):
                         lang_counts["C++"] += 1
                     elif ext == ".v":
                         lang_counts["Verilog"] += 1
+                    elif ext == ".jl":
+                        lang_counts["Julia"] += 1
                     else:
                         lang_counts["Other"] += 1
 
@@ -132,6 +134,7 @@ def _inspect_rich(workflow_path, source_dir, console):
                             ".cpp": "C++",
                             ".hpp": "C++",
                             ".v": "Verilog",
+                            ".jl": "Julia",
                         }
                         lang = lang_map.get(ext, "Other")
 
@@ -217,6 +220,7 @@ def _inspect_json(workflow_path, source_dir):
                         ".cpp": "cpp",
                         ".hpp": "cpp",
                         ".v": "verilog",
+                        ".jl": "julia",
                     }
                     lang = lang_map.get(ext, "other")
                     lang_counts[lang] += 1
