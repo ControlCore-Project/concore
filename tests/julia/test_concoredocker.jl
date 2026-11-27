@@ -56,6 +56,19 @@ const DockerConcore = DockerRuntime.Concore
         end
     end
 
+    @testset "list values in params" begin
+        mktempdir() do dir
+            reset_docker_state!()
+            DockerConcore.inpath = joinpath(dir, "in")
+            mkpath(DockerConcore.inpath * "1")
+            write(joinpath(DockerConcore.inpath * "1", "concore.params"),
+                  "{'setpoint': [1.0, 2.0, 3.0], 'gain': 2.5}")
+            DockerConcore.load_params!()
+            @test DockerConcore.params["setpoint"] == [1.0, 2.0, 3.0]
+            @test DockerConcore.params["gain"] == 2.5
+        end
+    end
+
     @testset "aliases" begin
         mktempdir() do dir
             reset_docker_state!()
@@ -70,6 +83,22 @@ const DockerConcore = DockerRuntime.Concore
         end
     end
 
+    @testset "params and maxtime with ZMQ backend" begin
+        mktempdir() do dir
+            reset_docker_state!()
+            DockerConcore.inpath = joinpath(dir, "in")
+            mkpath(DockerConcore.inpath * "1")
+            write(joinpath(DockerConcore.inpath * "1", "concore.params"), "gain=2.5")
+            write(joinpath(DockerConcore.inpath * "1", "concore.maxtime"), "42")
+            DockerConcore._backend = DockerConcore.ZmqBackend()
+
+            DockerConcore.load_params!()
+            @test DockerConcore.tryparam("gain", 0.0) == 2.5
+            @test DockerConcore.default_maxtime!(100) == 42
+            reset_docker_state!()
+        end
+    end
+
     @testset "maxtime" begin
         mktempdir() do dir
             reset_docker_state!()
@@ -79,6 +108,28 @@ const DockerConcore = DockerRuntime.Concore
 
             @test DockerConcore.default_maxtime(100) == 75
             @test DockerConcore.maxtime == 75
+        end
+    end
+
+    if DockerConcore.HAS_ZMQ
+        @testset "ZMQ read updates unchanged" begin
+            using Sockets
+
+            reset_docker_state!()
+            server = Sockets.listen(Sockets.localhost, 0)
+            tcp_port = Sockets.getsockname(server)[2]
+            close(server)
+            address = "tcp://127.0.0.1:$tcp_port"
+
+            DockerConcore.init_zmq_port("out", "bind", address, "PAIR")
+            DockerConcore.init_zmq_port("in", "connect", address, "PAIR")
+            sleep(0.1)
+
+            DockerConcore.concore_write("out", "signal", [10.0])
+            @test DockerConcore.unchanged()
+            @test DockerConcore.concore_read("in", "signal", "[0.0, 0.0]") == [10.0]
+            @test !DockerConcore.unchanged()
+            DockerConcore.terminate_zmq()
         end
     end
 

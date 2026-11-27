@@ -132,7 +132,7 @@ module concore;
     integer i;
     begin
      filenum = filenum + 1;
-     if (filenum > `MAXFILES)
+     if (filenum >= `MAXFILES)
        begin
          $display("too many reads in loop");
          $finish;

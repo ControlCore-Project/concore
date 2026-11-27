@@ -708,6 +708,45 @@ class TestConcoreCLI(unittest.TestCase):
                 run_script,
             )
 
+    def test_build_command_windows_matlab_node(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            Path("test-project/src/script.py").rename("test-project/src/script.m")
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.m"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "windows",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+
+            # the file name has to be single quoted, nested double quotes
+            # turn it into run(script.m)
+            run_script = Path("out/run.bat").read_text()
+            debug_script = Path("out/debug.bat").read_text()
+            repo_root = Path(__file__).resolve().parents[1]
+            if (repo_root / "concore.octave").exists():
+                expected = "-qf --eval \"run('script.m')\""
+            else:
+                expected = "-batch \"run('script.m')\""
+            self.assertIn(expected, run_script)
+            self.assertIn(expected, debug_script)
+            self.assertNotIn('run("script.m")', run_script)
+            self.assertNotIn('run("script.m")', debug_script)
+
     def test_build_command_docker_java_node(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
@@ -882,6 +921,22 @@ class TestConcoreCLI(unittest.TestCase):
             self.assertIn("PORT_NAME_B_C", content)
             self.assertIn("PORT_B_C", content)
 
+    def test_cli_redirected_output_with_legacy_encoding(self):
+        env = dict(os.environ, PYTHONIOENCODING="cp1252")
+        repo_root = str(Path(__file__).resolve().parent.parent)
+        env["PYTHONPATH"] = repo_root + os.pathsep + env.get("PYTHONPATH", "")
+        result = subprocess.run(
+            [sys.executable, "-c", "from concore_cli.cli import cli; cli()"]
+            + ["init", "demo"],
+            cwd=self.temp_dir,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            timeout=60,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+        self.assertTrue((Path(self.temp_dir) / "demo" / "workflow.graphml").exists())
+
     def test_build_command_existing_output(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
             result = self.runner.invoke(cli, ["init", "test-project"])
@@ -1015,6 +1070,34 @@ class TestConcoreCLI(unittest.TestCase):
                     result = self.runner.invoke(cli, args)
                     self.assertEqual(result.exit_code, 1)
                     self.assertIn("Not a valid GraphML file", result.output)
+
+    def test_build_command_m_node_copies_literal_helpers(self):
+        with self.runner.isolated_filesystem(temp_dir=self.temp_dir):
+            result = self.runner.invoke(cli, ["init", "test-project"])
+            self.assertEqual(result.exit_code, 0)
+
+            Path("test-project/src/script.py").rename("test-project/src/script.m")
+            workflow_path = Path("test-project/workflow.graphml")
+            content = workflow_path.read_text()
+            workflow_path.write_text(content.replace("N1:script.py", "N1:script.m"))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "build",
+                    "test-project/workflow.graphml",
+                    "--source",
+                    "test-project/src",
+                    "--output",
+                    "out",
+                    "--type",
+                    "posix",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+            # concore_read.m / concore_write.m call these helpers
+            self.assertTrue(Path("out/src/concore_literal_eval.m").exists())
+            self.assertTrue(Path("out/src/concore_literal_serialize.m").exists())
 
     def test_watch_file_instead_of_dir_exits_nonzero(self):
         with self.runner.isolated_filesystem(temp_dir=self.temp_dir):

@@ -178,7 +178,7 @@
         "cpp": {
           "status": "observed_pass",
           "classification": "required",
-          "note": "write_ZMQ(vector<double>) in concore.hpp inserts simtime+delta at the front of the outgoing payload and sends it, without writing back to the Concore instance's simtime member (the code even carries an explicit comment, 'simtime must not be mutated here (issue #385)'). Matches this fixture's semantics. Gated behind the CONCORE_USE_ZMQ build macro; TestConcoreHpp.cpp has no ZMQ coverage, so this was verified by reading concore.hpp directly rather than by an existing test."
+          "note": "write_ZMQ(vector<double>) in concore.hpp inserts simtime+delta at the front of the outgoing payload and sends it, without writing back to the Concore instance's simtime member (the code even carries an explicit comment, 'simtime must not be mutated here (issue #385)'). Matches this fixture's semantics. Gated behind the CONCORE_USE_ZMQ build macro; TestConcoreZmq.cpp runs this case in CI against concore.hpp and concoredocker.hpp."
         },
         "java": {
           "status": "observed_pass",
@@ -214,7 +214,7 @@
         "cpp": {
           "status": "observed_pass",
           "classification": "required",
-          "note": "write_ZMQ(string) in concore.hpp sends the string as-is with no timestamp prepended and no simtime mutation, matching this fixture. Same CONCORE_USE_ZMQ caveat as the list-payload case; verified by reading concore.hpp, no existing ZMQ test exercises it."
+          "note": "write_ZMQ(string) in concore.hpp sends the string as-is with no timestamp prepended and no simtime mutation, matching this fixture. Same CONCORE_USE_ZMQ caveat as the list-payload case; TestConcoreZmq.cpp runs this case in CI (concoredocker.hpp has no string write)."
         },
         "java": {
           "status": "observed_pass",
