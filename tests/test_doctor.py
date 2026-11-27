@@ -12,6 +12,7 @@ from concore_cli.commands.doctor import (
     _get_platform_key,
     _get_version,
     _resolve_concore_path,
+    _tool_runs,
     doctor_check,
 )
 
@@ -252,6 +253,70 @@ class TestJavaDoctor(unittest.TestCase):
 
         ver = _get_version("/usr/bin/javac", "-version")
         self.assertEqual(ver, "javac 1.8.0_292")
+
+
+class _RecordingConsole:
+    """Minimal console that records printed lines."""
+
+    def __init__(self):
+        self.lines = []
+
+    def print(self, *args, **kwargs):
+        self.lines.append(" ".join(str(a) for a in args))
+
+
+def _java_line(lines):
+    return next(line for line in lines if "Java (javac)" in line)
+
+
+class TestJavacStub(unittest.TestCase):
+    """macOS ships a javac stub that is on PATH but fails without a JDK."""
+
+    @patch("subprocess.run")
+    def test_tool_runs_false_for_nonzero_exit(self, mock_run):
+        from unittest.mock import MagicMock
+
+        mock_run.return_value = MagicMock(returncode=1)
+        self.assertFalse(_tool_runs("/usr/bin/javac", "-version"))
+
+    @patch("subprocess.run")
+    def test_tool_runs_true_for_zero_exit(self, mock_run):
+        from unittest.mock import MagicMock
+
+        mock_run.return_value = MagicMock(returncode=0)
+        self.assertTrue(_tool_runs("/usr/bin/javac", "-version"))
+
+    @patch("subprocess.run", side_effect=OSError("cannot execute"))
+    def test_tool_runs_false_when_it_cannot_be_launched(self, _mock_run):
+        self.assertFalse(_tool_runs("/usr/bin/javac", "-version"))
+
+    @patch("concore_cli.commands.doctor._tool_runs", return_value=False)
+    @patch("concore_cli.commands.doctor._detect_tool")
+    def test_doctor_warns_when_javac_does_not_run(self, mock_detect, _mock_runs):
+        mock_detect.side_effect = lambda names: (
+            ("/usr/bin/javac", "javac") if "javac" in names else (None, None)
+        )
+        console = _RecordingConsole()
+        doctor_check(console)
+
+        line = _java_line(console.lines)
+        self.assertIn("[yellow]![/yellow]", line)
+        self.assertIn("but it does not run", line)
+        self.assertNotIn("[green]+[/green]", line)
+
+    @patch("concore_cli.commands.doctor._get_version", return_value="javac 21.0.2")
+    @patch("concore_cli.commands.doctor._tool_runs", return_value=True)
+    @patch("concore_cli.commands.doctor._detect_tool")
+    def test_doctor_passes_when_javac_runs(self, mock_detect, _mock_runs, _mock_ver):
+        mock_detect.side_effect = lambda names: (
+            ("/usr/bin/javac", "javac") if "javac" in names else (None, None)
+        )
+        console = _RecordingConsole()
+        doctor_check(console)
+
+        line = _java_line(console.lines)
+        self.assertIn("[green]+[/green]", line)
+        self.assertIn("javac 21.0.2", line)
 
 
 if __name__ == "__main__":
