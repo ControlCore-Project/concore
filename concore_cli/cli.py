@@ -21,7 +21,10 @@ DEFAULT_EXEC_TYPE = "windows" if os.name == "nt" else "posix"
 @click.group()
 @click.version_option(version=__version__, prog_name="concore")
 def cli():
-    pass
+    # Legacy code pages (e.g. cp1252 when output is redirected on Windows) can't
+    # encode symbols like the check mark; replace them instead of crashing.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")
 
 
 @cli.command()
