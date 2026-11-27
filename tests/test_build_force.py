@@ -63,7 +63,8 @@ class TestBuildForce(unittest.TestCase):
             result = self.runner.invoke(cli, args + ["--output", "mydata", "--force"])
 
             self.assertNotEqual(result.exit_code, 0)
-            self.assertIn("does not look like a study", result.output)
+            # Rich wraps long messages at the console width, so ignore line breaks
+            self.assertIn("does not look like a study", " ".join(result.output.split()))
             self.assertTrue((Path("mydata") / "important.txt").exists())
 
     def test_force_refuses_the_current_directory(self):

@@ -37,6 +37,11 @@ EXPECTED_SCRIPTS = {
 KNOWN_UNSUPPORTED = {
     ("sampleJ.graphml", "posix"): "Julia (.jl) nodes in local builds",
     ("sampleJ.graphml", "windows"): "Julia (.jl) nodes in local builds",
+    **{
+        (name, build_type): "node sources pstim.py, pacq.py, simpm.py are not in demo/"
+        for name in ("generalcontrol.graphml", "generalcontroler.graphml")
+        for build_type in ("posix", "windows", "docker")
+    },
 }
 
 
