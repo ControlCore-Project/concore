@@ -319,5 +319,35 @@ class TestJavacStub(unittest.TestCase):
         self.assertIn("javac 21.0.2", line)
 
 
+class TestJuliaDoctor(unittest.TestCase):
+    def test_tool_definitions_include_julia(self):
+        julia_def = TOOL_DEFINITIONS["Julia"]
+        self.assertEqual(julia_def["config_keys"], ["JULIAEXE", "JULIAWIN"])
+        self.assertIn("julia", julia_def["names"]["posix"])
+        self.assertIn("julia", julia_def["names"]["windows"])
+
+    @patch("concore_cli.commands.doctor._get_version", return_value="julia 1.10.4")
+    @patch("concore_cli.commands.doctor._detect_tool")
+    def test_doctor_shows_julia_when_found(self, mock_detect, _mock_ver):
+        mock_detect.side_effect = lambda names: (
+            ("/usr/bin/julia", "julia") if "julia" in names else (None, None)
+        )
+        console = _RecordingConsole()
+        doctor_check(console)
+
+        line = next(line for line in console.lines if "Julia" in line)
+        self.assertIn("[green]+[/green]", line)
+        self.assertIn("julia 1.10.4", line)
+
+    @patch("concore_cli.commands.doctor._detect_tool", return_value=(None, None))
+    def test_doctor_warns_when_julia_missing(self, _mock_detect):
+        console = _RecordingConsole()
+        doctor_check(console)
+
+        line = next(line for line in console.lines if "Julia" in line)
+        self.assertIn("[yellow]![/yellow]", line)
+        self.assertIn("Not found", line)
+
+
 if __name__ == "__main__":
     unittest.main()

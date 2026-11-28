@@ -48,6 +48,19 @@ TOOL_DEFINITIONS = {
             "Windows": "winget install -e --id EclipseAdoptium.Temurin.17.JDK",
         },
     },
+    "Julia": {
+        "names": {
+            "posix": ["julia"],
+            "windows": ["julia"],
+        },
+        "version_flag": "--version",
+        "config_keys": ["JULIAEXE", "JULIAWIN"],
+        "install_hints": {
+            "Linux": "curl -fsSL https://install.julialang.org | sh",
+            "Darwin": "brew install julia",
+            "Windows": "winget install -e --id 9NJNWW8PVKMN -s msstore",
+        },
+    },
     "Verilog (iverilog)": {
         "names": {
             "posix": ["iverilog"],
@@ -321,8 +334,14 @@ def doctor_check(console):
         else:
             hint = tool_def["install_hints"].get(plat_name, "")
             hint_str = f" (install: {hint})" if hint else ""
-            # Docker, MATLAB, Verilog, and Java are optional - show as warning
-            if tool_label in ("MATLAB", "Verilog (iverilog)", "Docker", "Java (javac)"):
+            # Docker, MATLAB, Verilog, Java and Julia are optional - show as warning
+            if tool_label in (
+                "MATLAB",
+                "Verilog (iverilog)",
+                "Docker",
+                "Java (javac)",
+                "Julia",
+            ):
                 console.print(
                     f"  [yellow]![/yellow] {tool_label} -> Not found{hint_str}"
                 )
