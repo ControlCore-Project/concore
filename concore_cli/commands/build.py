@@ -32,7 +32,7 @@ def _missing_sources(workflow_path, source_path):
         return []
     missing = set()
     for node in soup.find_all("node"):
-        tag = node.find("y:NodeLabel")
+        tag = node.find("NodeLabel")
         if tag is None:
             tag = node.find("NodeLabel")
         if tag is None or not tag.text:
