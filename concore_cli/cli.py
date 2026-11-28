@@ -16,6 +16,7 @@ from .commands.logs import logs_study
 from .commands.graph import FORMATS, graph_workflow
 from .commands.clean import clean_study
 from .commands.completion import SHELLS, completion_script
+from .commands.add_node import LANGUAGES, add_node
 from .commands.doctor import doctor_check
 from .commands.setup import setup_concore
 from . import __version__
@@ -316,6 +317,24 @@ def clean(study_dir, dry_run, yes, force):
 def completion(shell):
     """Print the tab-completion script for bash, zsh or fish"""
     click.echo(completion_script(cli, shell), nl=False)
+
+
+@cli.command("add-node")
+@click.argument("project_dir", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--lang",
+    "-l",
+    required=True,
+    type=click.Choice(LANGUAGES),
+    help="Language of the new node",
+)
+def add_node_command(project_dir, lang):
+    """Add a starter node (source file + workflow entry) to an existing project"""
+    try:
+        add_node(project_dir, lang, console)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
 
 
 @cli.command()
