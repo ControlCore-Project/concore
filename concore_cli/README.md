@@ -197,6 +197,21 @@ concore graph workflow.graphml -f dot -o workflow.dot
 dot -Tsvg workflow.dot -o workflow.svg
 ```
 
+### `concore clean <study_dir>`
+
+Removes the leftovers of a run from a built study: each node's `concoreout.txt` and `concorepid`, and the data files inside the edge directories (the same files the generated `clear` script removes). Sources, `src/`, node scripts and any other directory are never touched. Refuses to run while a node is still running.
+
+**Options:**
+- `--dry-run` - List what would be removed, change nothing
+- `-y, --yes` - Do not ask for confirmation
+- `--force` - Clean even if a node looks like it is still running
+
+**Example:**
+```bash
+concore clean out --dry-run
+concore clean out -y
+```
+
 ## Development Workflow
 
 1. **Create a new project**

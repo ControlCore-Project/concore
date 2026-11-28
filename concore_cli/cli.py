@@ -14,6 +14,7 @@ from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
 from .commands.logs import logs_study
 from .commands.graph import FORMATS, graph_workflow
+from .commands.clean import clean_study
 from .commands.doctor import doctor_check
 from .commands.setup import setup_concore
 from . import __version__
@@ -289,6 +290,24 @@ def graph(workflow_file, output_format, output):
         console.print(f"[green]Wrote[/green] {output}")
     else:
         click.echo(text, nl=False)
+
+
+@cli.command()
+@click.argument("study_dir", type=click.Path(exists=True))
+@click.option("--dry-run", is_flag=True, help="List what would be removed")
+@click.option("-y", "--yes", is_flag=True, help="Do not ask for confirmation")
+@click.option(
+    "--force", is_flag=True, help="Clean even if nodes look like they are still running"
+)
+def clean(study_dir, dry_run, yes, force):
+    """Remove run leftovers (node output, pid files, edge data) from a study"""
+    try:
+        ok = clean_study(study_dir, dry_run, yes, force, console)
+        if not ok:
+            sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
 
 
 @cli.command()
