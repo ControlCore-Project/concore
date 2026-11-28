@@ -43,7 +43,7 @@ def _inspect_rich(workflow_path, source_dir, console):
         missing_files = []
 
         for node in nodes:
-            label_tag = node.find("y:NodeLabel")
+            label_tag = node.find("NodeLabel")
             if label_tag and label_tag.text:
                 label = label_tag.text.strip()
                 if ":" in label:
@@ -81,7 +81,7 @@ def _inspect_rich(workflow_path, source_dir, console):
         file_count = 0
 
         for edge in edges:
-            label_tag = edge.find("y:EdgeLabel")
+            label_tag = edge.find("EdgeLabel")
             label_text = label_tag.text.strip() if label_tag and label_tag.text else ""
             if label_text and edge_label_regex.match(label_text):
                 zmq_count += 1
@@ -120,7 +120,7 @@ def _inspect_rich(workflow_path, source_dir, console):
             table.add_column("Status", style="yellow")
 
             for node in nodes[:10]:
-                label_tag = node.find("y:NodeLabel")
+                label_tag = node.find("NodeLabel")
                 if label_tag and label_tag.text:
                     label = label_tag.text.strip()
                     if ":" in label:
@@ -160,7 +160,7 @@ def _inspect_rich(workflow_path, source_dir, console):
                 source = edge.get("source", "unknown")
                 target = edge.get("target", "unknown")
 
-                label_tag = edge.find("y:EdgeLabel")
+                label_tag = edge.find("EdgeLabel")
                 edge_type = "File"
                 if label_tag and label_tag.text:
                     if edge_label_regex.match(label_tag.text.strip()):
@@ -206,7 +206,7 @@ def _inspect_json(workflow_path, source_dir):
         missing_files = []
 
         for node in nodes:
-            label_tag = node.find("y:NodeLabel")
+            label_tag = node.find("NodeLabel")
             if label_tag and label_tag.text:
                 label = label_tag.text.strip()
                 if ":" in label:
@@ -246,7 +246,7 @@ def _inspect_json(workflow_path, source_dir):
             source = edge.get("source")
             target = edge.get("target")
 
-            label_tag = edge.find("y:EdgeLabel")
+            label_tag = edge.find("EdgeLabel")
             label_text = label_tag.text.strip() if label_tag and label_tag.text else ""
             edge_type = "file"
             if label_text and edge_label_regex.match(label_text):
