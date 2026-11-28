@@ -7,6 +7,11 @@ import xml.etree.ElementTree as ET
 
 from ._source_dir import resolve_source_dir
 
+# Mirrors mkconcore.py's safe_name (allow_path=False / allow_path=True)
+_UNSAFE_NAME_RE = re.compile(r'[\x00-\x1F\x7F\\/:*?"<>|;&`$\'() ]')
+_UNSAFE_PATH_RE = re.compile(r'[\x00-\x1F\x7F*?"<>|;&`$\'()]')
+_KNOWN_EXTENSIONS = (".py", ".cpp", ".m", ".v", ".java", ".jl", ".sh")
+
 
 def _classify_message(message, bucket_name):
     if bucket_name == "info":
@@ -44,6 +49,12 @@ def _classify_message(message, bucket_name):
         "contains unsafe shell characters"
     ):
         return {"error_type": "unsafe_node_label"}
+    if message.startswith("Node '") and message.endswith("has empty container name"):
+        return {"error_type": "invalid_node_container_name"}
+    if message.startswith("Node container name '") and "contains spaces" in message:
+        return {"error_type": "invalid_node_container_name"}
+    if message.startswith("Node '") and "has unsafe source path" in message:
+        return {"error_type": "unsafe_source_path"}
     if message.startswith("Node '") and "missing format 'ID:filename'" in message:
         return {"error_type": "invalid_node_label_format"}
     if message.startswith("Node '") and message.endswith("has invalid format"):
@@ -68,6 +79,11 @@ def _classify_message(message, bucket_name):
         return {"error_type": "missing_edge_target"}
     if message.startswith("Edge label '") and "has more than one source" in message:
         return {"error_type": "edge_label_multiple_sources"}
+    if message.startswith("Edge label '") and (
+        "contains spaces" in message
+        or message.endswith("contains unsafe shell characters")
+    ):
+        return {"error_type": "unsafe_edge_label"}
     if message == "Workflow contains cycles (expected for control loops)":
         return {"error_type": "cycle_detected"}
     if message.startswith("Invalid port number:"):
@@ -103,6 +119,75 @@ def _build_entries(bucket_name, messages, source_nodes):
 
         entries.append(entry)
     return entries
+
+
+def _validate_source_path(label, filename):
+    """Validate relative source path rules matching mkconcore.py's safe_relpath."""
+    normalized = filename.replace("\\", "/")
+    if normalized.startswith("/") or normalized.startswith("~"):
+        return (
+            f"Node '{label}' has unsafe source path '{filename}': "
+            "absolute paths are not allowed"
+        )
+    if re.match(r"^[A-Za-z]:", normalized) or ":" in normalized:
+        return (
+            f"Node '{label}' has unsafe source path '{filename}': "
+            "drive paths and ':' are not allowed"
+        )
+    if any(part in ("", "..") for part in normalized.split("/")):
+        return (
+            f"Node '{label}' has unsafe source path '{filename}': invalid path segment"
+        )
+    return None
+
+
+def _validate_node_label(
+    label, node_id, exec_type, source_root, source_nodes, errors, warnings
+):
+    """Validate a node's 'container:source' label against mkconcore build rules."""
+    if _UNSAFE_PATH_RE.search(label) or "\\" in label:
+        errors.append(f"Node '{label}' contains unsafe shell characters")
+        return
+
+    if ":" not in label:
+        warnings.append(f"Node '{label}' missing format 'ID:filename'")
+        return
+
+    node_id_part, filename = label.split(":", 1)
+    if not node_id_part:
+        errors.append(f"Node '{label}' has empty container name")
+    elif " " in node_id_part:
+        errors.append(
+            f"Node container name '{node_id_part}' contains spaces (use '_' instead)"
+        )
+    elif _UNSAFE_NAME_RE.search(node_id_part):
+        errors.append(f"Node '{label}' contains unsafe shell characters")
+
+    # A node with no filename ('IN:' / 'OUT:') is a port-only endpoint.
+    if not filename:
+        return
+
+    source_nodes[filename] = node_id
+    path_error = _validate_source_path(label, filename)
+    if path_error:
+        errors.append(path_error)
+        return
+
+    if exec_type in ("posix", "windows") and "." not in filename:
+        errors.append(
+            f"Node '{label}' is a pulled container (no file "
+            f"extension); pulled containers need --type docker, "
+            f"not {exec_type}"
+        )
+        return
+
+    if "." in filename and not any(filename.endswith(ext) for ext in _KNOWN_EXTENSIONS):
+        warnings.append(f"Node '{label}' has unusual file extension")
+
+    if "." in filename and source_root.exists():
+        file_path = source_root / filename
+        if not file_path.exists():
+            errors.append(f"Missing source file: {filename}")
 
 
 def _build_payload(workflow_path, source_root, errors, warnings, info, source_nodes):
@@ -239,55 +324,15 @@ def validate_workflow(
                 if label_tag and label_tag.text:
                     label = label_tag.text.strip()
                     node_labels.append(label)
-
-                    # reject shell metacharacters to prevent command injection (#251)
-                    if re.search(r'[;&|`$\'"()\\]', label):
-                        errors.append(
-                            f"Node '{label}' contains unsafe shell characters"
-                        )
-                        continue
-
-                    if ":" not in label:
-                        warnings.append(f"Node '{label}' missing format 'ID:filename'")
-                    else:
-                        parts = label.split(":")
-                        if len(parts) != 2:
-                            warnings.append(f"Node '{label}' has invalid format")
-                        else:
-                            nodeId_part, filename = parts
-                            # A node with no filename ('IN:' / 'OUT:') is a
-                            # port-only input/output source: nothing to check.
-                            if filename:
-                                source_nodes[filename] = node_id
-                                if (
-                                    exec_type in ("posix", "windows")
-                                    and "." not in filename
-                                ):
-                                    errors.append(
-                                        f"Node '{label}' is a pulled container (no file "
-                                        f"extension); pulled containers need --type docker, "
-                                        f"not {exec_type}"
-                                    )
-                                elif not any(
-                                    filename.endswith(ext)
-                                    for ext in [
-                                        ".py",
-                                        ".cpp",
-                                        ".m",
-                                        ".v",
-                                        ".java",
-                                        ".jl",
-                                    ]
-                                ):
-                                    warnings.append(
-                                        f"Node '{label}' has unusual file extension"
-                                    )
-                                elif source_root.exists():
-                                    file_path = source_root / filename
-                                    if not file_path.exists():
-                                        errors.append(
-                                            f"Missing source file: {filename}"
-                                        )
+                    _validate_node_label(
+                        label,
+                        node_id,
+                        exec_type,
+                        source_root,
+                        source_nodes,
+                        errors,
+                        warnings,
+                    )
                 else:
                     warnings.append(f"Node {node_id} has no label")
             except Exception as e:
@@ -341,11 +386,24 @@ def validate_workflow(
                     edge_label = label_tag.text.strip()
                     if edge_label_regex.match(edge_label):
                         zmq_edges += 1
+                        if _UNSAFE_NAME_RE.search(edge_label):
+                            errors.append(
+                                f"Edge label '{edge_label}' contains unsafe shell characters"
+                            )
                     else:
                         file_edges += 1
-                        label_sources.setdefault(edge_label, set()).add(
-                            edge.get("source")
-                        )
+                        if " " in edge_label:
+                            errors.append(
+                                f"Edge label '{edge_label}' contains spaces (use '_' instead)"
+                            )
+                        elif _UNSAFE_NAME_RE.search(edge_label):
+                            errors.append(
+                                f"Edge label '{edge_label}' contains unsafe shell characters"
+                            )
+                        else:
+                            label_sources.setdefault(edge_label, set()).add(
+                                edge.get("source")
+                            )
             except Exception:
                 pass
 
