@@ -212,6 +212,22 @@ concore clean out --dry-run
 concore clean out -y
 ```
 
+### `concore completion <shell>`
+
+Prints a tab-completion script so `concore <TAB>` completes commands, options and option values (for example `--type`). Supported shells: `bash`, `zsh`, `fish`.
+
+**Setup (add one line to your shell startup file):**
+```bash
+# ~/.bashrc
+eval "$(concore completion bash)"
+
+# ~/.zshrc
+eval "$(concore completion zsh)"
+
+# ~/.config/fish/config.fish
+concore completion fish | source
+```
+
 ## Development Workflow
 
 1. **Create a new project**

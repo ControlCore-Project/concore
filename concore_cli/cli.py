@@ -15,6 +15,7 @@ from .commands.watch import watch_study
 from .commands.logs import logs_study
 from .commands.graph import FORMATS, graph_workflow
 from .commands.clean import clean_study
+from .commands.completion import SHELLS, completion_script
 from .commands.doctor import doctor_check
 from .commands.setup import setup_concore
 from . import __version__
@@ -308,6 +309,13 @@ def clean(study_dir, dry_run, yes, force):
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
+
+
+@cli.command()
+@click.argument("shell", type=click.Choice(SHELLS))
+def completion(shell):
+    """Print the tab-completion script for bash, zsh or fish"""
+    click.echo(completion_script(cli, shell), nl=False)
 
 
 @cli.command()
