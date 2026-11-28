@@ -13,6 +13,8 @@ from .commands.run import run_study
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
 from .commands.logs import logs_study
+from .commands.graph import FORMATS, graph_workflow
+from .commands.clean import clean_study
 from .commands.completion import SHELLS, completion_script
 from .commands.doctor import doctor_check
 from .commands.setup import setup_concore
@@ -87,7 +89,12 @@ def init(name, template, interactive):
     is_flag=True,
     help="Configure compose for ZMQ networking mode (requires --compose)",
 )
-def build(workflow_file, source, output, type, auto_build, compose, zmq):
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Replace the output directory if it holds a previously generated study",
+)
+def build(workflow_file, source, output, type, auto_build, compose, zmq, force):
     """Compile a concore workflow into executable scripts"""
     if zmq and not compose:
         console.print("[red]Error:[/red] --zmq requires --compose")
@@ -102,6 +109,7 @@ def build(workflow_file, source, output, type, auto_build, compose, zmq):
             console,
             compose=compose,
             zmq_mode=zmq,
+            force=force,
         )
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
@@ -246,6 +254,56 @@ def logs(study_dir, node, lines, follow):
     """Show the output of a study's nodes (concoreout.txt)"""
     try:
         ok = logs_study(study_dir, node, lines, follow, console)
+        if not ok:
+            sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("workflow_file", type=click.Path(exists=True))
+@click.option(
+    "--format",
+    "-f",
+    "output_format",
+    default="mermaid",
+    show_default=True,
+    type=click.Choice(FORMATS),
+    help="Diagram format",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False),
+    help="Write to this file instead of printing",
+)
+def graph(workflow_file, output_format, output):
+    """Print a workflow as a Mermaid or Graphviz (dot) diagram"""
+    try:
+        text = graph_workflow(workflow_file, output_format)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+    if output:
+        with open(output, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        console.print(f"[green]Wrote[/green] {output}")
+    else:
+        click.echo(text, nl=False)
+
+
+@cli.command()
+@click.argument("study_dir", type=click.Path(exists=True))
+@click.option("--dry-run", is_flag=True, help="List what would be removed")
+@click.option("-y", "--yes", is_flag=True, help="Do not ask for confirmation")
+@click.option(
+    "--force", is_flag=True, help="Clean even if nodes look like they are still running"
+)
+def clean(study_dir, dry_run, yes, force):
+    """Remove run leftovers (node output, pid files, edge data) from a study"""
+    try:
+        ok = clean_study(study_dir, dry_run, yes, force, console)
         if not ok:
             sys.exit(1)
     except Exception as e:

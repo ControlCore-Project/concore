@@ -262,3 +262,56 @@ jobs:
           BREW=$(brew --prefix)
           g++ -std=c++11 -DCONCORE_USE_ZMQ -I. -I$BREW/include -L$BREW/lib -o TestConcoreZmq TestConcoreZmq.cpp -lzmq
           ./TestConcoreZmq
+
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Build sdist and wheel
+        run: |
+          pip install build twine
+          python -m build
+          twine check dist/*
+
+      - name: Install the wheel into a clean virtual environment
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install dist/*.whl
+
+      - name: Check mkconcore's runtime files are in the installed package
+        run: |
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/venv/bin/python" - <<'PY'
+          import importlib.util, os, re, sys
+
+          repo = os.environ["GITHUB_WORKSPACE"]
+          installed = os.path.dirname(importlib.util.find_spec("mkconcore").origin)
+          source = open(os.path.join(installed, "mkconcore.py")).read()
+          names = set(re.findall(r'CONCOREPATH\s*\+\s*"/([^"]+)"', source))
+          names |= set(re.findall(r'os\.path\.join\(CONCOREPATH,\s*"([^"]+)"', source))
+          # Only files that exist in the repo are expected in the package.
+          missing = sorted(
+              n for n in names
+              if os.path.exists(os.path.join(repo, n))
+              and not os.path.exists(os.path.join(installed, n))
+          )
+          if missing:
+              sys.exit("Referenced by mkconcore.py but missing from the wheel: " + ", ".join(missing))
+          print(f"OK: {len(names)} files referenced, none missing from the wheel")
+          PY
+
+      - name: Build studies with the installed concore command
+        run: |
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/venv/bin/concore" init proj
+          "$RUNNER_TEMP/venv/bin/concore" build proj/workflow.graphml --source proj/src --output posix-out --type posix
+          "$RUNNER_TEMP/venv/bin/concore" build proj/workflow.graphml --source proj/src --output docker-out --type docker
+          "$RUNNER_TEMP/venv/bin/concore" build "$GITHUB_WORKSPACE/testsou/testSM1.graphml" --source "$GITHUB_WORKSPACE/testsou" --output cpp-out --type posix
+          test -f cpp-out/src/concore.hpp
+          test -f docker-out/src/Dockerfile.script

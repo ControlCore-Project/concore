@@ -145,6 +145,9 @@ def convert_numpy_to_python(obj):
     if isinstance(obj, np.generic):
         # Convert numpy scalar types to Python native types
         return obj.item()
+    elif isinstance(obj, np.ndarray):
+        # tolist() also converts the elements to native Python types
+        return obj.tolist()
     elif isinstance(obj, list):
         return [convert_numpy_to_python(item) for item in obj]
     elif isinstance(obj, tuple):
@@ -396,6 +399,10 @@ def write(mod, port_identifier, name, val, delta=0):
     # Tuples get the same simtime prefix as lists (see issue #605).
     if isinstance(val, tuple):
         val = list(val)
+
+    # A bare array is sent as the list of its values.
+    if isinstance(val, np.ndarray):
+        val = val.tolist()
 
     # Case 1: ZMQ port
     if isinstance(port_identifier, str) and port_identifier in mod.zmq_ports:
