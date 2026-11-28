@@ -232,7 +232,7 @@ def validate_workflow(
 
             try:
                 # robust find: try with namespace prefix first, then without
-                label_tag = node.find("y:NodeLabel")
+                label_tag = node.find("NodeLabel")
                 if not label_tag:
                     label_tag = node.find("NodeLabel")
 
@@ -333,7 +333,7 @@ def validate_workflow(
 
         for edge in edges:
             try:
-                label_tag = edge.find("y:EdgeLabel")
+                label_tag = edge.find("EdgeLabel")
                 if not label_tag:
                     label_tag = edge.find("EdgeLabel")
 
@@ -449,7 +449,7 @@ def _check_zmq_ports(soup, errors, warnings):
     ports_used = {}
 
     for edge in edges:
-        label_tag = edge.find("y:EdgeLabel") or edge.find("EdgeLabel")
+        label_tag = edge.find("EdgeLabel")
         if not label_tag or not label_tag.text:
             continue
 

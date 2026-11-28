@@ -350,7 +350,7 @@ for node in nodes_text:
     try:
         data = node.find('data', recursive=False)
         if data:
-            node_label_tag = data.find('y:NodeLabel')
+            node_label_tag = data.find('NodeLabel')
             if node_label_tag:
                 node_label = prefixedgenode + node_label_tag.text
                 node_label = re.sub(r'(\s+|\n)', ' ', node_label)
@@ -393,7 +393,7 @@ for edge in edges_text:
     try:
         data = edge.find('data', recursive=False)
         if data:
-            edge_label_tag = data.find('y:EdgeLabel')
+            edge_label_tag = data.find('EdgeLabel')
             if edge_label_tag:
                 raw_label = edge_label_tag.text
                 edge_label = prefixedgenode + raw_label
@@ -464,7 +464,7 @@ logging.info("Aggregating ZMQ edge parameters for nodes...")
 if copy_script_py_path:
     for edge_element in soup.find_all('edge'):
         try:
-            edge_label_tag = edge_element.find('y:EdgeLabel')
+            edge_label_tag = edge_element.find('EdgeLabel')
             if not edge_label_tag or not edge_label_tag.text:
                 continue
             
@@ -805,7 +805,7 @@ for edge_label, (source_label, target_labels) in edges_dict.items():
 logging.info("Augmenting port maps with ZMQ connections...")
 for edge_element in soup.find_all('edge'):
     try:
-        edge_label_tag = edge_element.find('y:EdgeLabel')
+        edge_label_tag = edge_element.find('EdgeLabel')
         if not edge_label_tag or not edge_label_tag.text: continue
         match = edge_label_regex.match(edge_label_tag.text)
         if match:
