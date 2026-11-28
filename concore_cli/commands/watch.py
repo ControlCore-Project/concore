@@ -196,7 +196,7 @@ _RUNTIME_FILES = {"import_concore.m", "ConcoreJavaRuntimeCore.java"}
 
 
 def _detect_source(node_path):
-    for ext in ("*.py", "*.m", "*.cpp", "*.v", "*.sh", "*.java"):
+    for ext in ("*.py", "*.m", "*.cpp", "*.v", "*.sh", "*.java", "*.jl"):
         matches = list(node_path.glob(ext))
         for m in matches:
             # skip concore library copies

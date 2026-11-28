@@ -1,17 +1,19 @@
 import click
 from rich.console import Console
+import json
 import os
 import sys
 
 from .commands.init import init_project, init_project_interactive, run_wizard
 from .commands.build import build_workflow
 from .commands.validate import validate_workflow
-from .commands.status import show_status
+from .commands.status import show_status, status_data
 from .commands.stop import stop_all
 from .commands.run import run_study
 from .commands.inspect import inspect_workflow
 from .commands.watch import watch_study
 from .commands.logs import logs_study
+from .commands.graph import FORMATS, graph_workflow
 from .commands.clean import clean_study
 from .commands.doctor import doctor_check
 from .commands.setup import setup_concore
@@ -86,7 +88,12 @@ def init(name, template, interactive):
     is_flag=True,
     help="Configure compose for ZMQ networking mode (requires --compose)",
 )
-def build(workflow_file, source, output, type, auto_build, compose, zmq):
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Replace the output directory if it holds a previously generated study",
+)
+def build(workflow_file, source, output, type, auto_build, compose, zmq, force):
     """Compile a concore workflow into executable scripts"""
     if zmq and not compose:
         console.print("[red]Error:[/red] --zmq requires --compose")
@@ -101,6 +108,7 @@ def build(workflow_file, source, output, type, auto_build, compose, zmq):
             console,
             compose=compose,
             zmq_mode=zmq,
+            force=force,
         )
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
@@ -117,7 +125,15 @@ def build(workflow_file, source, output, type, auto_build, compose, zmq):
     type=click.Choice(["text", "json"]),
     help="Validation output format",
 )
-def validate(workflow_file, source, output_format):
+@click.option(
+    "--type",
+    "-t",
+    "exec_type",
+    default=None,
+    type=click.Choice(["windows", "posix", "docker"]),
+    help="Also check the workflow can be built for this execution type",
+)
+def validate(workflow_file, source, output_format, exec_type):
     """Validate a workflow file"""
     try:
         ok = validate_workflow(
@@ -125,6 +141,7 @@ def validate(workflow_file, source, output_format):
             source,
             console,
             output_format=output_format,
+            exec_type=exec_type,
         )
         if not ok:
             sys.exit(1)
@@ -149,10 +166,14 @@ def inspect(workflow_file, source, output_json):
 
 
 @cli.command()
-def status():
+@click.option("--json", "output_json", is_flag=True, help="Output in JSON format")
+def status(output_json):
     """Show running concore processes"""
     try:
-        show_status(console)
+        if output_json:
+            click.echo(json.dumps(status_data(), indent=2))
+        else:
+            show_status(console)
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
@@ -237,6 +258,38 @@ def logs(study_dir, node, lines, follow):
     except Exception as e:
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
+
+
+@cli.command()
+@click.argument("workflow_file", type=click.Path(exists=True))
+@click.option(
+    "--format",
+    "-f",
+    "output_format",
+    default="mermaid",
+    show_default=True,
+    type=click.Choice(FORMATS),
+    help="Diagram format",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False),
+    help="Write to this file instead of printing",
+)
+def graph(workflow_file, output_format, output):
+    """Print a workflow as a Mermaid or Graphviz (dot) diagram"""
+    try:
+        text = graph_workflow(workflow_file, output_format)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+        sys.exit(1)
+    if output:
+        with open(output, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        console.print(f"[green]Wrote[/green] {output}")
+    else:
+        click.echo(text, nl=False)
 
 
 @cli.command()

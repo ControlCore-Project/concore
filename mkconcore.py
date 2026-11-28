@@ -89,9 +89,10 @@ def safe_name(value, context, allow_path=False):
         pattern = r'[\x00-\x1F\x7F*?"<>|;&`$\'()]'
     else:
         # blocks path traversal (/, \, :) in addition to shell metacharacters
-        pattern = r'[\x00-\x1F\x7F\\/:*?"<>|;&`$\'()]'
+        pattern = r'[\x00-\x1F\x7F\\/:*?"<>|;&`$\'() ]'
     if re.search(pattern, value):
-        raise ValueError(f"Unsafe {context}: '{value}' contains illegal characters.")
+        hint = " Spaces are not allowed in names; use '_' instead." if " " in value and not allow_path else ""
+        raise ValueError(f"Unsafe {context}: '{value}' contains illegal characters.{hint}")
     return value
 
 def safe_relpath(value, context):
@@ -335,6 +336,10 @@ soup = BeautifulSoup(text_str, 'xml')
 edges_text = soup.find_all('edge')
 nodes_text = soup.find_all('node')
 
+if not nodes_text:
+    logging.error(f"No nodes found in {GRAPHML_FILE}. Is it a valid GraphML workflow?")
+    sys.exit(1)
+
 # Store the edges and nodes in a dictionary
 edge_label_regex = re.compile(r"0x([a-fA-F0-9]+)_(\S+)")
 edges_dict = dict()
@@ -354,7 +359,9 @@ for node in nodes_text:
                 if ':' in node_label:
                     container_part, source_part = node_label.split(':', 1)
                     safe_name(container_part, f"Node container name '{container_part}'")
-                    source_part = safe_relpath(source_part, f"Node source file '{source_part}'")
+                    # A node may have no source file (port endpoints such as 'IN:' / 'OUT:').
+                    if source_part:
+                        source_part = safe_relpath(source_part, f"Node source file '{source_part}'")
                     node_label = f"{container_part}:{source_part}"
                 else:
                     safe_name(node_label, f"Node label '{node_label}'")
@@ -370,6 +377,16 @@ label_values = list(nodes_dict.values())
 duplicates = {label for label in label_values if label_values.count(label) > 1}
 if duplicates:
     logging.error(f"Duplicate node labels found: {sorted(duplicates)}")
+    sys.exit(1)
+
+# Two nodes with the same container name would share one directory
+containers = {}
+for _label in label_values:
+    containers.setdefault(_label.split(':')[0], []).append(_label)
+shared = {name: labels for name, labels in containers.items() if len(labels) > 1}
+if shared:
+    for name, labels in sorted(shared.items()):
+        logging.error(f"Container name '{name}' is used by more than one node: {', '.join(labels)}")
     sys.exit(1)
 
 for edge in edges_text:
@@ -442,6 +459,7 @@ if not os.path.exists(copy_script_py_path):
 node_edge_params = {}
 edge_label_regex = re.compile(r"0x([^_]+)_(\S+)")
 
+missing_sources = []
 logging.info("Aggregating ZMQ edge parameters for nodes...")
 if copy_script_py_path:
     for edge_element in soup.find_all('edge'):
@@ -537,6 +555,7 @@ if node_edge_params:
         template_script_full_path = os.path.join(sourcedir, original_script)
         if not os.path.exists(template_script_full_path):
             logging.error(f"Cannot specialize: Original script '{template_script_full_path}' not found in '{sourcedir}'.")
+            missing_sources.append(original_script)
             continue
 
         new_script_relpath = copy_with_port_portname.run_specialization_script(
@@ -606,6 +625,8 @@ for node_id_key in list(nodes_dict.keys()):
             shutil.copy2(script_source_path, script_target_path)
         else:
             logging.error(f"Script '{sourcecode}' not found in sourcedir '{sourcedir}'")
+            if "." in sourcecode:  # pulled containers have no source file
+                missing_sources.append(sourcecode)
 
     # The rest of the file handling (Dockerfiles, .dir) uses 'dockername',
     # which is now derived from the specialized script name, maintaining consistency.
@@ -618,6 +639,10 @@ for node_id_key in list(nodes_dict.keys()):
     if os.path.isdir(os.path.join(sourcedir, dir_for_node)):
         shutil.copytree(os.path.join(sourcedir, dir_for_node), os.path.join(outdir, "src", dir_for_node), dirs_exist_ok=True)
 
+
+if missing_sources:
+    logging.error(f"Node source file(s) not found in {sourcedir}: {', '.join(sorted(set(missing_sources)))}")
+    sys.exit(1)
 
 #determine languages used in the graphml
 required_langs = set()
