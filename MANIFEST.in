@@ -1,0 +1,10 @@
+# Runtime files mkconcore.py copies into generated studies (see setup.py).
+include concore*.hpp concore*.v concore*.java ConcoreJavaRuntimeCore.java
+include concore*.jl
+include concore_default_maxtime.m concore_initval.m concore_iport.m
+include concore_literal_eval.m concore_literal_serialize.m concore_oport.m
+include concore_read.m concore_unchanged.m concore_write.m
+include import_concore.m import_concoredocker.m
+include Dockerfile.* mkcompile
+include concore.octave concore.mcr concore.sudo concore.repo concore.tools
+include tools/extract_graphml.py

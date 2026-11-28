@@ -89,9 +89,10 @@ def safe_name(value, context, allow_path=False):
         pattern = r'[\x00-\x1F\x7F*?"<>|;&`$\'()]'
     else:
         # blocks path traversal (/, \, :) in addition to shell metacharacters
-        pattern = r'[\x00-\x1F\x7F\\/:*?"<>|;&`$\'()]'
+        pattern = r'[\x00-\x1F\x7F\\/:*?"<>|;&`$\'() ]'
     if re.search(pattern, value):
-        raise ValueError(f"Unsafe {context}: '{value}' contains illegal characters.")
+        hint = " Spaces are not allowed in names; use '_' instead." if " " in value and not allow_path else ""
+        raise ValueError(f"Unsafe {context}: '{value}' contains illegal characters.{hint}")
     return value
 
 def safe_relpath(value, context):
@@ -358,7 +359,9 @@ for node in nodes_text:
                 if ':' in node_label:
                     container_part, source_part = node_label.split(':', 1)
                     safe_name(container_part, f"Node container name '{container_part}'")
-                    source_part = safe_relpath(source_part, f"Node source file '{source_part}'")
+                    # A node may have no source file (port endpoints such as 'IN:' / 'OUT:').
+                    if source_part:
+                        source_part = safe_relpath(source_part, f"Node source file '{source_part}'")
                     node_label = f"{container_part}:{source_part}"
                 else:
                     safe_name(node_label, f"Node label '{node_label}'")
@@ -374,6 +377,16 @@ label_values = list(nodes_dict.values())
 duplicates = {label for label in label_values if label_values.count(label) > 1}
 if duplicates:
     logging.error(f"Duplicate node labels found: {sorted(duplicates)}")
+    sys.exit(1)
+
+# Two nodes with the same container name would share one directory
+containers = {}
+for _label in label_values:
+    containers.setdefault(_label.split(':')[0], []).append(_label)
+shared = {name: labels for name, labels in containers.items() if len(labels) > 1}
+if shared:
+    for name, labels in sorted(shared.items()):
+        logging.error(f"Container name '{name}' is used by more than one node: {', '.join(labels)}")
     sys.exit(1)
 
 for edge in edges_text:
