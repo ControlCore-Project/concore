@@ -134,6 +134,23 @@ class TestSetupCommand(unittest.TestCase):
         self.assertIn("CPPEXE=/usr/bin/g++", content)
         self.assertIn("PYTHONEXE=/usr/bin/python3", content)
 
+    @patch("concore_cli.commands.setup._resolve_concore_path")
+    @patch("concore_cli.commands.setup._detect_tool")
+    @patch("concore_cli.commands.setup._get_platform_key")
+    def test_setup_writes_julia_path(self, mock_plat, mock_detect, mock_path):
+        for plat, key in (("posix", "JULIAEXE"), ("windows", "JULIAWIN")):
+            mock_plat.return_value = plat
+            mock_path.return_value = Path(self.temp_dir)
+            mock_detect.side_effect = lambda names: (
+                ("/usr/bin/julia", "julia") if "julia" in names else (None, None)
+            )
+
+            result = self.runner.invoke(cli, ["setup", "--force"])
+            self.assertEqual(result.exit_code, 0)
+
+            tools_file = Path(self.temp_dir) / "concore.tools"
+            self.assertEqual(tools_file.read_text(), f"{key}=/usr/bin/julia\n")
+
 
 if __name__ == "__main__":
     unittest.main()
